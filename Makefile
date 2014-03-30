@@ -13,3 +13,5 @@ include mklove/Makefile.base
 install: bin-install
 
 clean: bin-clean
+
+-include $(DEPS)
