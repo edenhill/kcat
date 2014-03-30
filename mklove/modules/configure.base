@@ -861,7 +861,7 @@ function mkl_compile_check {
 int main () { return 0; }
 " >> $srcfile
 
-    local cmd="${!4} $cflags $(mkl_mkvar_get CPPFLAGS) -Wall -Werror $5 $srcfile -o ${srcfile}.o";
+    local cmd="${!4} $cflags $(mkl_mkvar_get CPPFLAGS) -Wall -Werror $5 $srcfile -o ${srcfile}.o $(mkl_mkvar_get LDFLAGS)";
     mkl_dbg "Compile check $1 ($2): $cmd"
 
     local output
