@@ -31,7 +31,7 @@ cd ../../
 echo "Building kafkacat"
 export CFLAGS="$CFLAGS -Itmp-bootstrap/usr/include"
 export LDFLAGS="$LDFLAGS -Ltmp-bootstrap/usr/lib"
-./configure || exit 1
+./configure --enable-static || exit 1
 make || exit 1
 
 echo ""

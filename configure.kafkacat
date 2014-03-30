@@ -4,7 +4,8 @@
 mkl_require good_cflags
 
 function checks {
-    mkl_lib_check "librdkafka" "" fail CC "-lrdkafka -lpthread -lz" \
+    # Check that librdkafka is available, and allow to link it statically.
+    mkl_lib_check --static=-lrdkafka "librdkafka" "" fail CC "-lrdkafka -lpthread -lz" \
        "#include <librdkafka/rdkafka.h>"
 
     # -lrt required on linux

@@ -925,6 +925,8 @@ $output"
 # Checks that the specified lib is available through a number of methods.
 # compiler flags are automatically appended to "LIBS" mkvar on success.
 # Arguments:
+#  [--static=<lib>]  (allows static linking (--enable-static) for the
+#                     library provided, e.g.: --static=-lrdkafka "librdkafka"..)
 #  config name (library name (for pkg-config))
 #  define name
 #  action (fail|disable|cont)
@@ -933,8 +935,14 @@ $output"
 #  source snippet
 function mkl_lib_check {
 
+    local staticopt=
+    if [[ $1 == --static* ]]; then
+        staticopt=$1
+        shift
+    fi
+
     if [[ $WITH_PKGCONFIG == "y" ]]; then
-        if mkl_pkg_config_check "$1" "$2" cont; then
+        if mkl_pkg_config_check $staticopt "$1" "$2" cont; then
             return $?
         fi
     fi
@@ -943,17 +951,31 @@ function mkl_lib_check {
         return $?
     fi
 
-    mkl_mkvar_append "$1" LIBS "$5"
+    local libs="$5"
+    if [[ $WITH_STATIC_LINKING == y && ! -z $staticopt ]]; then
+        local libname=${staticopt#*=}
+        libs=$(echo $libs | sed -e "s|$libname|${LDFLAGS_STATIC} $libname ${LDFLAGS_DYNAMIC}|g")
+    fi
+    mkl_mkvar_append "$1" LIBS "$libs"
 }
 
 
 # Check for library with pkg-config
 # Automatically sets CFLAGS and LIBS from pkg-config information.
 # Arguments:
+#  [--static=<lib>]  (allows static linking (--enable-static) for the
+#                     library provided, e.g.: --static=-lrdkafka "librdkafka"..)
 #  config name
 #  define name
 #  action (fail|disable|ignore)
 function mkl_pkg_config_check {
+    local staticopt=
+
+    if [[ $1 == --static* ]]; then
+        staticopt=$1
+        shift
+    fi
+
     mkl_check_begin "$1" "$2" "no-cache" "$1 (by pkg-config)" && return $?
 
     local cflags=
@@ -977,7 +999,13 @@ $cflags"
     fi
 
     mkl_mkvar_append $1 "CFLAGS" "$cflags"
-    mkl_mkvar_append $1 "LIBS" "$libs"
+
+    if [[ $WITH_STATIC_LINKING == y && ! -z $staticopt ]]; then
+        local libname=${staticopt#*=}
+        libs=$(echo $libs | sed -e "s|$libname|${LDFLAGS_STATIC} $libname ${LDFLAGS_DYNAMIC}|g")
+    fi
+    mkl_mkvar_append "$1" LIBS "$libs"
+
     mkl_check_done "$1" "$2" "$3" "ok"
 
     return 0

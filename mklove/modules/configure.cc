@@ -105,6 +105,14 @@ function checks {
         mkl_mkvar_append CPPFLAGS CPPFLAGS "-O0"
     fi
 
+    # Static linking
+    if [[ $WITH_STATIC_LINKING == y ]]; then
+        # LDFLAGS_STATIC is the LDFLAGS needed to enable static linking
+        # of sub-sequent libraries, while
+        # LDFLAGS_DYNAMIC is the LDFLAGS needed to enable dynamic linking.
+        mkl_mkvar_set staticlinking LDFLAGS_STATIC  "-Wl,-Bstatic"
+        mkl_mkvar_set staticlinking LDFLAGS_DYNAMIC "-Wl,-Bdynamic"
+    fi
 }
 
 
@@ -121,5 +129,5 @@ done
 mkl_option "Compiler" "env:PKG_CONFIG_PATH" "--pkg-config-path" "Extra paths for pkg-config"
 
 mkl_option "Compiler" "WITH_PROFILING" "--enable-profiling" "Enable profiling"
-
+mkl_option "Compiler" "WITH_STATIC_LINKING" "--enable-static" "Enable static linking"
 mkl_option "Compiler" "WITHOUT_OPTIMIZATION" "--disable-optimization" "Disable optimization flag to compiler" "n"
