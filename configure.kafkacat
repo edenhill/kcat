@@ -1,0 +1,12 @@
+#!/bin/bash
+#
+
+mkl_require good_cflags
+
+function checks {
+    mkl_lib_check "librdkafka" "" fail CC "-lrdkafka -lpthread -lz" \
+       "#include <librdkafka/rdkafka.h>"
+
+    # -lrt required on linux
+    mkl_lib_check "librt" "" cont CC "-lrt"
+}
