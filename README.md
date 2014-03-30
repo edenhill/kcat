@@ -1,5 +1,7 @@
-kafkacat - generic Apache Kafka producer and consumer
-=====================================================
+kafkacat
+========
+Copyright (c) 2014, Magnus Edenhill
+
 https://github.com/edenhill/kafkacat
 
 **kafkacat** is a generic producer and consumer for Apache Kafka 0.8,
