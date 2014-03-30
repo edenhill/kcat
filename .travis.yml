@@ -4,4 +4,4 @@ compiler:
   - clang
 
 script:
-  ./configure && make
+  ./bootstrap.sh
