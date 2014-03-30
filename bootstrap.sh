@@ -29,7 +29,8 @@ make DESTDIR="${PWD}/../" install || exit 1
 
 cd ../../
 echo "Building kafkacat"
-export CPPFLAGS="$CPPFLAGS -Itmp-bootstrap/usr/local/include -Ltmp-bootstrap/usr/local/lib"
+export CPPFLAGS="$CPPFLAGS -Itmp-bootstrap/usr/local/include"
+export LDFLAGS="$LDFLAGS -Ltmp-bootstrap/usr/local/lib"
 ./configure --enable-static || exit 1
 make || exit 1
 
