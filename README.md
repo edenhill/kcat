@@ -31,6 +31,16 @@ state of the Kafka cluster and its topics and partitions.
     make
     sudo make install
 
+# Quick build
+
+The bootstrap.sh build script will download and build the required dependencies,
+providing a quick and easy means of building kafkacat.
+Internet connectivity and wget is required by this script.
+The resulting kafkacat binary will be linked statically to avoid runtime
+dependencies.
+
+    ./bootstrap.sh
+
 
 # Examples
 
