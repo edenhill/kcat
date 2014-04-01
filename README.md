@@ -58,7 +58,7 @@ dependencies.
 ````
 $ kafkacat -L -b mybroker
 Metadata for all topics (from broker 1: mybroker:9092/1):
- 2 brokers:
+ 3 brokers:
   broker 1 at mybroker:9092
   broker 2 at mybrokertoo:9092
   broker 3 at thirdbroker:9092
