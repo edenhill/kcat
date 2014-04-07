@@ -97,9 +97,9 @@ lib-install:
 	$(INSTALL) -d $$DESTDIR$(includedir)/$(PKGNAME) ; \
 	$(INSTALL) -d $$DESTDIR$(libdir) ; \
 	$(INSTALL) $(HDRS) $$DESTDIR$(includedir)/$(PKGNAME) ; \
-	$(INSTALL) $(LIBNAME).a $$DESTDIR/$(libdir) ; \
-	$(INSTALL) $(LIBNAME).so.$(LIBVER) $$DESTDIR/$(libdir) ; \
-	(cd $$DESTDIR/$(libdir) && ln -sf $(LIBNAME).so.$(LIBVER) $(LIBNAME).so)
+	$(INSTALL) $(LIBNAME).a $$DESTDIR$(libdir) ; \
+	$(INSTALL) $(LIBNAME).so.$(LIBVER) $$DESTDIR$(libdir) ; \
+	(cd $$DESTDIR$(libdir) && ln -sf $(LIBNAME).so.$(LIBVER) $(LIBNAME).so)
 
 lib-uninstall:
 	@echo "$(MKL_YELLOW)Uninstall $(LIBNAME) from $$DESTDIR$(prefix)$(MKL_CLR_RESET)"
@@ -114,7 +114,7 @@ lib-uninstall:
 bin-install:
 	@echo "$(MKL_YELLOW)Install $(BIN) to $$DESTDIR$(prefix)$(MKL_CLR_RESET)"
 	$(INSTALL) -d $$DESTDIR$(bindir) && \
-	$(INSTALL) $(BIN) $$DESTDIR/$(bindir) 
+	$(INSTALL) $(BIN) $$DESTDIR$(bindir) 
 
 bin-uninstall:
 	@echo "$(MKL_YELLOW)Uninstall $(BIN) from $$DESTDIR$(prefix)$(MKL_CLR_RESET)"
