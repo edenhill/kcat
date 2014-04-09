@@ -285,17 +285,19 @@ function mkl_fail_summary {
     for n in $MKL_FAILS ; do
         local conf=$(mkl_var_get MKL_FAIL__${n}__conf)
         mkl_err  " $conf ($(mkl_var_get MKL_FAIL__${n}__define)) $(mkl_meta_get $conf name)"
+        if mkl_meta_exists $conf desc; then
+            mkl_err0 "      desc: $MKL_YELLOW$(mkl_meta_get $conf desc)$MKL_CLR_RESET"
+        fi
         mkl_err0 "    module: $(mkl_var_get MKL_FAIL__${n}__module)"
         mkl_err0 "    action: $(mkl_var_get MKL_FAIL__${n}__action)"
         mkl_err0 "    reason:
 $(mkl_var_get MKL_FAIL__${n}__reason)
 "
-
         # Dig up some metadata to assist the user
         case $MKL_DISTRO in
-            debian|ubuntu|*)
+            Debian|Ubuntu|*)
                 local debs=$(mkl_meta_get $conf "deb")
-                pkg_cmd="sudo apt-get install "
+                pkg_cmd="sudo apt-get install"
                 if [[ ${#debs} > 0 ]]; then
                     install_pkgs="$install_pkgs $debs"
                 fi
@@ -554,7 +556,7 @@ function mkl_err {
 # Argument:
 #  string ..
 function mkl_err0 {
-    echo "$*" 1>&2
+    echo -e "$*" 1>&2
     echo "$*" >> $MKL_OUTDBG
 }
 
@@ -749,6 +751,20 @@ function mkl_meta_get {
         echo "$3"
     fi
 }
+
+# Checks if metadata exists
+# Arguments:
+#   config name
+#   metadata key
+function mkl_meta_exists {
+    local metaname="mkl__$1__$2"
+    if [[ ! -z ${!metaname} ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 
 
 

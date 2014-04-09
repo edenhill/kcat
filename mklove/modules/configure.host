@@ -19,6 +19,38 @@ mkl_option "Cross-compilation" "mk:HOST" "--host=HOST" "Configure to build progr
 mkl_option "Cross-compilation" "mk:BUILD" "--build=BUILD" "Configure for building on BUILD (no-op)"
 mkl_option "Cross-compilation" "mk:TARGET" "--target=TARGET" "Configure for building cross-toolkits for platform TARGET (no-op)"
 
+function checks {
+    # Try to figure out what OS/distro we are running on.
+    mkl_check_begin "distro" "" "no-cache" "OS or distribution"
+
+    # Try lsb_release
+    local sys=$(lsb_release -is 2>/dev/null)
+    if [[ $? -gt 0 ]]; then
+        # That didnt work, try uname.
+        local kn=$(uname -s)
+        case $kn in
+            Linux)
+                sys=Linux
+                ;;
+            Darwin)
+                sys=osx
+                ;;
+            CYGWIN*)
+                sys=Cygwin
+                ;;
+            *)
+                sys="$kn"
+                ;;
+        esac
+    fi
+
+    if [[ -z $sys ]]; then
+        mkl_check_failed "distro" "" "ignore" ""
+    else
+        mkl_check_done "distro" "" "ignore" "ok" "$sys"
+        mkl_mkvar_set "distro" "MKL_DISTRO" "$sys"
+    fi
+}
 
 #function checks {
 #    mkl_check_begin "host" "HOST_OS" "no-cache" "host OS"
