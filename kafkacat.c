@@ -276,7 +276,10 @@ static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
 static void consumer_run (FILE *fp) {
         char    errstr[512];
 
-        /* Create producer */
+        if (conf.partition == RD_KAFKA_PARTITION_UA)
+                FATAL("Consumer requires -p <partition>");
+
+        /* Create consumer */
         if (!(conf.rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf.rk_conf,
                                      errstr, sizeof(errstr))))
                 FATAL("Failed to create producer: %s", errstr);
