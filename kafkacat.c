@@ -52,6 +52,7 @@ static struct conf {
         int32_t partition;
         int64_t offset;
         int     exit_eof;
+        int64_t msg_cnt;
 
         rd_kafka_conf_t       *rk_conf;
         rd_kafka_topic_conf_t *rkt_conf;
@@ -121,8 +122,10 @@ static void produce (void *buf, size_t len, int msgflags) {
                               "producing message of %zd bytes", len);
 
                 if (rd_kafka_produce(conf.rkt, conf.partition, msgflags,
-                                     buf, len, NULL, 0, NULL) != -1)
+                                     buf, len, NULL, 0, NULL) != -1) {
+                        stats.tx++;
                         break;
+                }
 
                 err = rd_kafka_errno2err(errno);
 
@@ -202,6 +205,10 @@ static void producer_run (FILE *fp) {
                         buf  = NULL;
                         size = 0;
                 }
+
+                /* Enforce -c <cnt> */
+                if (stats.tx == conf.msg_cnt)
+                        conf.run = 0;
         }
 
         if (conf.run) {
@@ -257,6 +264,9 @@ static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
                 FATAL("Write error for message "
                       "of %zd bytes at offset %"PRId64"): %s",
                       rkmessage->len, rkmessage->offset, strerror(errno));
+
+        if (++stats.rx == conf.msg_cnt)
+                conf.run = 0;
 }
 
 
@@ -437,6 +447,7 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                "  -D <delim>         Message delimiter character:\n"
                "                     a-z.. | \\r | \\n | \\t | \\xNN\n"
                "                     Default: \\n\n"
+               "  -c <cnt>           Limit message count\n"
                "  -X list            List available librdkafka configuration "
                "properties\n"
                "  -X prop=val        Set librdkafka configuration property.\n"
@@ -452,6 +463,8 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                "  -z snappy|gzip     Message compression. Default: none\n"
                "  -p -1              Use random partitioner\n"
                "  -D <delim>         Delimiter to split input into messages\n"
+               "  -c <cnt>           Exit after producing this number "
+               "of messages\n"
                "\n"
                "Consumer options:\n"
                "  -o <offset>        Offset to start consuming from:\n"
@@ -459,6 +472,8 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                "  -e                 Exit successfully when last message "
                "received\n"
                "  -D <delim>         Delimiter to separate messages on output\n"
+               "  -c <cnt>           Exit after consuming this number "
+               "of messages\n"
                "\n"
                "Metadata options:\n"
                "  -t <topic>         Topic to query (optional)\n"
@@ -497,7 +512,7 @@ static void argparse (int argc, char **argv) {
         char errstr[512];
         int opt;
 
-	while ((opt = getopt(argc, argv, "PCLt:p:b:z:o:eD:d:qvX:")) != -1) {
+	while ((opt = getopt(argc, argv, "PCLt:p:b:z:o:eD:d:qvX:c:")) != -1) {
 		switch (opt) {
 		case 'P':
 		case 'C':
@@ -543,6 +558,9 @@ static void argparse (int argc, char **argv) {
                                 conf.delim = (int)'\t';
                         else
                                 conf.delim = (int)*optarg & 0xff;
+                        break;
+                case 'c':
+                        conf.msg_cnt = strtoll(optarg, NULL, 10);
                         break;
 		case 'd':
 			conf.debug = optarg;
