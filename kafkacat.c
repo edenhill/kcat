@@ -36,6 +36,10 @@
 #include <inttypes.h>
 #include <signal.h>
 #include <syslog.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/mman.h>
 
 #include <librdkafka/rdkafka.h>
 
@@ -44,6 +48,7 @@
 static struct conf {
         int     run;
         int     verbosity;
+        int     exitcode;
         char    mode;
         int     delim;
         int     msg_size;
@@ -147,9 +152,51 @@ static void produce (void *buf, size_t len, int msgflags) {
 
 
 /**
- * Run producer, reading messages from 'fp' and producing to kafka.
+ * Produce contents of file as a single message.
+ * Returns the file length on success, else -1.
  */
-static void producer_run (FILE *fp) {
+static ssize_t produce_file (const char *path) {
+        int fd;
+        void *ptr;
+        struct stat st;
+
+        if ((fd = open(path, O_RDONLY)) == -1) {
+                INFO(1, "Failed to open %s: %s\n", path, strerror(errno));
+                return -1;
+        }
+
+        if (fstat(fd, &st) == -1) {
+                INFO(1, "Failed to stat %s: %s\n", path, strerror(errno));
+                close(fd);
+                return -1;
+        }
+
+        if (st.st_size == 0) {
+                INFO(3, "Skipping empty file %s\n", path);
+                close(fd);
+                return 0;
+        }
+
+        ptr = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+        if (ptr == MAP_FAILED) {
+                INFO(1, "Failed to mmap %s: %s\n", path, strerror(errno));
+                close(fd);
+                return -1;
+        }
+
+        INFO(4, "Producing file %s (%zd bytes)\n", path, st.st_size);
+        produce(ptr, st.st_size, RD_KAFKA_MSG_F_COPY);
+
+        munmap(ptr, st.st_size);
+        return st.st_size;
+}
+
+
+/**
+ * Run producer, reading messages from 'fp' and producing to kafka.
+ * Or if 'pathcnt' is > 0, read messages from files in 'paths' instead.
+ */
+static void producer_run (FILE *fp, char **paths, int pathcnt) {
         char   *buf  = NULL;
         size_t  size = 0;
         ssize_t len;
@@ -172,48 +219,70 @@ static void producer_run (FILE *fp) {
         conf.rk_conf  = NULL;
         conf.rkt_conf = NULL;
 
-        /* Read messages from stdin, delimited by conf.delim */
-        while (conf.run &&
-               (len = getdelim(&buf, &size, conf.delim, fp)) != -1) {
-                int msgflags = 0;
 
-                if (len == 0)
-                        continue;
+        if (pathcnt > 0) {
+                int i;
+                int good = 0;
+                /* Read messages from files, each file is its own message. */
 
-                /* Shave off delimiter */
-                if ((int)buf[len-1] == conf.delim)
-                        len--;
+                for (i = 0 ; i < pathcnt ; i++)
+                        if (produce_file(paths[i]) != -1)
+                                good++;
 
-                if (len == 0)
-                        continue;
+                if (!good)
+                        conf.exitcode = 1;
+                else if (good < pathcnt)
+                        INFO(1, "Failed to produce from %i/%i files\n",
+                             pathcnt - good, pathcnt);
 
-                if (len > 1024) {
-                        /* If message is larger than this arbitrary threshold
-                         * it will be more effective to not copy the data
-                         * but let rdkafka own it instead. */
-                        msgflags |= RD_KAFKA_MSG_F_FREE;
-                } else {
-                        /* For smaller messages a copy is more efficient. */
-                        msgflags |= RD_KAFKA_MSG_F_COPY;
+        } else {
+                /* Read messages from stdin, delimited by conf.delim */
+                while (conf.run &&
+                       (len = getdelim(&buf, &size, conf.delim, fp)) != -1) {
+                        int msgflags = 0;
+
+                        if (len == 0)
+                                continue;
+
+                        /* Shave off delimiter */
+                        if ((int)buf[len-1] == conf.delim)
+                                len--;
+
+                        if (len == 0)
+                                continue;
+
+                        if (len > 1024) {
+                                /* If message is larger than this arbitrary
+                                 * threshold it will be more effective to
+                                 * not copy the data but let rdkafka own it
+                                 * instead. */
+                                msgflags |= RD_KAFKA_MSG_F_FREE;
+                        } else {
+                                /* For smaller messages a copy is
+                                 * more efficient. */
+                                msgflags |= RD_KAFKA_MSG_F_COPY;
+                        }
+
+                        /* Produce message */
+                        produce(buf, len, msgflags);
+
+                        if (msgflags & RD_KAFKA_MSG_F_FREE) {
+                                /* rdkafka owns the allocated buffer
+                                 * memory now. */
+                                buf  = NULL;
+                                size = 0;
+                        }
+
+                        /* Enforce -c <cnt> */
+                        if (stats.tx == conf.msg_cnt)
+                                conf.run = 0;
                 }
 
-                /* Produce message */
-                produce(buf, len, msgflags);
-
-                if (msgflags & RD_KAFKA_MSG_F_FREE) {
-                        /* rdkafka owns the allocated buffer memory now. */
-                        buf  = NULL;
-                        size = 0;
+                if (conf.run) {
+                        if (!feof(fp))
+                                FATAL("Unable to read message: %s",
+                                      strerror(errno));
                 }
-
-                /* Enforce -c <cnt> */
-                if (stats.tx == conf.msg_cnt)
-                        conf.run = 0;
-        }
-
-        if (conf.run) {
-                if (!feof(fp))
-                        FATAL("Unable to read message: %s", strerror(errno));
         }
 
         /* Wait for all messages to be transmitted */
@@ -435,7 +504,7 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
         if (reason)
                 printf("Error: %s\n\n", reason);
 
-        printf("Usage: %s <options>\n"
+        printf("Usage: %s <options> [file1 file2 ..]\n"
                "kafkacat - Apache Kafka producer and consumer tool\n"
                "https://github.com/edenhill/kafkacat\n"
                "Copyright (c) 2014, Magnus Edenhill\n"
@@ -477,6 +546,9 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                "  -D <delim>         Delimiter to separate messages on output\n"
                "  -c <cnt>           Exit after consuming this number "
                "of messages\n"
+               "  file1 file2..      Read messages from files.\n"
+               "                     The entire file contents will be sent as\n"
+               "                     one single message.\n"
                "\n"
                "Metadata options:\n"
                "  -t <topic>         Topic to query (optional)\n"
@@ -706,6 +778,9 @@ int main (int argc, char **argv) {
                 exit(0);
         }
 
+        if (optind < argc && conf.mode != 'P')
+                usage(argv[0], 1, "file list only allowed in produce mode");
+
         /* Run according to mode */
         switch (conf.mode)
         {
@@ -714,7 +789,7 @@ int main (int argc, char **argv) {
                 break;
 
         case 'P':
-                producer_run(stdin);
+                producer_run(stdin, &argv[optind], argc-optind);
                 break;
 
         case 'L':
@@ -726,5 +801,5 @@ int main (int argc, char **argv) {
                 break;
         }
 
-        exit(0);
+        exit(conf.exitcode);
 }

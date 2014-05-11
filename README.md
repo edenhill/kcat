@@ -53,6 +53,12 @@ dependencies.
 
     $ kafkacat -b mybroker -t syslog -p 0
 
+
+### Produce messages from file (one file is one message)
+
+    $ kafkacat -P -b mybroker -t filedrop -p 0 myfile1.bin /etc/motd thirdfile.tgz
+
+
 ### Metadata listing
 
 ````
