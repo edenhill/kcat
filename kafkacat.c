@@ -549,6 +549,7 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                "  -D <delim>         Delimiter to separate messages on output\n"
                "  -c <cnt>           Exit after consuming this number "
                "of messages\n"
+               "  -u                 Unbuffered output\n"
                "\n"
                "Metadata options:\n"
                "  -t <topic>         Topic to query (optional)\n"
@@ -587,7 +588,7 @@ static void argparse (int argc, char **argv) {
         char errstr[512];
         int opt;
 
-	while ((opt = getopt(argc, argv, "PCLt:p:b:z:o:eD:d:qvX:c:")) != -1) {
+	while ((opt = getopt(argc, argv, "PCLt:p:b:z:o:eD:d:qvX:c:u")) != -1) {
 		switch (opt) {
 		case 'P':
 		case 'C':
@@ -649,6 +650,9 @@ static void argparse (int argc, char **argv) {
 			break;
                 case 'v':
                         conf.verbosity++;
+                        break;
+                case 'u':
+                        setbuf(stdout, NULL);
                         break;
 		case 'X':
 		{
