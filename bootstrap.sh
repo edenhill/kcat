@@ -16,7 +16,12 @@ cd tmp-bootstrap || exit 1
 
 if [[ ! -d librdkafka-$LIBRDKAFKA_VERSION ]]; then
     echo "Downloading librdkafka-$LIBRDKAFKA_VERSION"
-    wget -O- "https://github.com/edenhill/librdkafka/archive/${LIBRDKAFKA_VERSION}.tar.gz" | \
+    if [[ $(which wget 2>&1 > /dev/null) ]]; then
+	DL='wget -O-'
+    else
+	DL='curl -L'
+    fi
+    $DL "https://github.com/edenhill/librdkafka/archive/${LIBRDKAFKA_VERSION}.tar.gz" | \
         tar xzf -
     [[ $? -eq 0 ]] || exit 1
 fi
