@@ -209,6 +209,8 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
 
         if (conf.debug)
                 rd_kafka_set_log_level(conf.rk, LOG_DEBUG);
+	else if (conf.verbosity == 0)
+		rd_kafka_set_log_level(conf.rk, 0);
 
         /* Create topic */
         if (!(conf.rkt = rd_kafka_topic_new(conf.rk, conf.topic,
@@ -355,6 +357,8 @@ static void consumer_run (FILE *fp) {
 
         if (conf.debug)
                 rd_kafka_set_log_level(conf.rk, LOG_DEBUG);
+	else if (conf.verbosity == 0)
+		rd_kafka_set_log_level(conf.rk, 0);
 
         /* Create topic */
         if (!(conf.rkt = rd_kafka_topic_new(conf.rk, conf.topic,
@@ -466,6 +470,8 @@ static void metadata_list (void) {
         rd_kafka_set_logger(conf.rk, rd_kafka_log_print);
         if (conf.debug)
                 rd_kafka_set_log_level(conf.rk, LOG_DEBUG);
+	else if (conf.verbosity == 0)
+		rd_kafka_set_log_level(conf.rk, 0);
 
         /* Create topic, if specified */
         if (conf.topic &&
