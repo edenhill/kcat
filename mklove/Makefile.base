@@ -14,6 +14,9 @@ DEPS=		$(OBJS:%.o=%.d)
 MKLOVE_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 TOPDIR = $(MKLOVE_DIR:mklove/=.)
 
+# Silence lousy default ARFLAGS (rv)
+ARFLAGS=
+
 -include $(TOPDIR)/Makefile.config
 
 INSTALL?=		install
@@ -69,7 +72,7 @@ $(LIBNAME).so.$(LIBVER): $(OBJS) $(LIBNAME).lds
 
 $(LIBNAME).a:	$(OBJS)
 	@echo "$(MKL_YELLOW)Creating static library $@$(MKL_CLR_RESET)"
-	$(AR) rcs $@ $(OBJS)
+	$(AR) rcs$(ARFLAGS) $@ $(OBJS)
 
 
 $(BIN): $(OBJS)

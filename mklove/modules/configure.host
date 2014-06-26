@@ -24,7 +24,8 @@ function checks {
     mkl_check_begin "distro" "" "no-cache" "OS or distribution"
 
     # Try lsb_release
-    local sys=$(lsb_release -is 2>/dev/null)
+    local sys
+    sys=$(lsb_release -is 2>/dev/null)
     if [[ $? -gt 0 ]]; then
         # That didnt work, try uname.
         local kn=$(uname -s)
