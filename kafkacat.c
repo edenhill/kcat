@@ -635,7 +635,9 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                "\n"
                "Consumer options:\n"
                "  -o <offset>        Offset to start consuming from:\n"
-               "                     beginning | end | stored | <value>\n"
+               "                     beginning | end | stored |\n"
+	       "                     <value>  (absolute offset) |\n"
+	       "                     -<value> (relative offset from end)\n"
                "  -e                 Exit successfully when last message "
                "received\n"
                "  -D <delim>         Delimiter to separate messages on output\n"
@@ -710,8 +712,11 @@ static void argparse (int argc, char **argv) {
 				conf.offset = RD_KAFKA_OFFSET_BEGINNING;
 			else if (!strcmp(optarg, "stored"))
 				conf.offset = RD_KAFKA_OFFSET_STORED;
-			else
+			else {
 				conf.offset = strtoll(optarg, NULL, 10);
+				if (conf.offset < 0)
+					conf.offset = RD_KAFKA_OFFSET_TAIL(-conf.offset);
+			}
 			break;
 		case 'e':
 			conf.exit_eof = 1;
