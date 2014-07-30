@@ -84,6 +84,13 @@ static struct stats {
 } stats;
 
 
+/* Partition's at EOF state array */
+int *part_eof = NULL;
+/* Number of partitions that has reached EOF */
+int part_eof_cnt = 0;
+/* Threshold level (partitions at EOF) before exiting */
+int part_eof_thres = 0;
+
 /* Info printout */
 #define INFO(VERBLVL,FMT...) do {                    \
                 if (conf.verbosity >= (VERBLVL))     \
@@ -314,12 +321,20 @@ static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
         if (rkmessage->err) {
                 if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
                         if (conf.exit_eof) {
+				if (!part_eof[rkmessage->partition]) {
+					part_eof[rkmessage->partition] = 1;
+					part_eof_cnt++;
+
+					if (part_eof_cnt >= part_eof_thres)
+						conf.run = 0;
+				}
+
                                 INFO(1, "Reached end of topic %s [%"PRId32"] "
-                                     "at offset %"PRId64": exiting\n",
+                                     "at offset %"PRId64"%s\n",
                                      rd_kafka_topic_name(rkmessage->rkt),
                                      rkmessage->partition,
-                                     rkmessage->offset);
-                                conf.run = 0;
+                                     rkmessage->offset,
+				     !conf.run ? ": exiting" : "");
                         }
                         return;
                 }
@@ -346,9 +361,10 @@ static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
  */
 static void consumer_run (FILE *fp) {
         char    errstr[512];
-
-        if (conf.partition == RD_KAFKA_PARTITION_UA)
-                FATAL("Consumer requires -p <partition>");
+	rd_kafka_resp_err_t err;
+	const struct rd_kafka_metadata *metadata;
+	int i;
+	rd_kafka_queue_t *rkqu;
 
         /* Create consumer */
         if (!(conf.rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf.rk_conf,
@@ -370,22 +386,92 @@ static void consumer_run (FILE *fp) {
         conf.rkt_conf = NULL;
 
 
-        /* Start consumer */
-        if (rd_kafka_consume_start(conf.rkt, conf.partition, conf.offset) == -1)
-                FATAL("Failed to start consuming topic %s [%"PRId32"]: %s",
-                      conf.topic, conf.partition,
-                      rd_kafka_err2str(rd_kafka_errno2err(errno)));
+	/* Query broker for topic + partition information. */
+	if ((err = rd_kafka_metadata(conf.rk, 0, conf.rkt, &metadata, 5000)))
+		FATAL("Failed to query metadata for topic %s: %s",
+		      rd_kafka_topic_name(conf.rkt), rd_kafka_err2str(err));
+
+	/* Error handling */
+	if (metadata->topic_cnt == 0)
+		FATAL("No such topic in cluster: %s",
+		      rd_kafka_topic_name(conf.rkt));
+
+	if (metadata->topics[0].err)
+		FATAL("Topic %s error: %s",
+		      rd_kafka_topic_name(conf.rkt), rd_kafka_err2str(err));
+
+	if (metadata->topics[0].partition_cnt == 0)
+		FATAL("Topic %s has no partitions",
+		      rd_kafka_topic_name(conf.rkt));
+
+	/* If Exit-at-EOF is enabled, set up array to track EOF
+	 * state for each partition. */
+	if (conf.exit_eof) {
+		part_eof = calloc(sizeof(*part_eof),
+				  metadata->topics[0].partition_cnt);
+
+		if (conf.partition != RD_KAFKA_PARTITION_UA)
+			part_eof_thres = 1;
+		else
+			part_eof_thres = metadata->topics[0].partition_cnt;
+	}
+
+	/* Create a shared queue that combines messages from
+	 * all wanted partitions. */
+	rkqu = rd_kafka_queue_new(conf.rk);
+
+	/* Start consuming from all wanted partitions. */
+	for (i = 0 ; i < metadata->topics[0].partition_cnt ; i++) {
+		int32_t partition = metadata->topics[0].partitions[i].id;
+
+		/* If -p <part> was specified: skip unwanted partitions */
+		if (conf.partition != RD_KAFKA_PARTITION_UA &&
+		    conf.partition != partition)
+			continue;
+
+		/* Start consumer for this partition */
+		if (rd_kafka_consume_start_queue(conf.rkt, partition,
+						 conf.offset, rkqu) == -1)
+			FATAL("Failed to start consuming "
+			      "topic %s [%"PRId32"]: %s",
+			      conf.topic, partition,
+			      rd_kafka_err2str(rd_kafka_errno2err(errno)));
+
+		if (conf.partition != RD_KAFKA_PARTITION_UA)
+			break;
+	}
+
+	if (conf.partition != RD_KAFKA_PARTITION_UA &&
+	    i == metadata->topics[0].partition_cnt)
+		FATAL("Topic %s (with partitions 0..%i): "
+		      "partition %i does not exist",
+		      rd_kafka_topic_name(conf.rkt),
+		      metadata->topics[0].partition_cnt-1,
+		      conf.partition);
 
 
         /* Read messages from Kafka, write to 'fp'. */
         while (conf.run) {
-                rd_kafka_consume_callback(conf.rkt, conf.partition, 100,
-                                          consume_cb, fp);
-
+                rd_kafka_consume_callback_queue(rkqu, 100,
+						consume_cb, fp);
         }
 
-        rd_kafka_consume_stop(conf.rkt, conf.partition);
+	/* Stop consuming */
+	for (i = 0 ; i < metadata->topics[0].partition_cnt ; i++) {
+		int32_t partition = metadata->topics[0].partitions[i].id;
 
+		/* If -p <part> was specified: skip unwanted partitions */
+		if (conf.partition != RD_KAFKA_PARTITION_UA &&
+		    conf.partition != partition)
+			continue;
+
+		rd_kafka_consume_stop(conf.rkt, partition);
+	}
+
+	/* Destroy shared queue */
+	rd_kafka_queue_destroy(rkqu);
+
+	/* Wait for outstanding requests to finish. */
         conf.run = 1;
         while (conf.run && rd_kafka_outq_len(conf.rk) > 0)
                 rd_kafka_poll(conf.rk, 50);
@@ -795,7 +881,7 @@ int main (int argc, char **argv) {
         switch (conf.mode)
         {
         case 'C':
-                consumer_run(stdout);
+		consumer_run(stdout);
                 break;
 
         case 'P':
