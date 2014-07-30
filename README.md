@@ -58,6 +58,15 @@ dependencies.
 
     $ kafkacat -P -b mybroker -t filedrop -p 0 myfile1.bin /etc/motd thirdfile.tgz
 
+## Read the last 2000 messages from 'syslog' topic, then exit
+
+    $ kafkacat -C -b mybroker -t syslog -p 0 -o -2000 -e
+
+
+## Consume from all partitions from 'syslog' topic
+
+    $ kafkacat -C -b mybroker -t syslog
+
 
 ### Metadata listing
 
