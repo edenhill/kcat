@@ -902,5 +902,7 @@ int main (int argc, char **argv) {
                 break;
         }
 
+        rd_kafka_wait_destroyed(5000);
+
         exit(conf.exitcode);
 }
