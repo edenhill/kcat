@@ -607,7 +607,7 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                "  -t <topic>         Topic to consume from, produce to, "
                "or list\n"
                "  -p <partition>     Partition\n"
-               "  -b <brokers,..>    Bootstrap broker(s)\n"
+               "  -b <brokers,..>    Bootstrap broker(s) (host[:port])\n"
                "  -D <delim>         Message delimiter character:\n"
                "                     a-z.. | \\r | \\n | \\t | \\xNN\n"
                "                     Default: \\n\n"
