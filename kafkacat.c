@@ -396,7 +396,7 @@ static void consumer_run (FILE *fp) {
 		FATAL("No such topic in cluster: %s",
 		      rd_kafka_topic_name(conf.rkt));
 
-	if (metadata->topics[0].err)
+	if ((err = metadata->topics[0].err))
 		FATAL("Topic %s error: %s",
 		      rd_kafka_topic_name(conf.rkt), rd_kafka_err2str(err));
 
