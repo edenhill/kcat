@@ -50,7 +50,10 @@ static struct conf {
         int     verbosity;
         int     exitcode;
         char    mode;
+	int     flags;
+#define CONF_F_KEY_DELIM  0x2
         int     delim;
+	int     key_delim;
         int     msg_size;
         char   *brokers;
         char   *topic;
@@ -123,7 +126,8 @@ static void __attribute__((noreturn)) fatal0 (const char *func, int line,
  * Produces a single message, retries on queue congestion, and
  * exits hard on error.
  */
-static void produce (void *buf, size_t len, int msgflags) {
+static void produce (void *buf, size_t len,
+		     const void *key, size_t key_len, int msgflags) {
 
         /* Produce message: keep trying until it succeeds. */
         do {
@@ -134,7 +138,7 @@ static void produce (void *buf, size_t len, int msgflags) {
                               "producing message of %zd bytes", len);
 
                 if (rd_kafka_produce(conf.rkt, conf.partition, msgflags,
-                                     buf, len, NULL, 0, NULL) != -1) {
+                                     buf, len, key, key_len, NULL) != -1) {
                         stats.tx++;
                         break;
                 }
@@ -192,7 +196,7 @@ static ssize_t produce_file (const char *path) {
         }
 
         INFO(4, "Producing file %s (%zd bytes)\n", path, st.st_size);
-        produce(ptr, st.st_size, RD_KAFKA_MSG_F_COPY);
+        produce(ptr, st.st_size, NULL, 0, RD_KAFKA_MSG_F_COPY);
 
         munmap(ptr, st.st_size);
         return st.st_size;
@@ -204,7 +208,7 @@ static ssize_t produce_file (const char *path) {
  * Or if 'pathcnt' is > 0, read messages from files in 'paths' instead.
  */
 static void producer_run (FILE *fp, char **paths, int pathcnt) {
-        char   *buf  = NULL;
+        char   *sbuf  = NULL;
         size_t  size = 0;
         ssize_t len;
         char    errstr[512];
@@ -247,8 +251,11 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
         } else {
                 /* Read messages from stdin, delimited by conf.delim */
                 while (conf.run &&
-                       (len = getdelim(&buf, &size, conf.delim, fp)) != -1) {
+                       (len = getdelim(&sbuf, &size, conf.delim, fp)) != -1) {
                         int msgflags = 0;
+			char *buf = sbuf;
+			char *key = NULL;
+			size_t key_len = 0;
 
                         if (len == 0)
                                 continue;
@@ -259,6 +266,17 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
 
                         if (len == 0)
                                 continue;
+
+			/* Extract key, if desired and found. */
+			if (conf.flags & CONF_F_KEY_DELIM) {
+				char *t;
+				if ((t = memchr(buf, conf.key_delim, len))) {
+					key_len = (size_t)(t-sbuf);
+					key     = buf;
+					buf    += key_len+1;
+					len    -= key_len+1;
+				}
+			}
 
                         if (len > 1024) {
                                 /* If message is larger than this arbitrary
@@ -273,12 +291,12 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                         }
 
                         /* Produce message */
-                        produce(buf, len, msgflags);
+                        produce(buf, len, key, key_len, msgflags);
 
                         if (msgflags & RD_KAFKA_MSG_F_FREE) {
                                 /* rdkafka owns the allocated buffer
                                  * memory now. */
-                                buf  = NULL;
+                                sbuf  = NULL;
                                 size = 0;
                         }
 
@@ -302,8 +320,8 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
         rd_kafka_topic_destroy(conf.rkt);
         rd_kafka_destroy(conf.rk);
 
-        if (buf)
-                free(buf);
+        if (sbuf)
+                free(sbuf);
 }
 
 
@@ -344,6 +362,12 @@ static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
                       rkmessage->partition,
                       rd_kafka_message_errstr(rkmessage));
         }
+
+	/* Print key, if desired */
+	if (conf.flags & CONF_F_KEY_DELIM)
+		fprintf(fp, "%.*s%c",
+			(int)rkmessage->key_len, (const char *)rkmessage->key,
+			conf.key_delim);
 
         if (fwrite(rkmessage->payload, rkmessage->len, 1, fp) == -1 ||
             fwrite(&conf.delim, 1, 1, fp) == -1)
@@ -611,6 +635,7 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                "  -D <delim>         Message delimiter character:\n"
                "                     a-z.. | \\r | \\n | \\t | \\xNN\n"
                "                     Default: \\n\n"
+	       "  -K <delim>         Key delimiter (same format as -D)\n"
                "  -c <cnt>           Limit message count\n"
                "  -X list            List available librdkafka configuration "
                "properties\n"
@@ -627,6 +652,7 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                "  -z snappy|gzip     Message compression. Default: none\n"
                "  -p -1              Use random partitioner\n"
                "  -D <delim>         Delimiter to split input into messages\n"
+	       "  -K <delim>         Parse key prefix for producing.\n"
                "  -c <cnt>           Exit after producing this number "
                "of messages\n"
                "  file1 file2..      Read messages from files.\n"
@@ -641,6 +667,8 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                "  -e                 Exit successfully when last message "
                "received\n"
                "  -D <delim>         Delimiter to separate messages on output\n"
+	       "  -K <delim>         Print message keys prefixing the message\n"
+	       "                     with specified delimiter.\n"
                "  -c <cnt>           Exit after consuming this number "
                "of messages\n"
                "  -u                 Unbuffered output\n"
@@ -676,13 +704,30 @@ static void term (int sig) {
 
 
 /**
+ * Parse delimiter string from command line arguments.
+ */
+static int parse_delim (const char *str) {
+	int delim;
+	if (!strncmp(str, "\\x", strlen("\\x")))
+		delim = strtoul(str+strlen("\\x"), NULL, 16) & 0xff;
+	else if (!strcmp(str, "\\n"))
+		delim = (int)'\n';
+	else if (!strcmp(str, "\\t"))
+		delim = (int)'\t';
+	else
+		delim = (int)*str & 0xff;
+	return delim;
+}
+
+/**
  * Parse command line arguments
  */
 static void argparse (int argc, char **argv) {
         char errstr[512];
         int opt;
 
-	while ((opt = getopt(argc, argv, "PCLt:p:b:z:o:eD:d:qvX:c:u")) != -1) {
+	while ((opt = getopt(argc, argv,
+			     "PCLt:p:b:z:o:eD:K:d:qvX:c:u")) != -1) {
 		switch (opt) {
 		case 'P':
 		case 'C':
@@ -722,16 +767,12 @@ static void argparse (int argc, char **argv) {
 			conf.exit_eof = 1;
 			break;
                 case 'D':
-                        if (!strncmp(optarg, "\\x", strlen("\\n")))
-                                conf.delim = strtoul(optarg+strlen("\\x"),
-                                                     NULL, 16) & 0xff;
-                        else if (!strcmp(optarg, "\\n"))
-                                conf.delim = (int)'\n';
-                        else if (!strcmp(optarg, "\\t"))
-                                conf.delim = (int)'\t';
-                        else
-                                conf.delim = (int)*optarg & 0xff;
+			conf.delim = parse_delim(optarg);
                         break;
+		case 'K':
+			conf.key_delim = parse_delim(optarg);
+			conf.flags |= CONF_F_KEY_DELIM;
+			break;
                 case 'c':
                         conf.msg_cnt = strtoll(optarg, NULL, 10);
                         break;
