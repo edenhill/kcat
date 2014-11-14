@@ -195,7 +195,7 @@ static ssize_t produce_file (const char *path) {
                 return -1;
         }
 
-        INFO(4, "Producing file %s (%zd bytes)\n", path, st.st_size);
+        INFO(4, "Producing file %s (%jd bytes)\n", path, st.st_size);
         produce(ptr, st.st_size, NULL, 0, RD_KAFKA_MSG_F_COPY);
 
         munmap(ptr, st.st_size);
