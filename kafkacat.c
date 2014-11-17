@@ -892,6 +892,7 @@ static void conf_dump (void) {
 
 
 int main (int argc, char **argv) {
+	char tmp[16];
 
         signal(SIGINT, term);
         signal(SIGTERM, term);
@@ -900,6 +901,14 @@ int main (int argc, char **argv) {
         /* Create config containers */
         conf.rk_conf  = rd_kafka_conf_new();
         conf.rkt_conf = rd_kafka_topic_conf_new();
+
+	/*
+	 * Default config
+	 */
+	/* Enable quick termination of librdkafka */
+	snprintf(tmp, sizeof(tmp), "%i", SIGIO);
+	rd_kafka_conf_set(conf.rk_conf, "internal.termination.signal",
+			  tmp, NULL, 0);
 
         /* Parse command line arguments */
         argparse(argc, argv);
