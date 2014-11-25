@@ -852,6 +852,7 @@ function mkl_check_done {
 
 # Perform configure check by compiling source snippet
 # Arguments:
+#  [--ldflags="..." ]  (appended after "compiler arguments" below)
 #  config name
 #  define name
 #  action (fail|disable)
@@ -859,6 +860,11 @@ function mkl_check_done {
 #  compiler arguments (optional "", example: "-lzookeeper")
 #  source snippet
 function mkl_compile_check {
+    local ldf=
+    if [[ $1 == --ldflags=* ]]; then
+	ldf=${1#*=}
+	shift
+    fi
     mkl_check_begin "$1" "$2" "$3" "$1 (by compile)" && return $?
 
     local cflags=
@@ -877,7 +883,7 @@ function mkl_compile_check {
 int main () { return 0; }
 " >> $srcfile
 
-    local cmd="${!4} $cflags $(mkl_mkvar_get CPPFLAGS) -Wall -Werror $5 $srcfile -o ${srcfile}.o $(mkl_mkvar_get LDFLAGS)";
+    local cmd="${!4} $cflags $(mkl_mkvar_get CPPFLAGS) -Wall -Werror $5 $srcfile -o ${srcfile}.o $ldf $(mkl_mkvar_get LDFLAGS)";
     mkl_dbg "Compile check $1 ($2): $cmd"
 
     local output
@@ -1525,7 +1531,7 @@ function mkl_toggle_option {
     # Add corresponding "--disable-foo" option for "--enable-foo".
     local disname="${3/--enable/--disable}"
     local dishelp="${4/Enable/Disable}"
-    mkl_option "$1" "$2" "$disname" "$dishelp"
+    mkl_option "$1" "$2" "$disname" "$dishelp" "" "n"
 }
 
 # Adds a toggle (--enable-X, --disable-X) option with builtin checker.
