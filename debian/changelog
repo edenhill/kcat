@@ -1,0 +1,6 @@
+kafkacat (1.1.0-1) UNRELEASED; urgency=medium
+
+  * Initial release. Closes: #772011.
+
+ -- Vincent Bernat <bernat@debian.org>  Thu, 04 Dec 2014 11:54:56 +0100
+
