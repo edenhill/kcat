@@ -1,4 +1,4 @@
-.Dd $Mdocdate: December 04 2014 $
+.Dd $Mdocdate: December 09 2014 $
 .Dt KAFKACAT 1
 .Os
 .Sh NAME
@@ -11,10 +11,11 @@
 .Op Fl p Ar partition
 .Fl b Ar brokers Op , Ar ...
 .Op Fl D Ar delim
-.Op Fl c Ar 
-.Op Fl X list
-.Op Fl X Ar prop Li = Ar val
-.Op Fl X dump
+.Op Fl K Ar delim
+.Op Fl c Ar cnt
+.Op Fl X Ar list
+.Op Fl X Ar prop=val
+.Op Fl X Ar dump
 .Op Fl d Ar dbg Op , Ar ...
 .Op Fl q
 .Op Fl v
@@ -24,19 +25,13 @@
 .Op generic options
 .Op Fl o Ar offset
 .Op Fl e
-.Op Fl D Ar delim
-.Op Fl K Ar delim
 .Op Fl O
-.Op Fl c Ar cnt
 .Op Fl u
 .Nm
 .Fl P
 .Op generic options
 .Op Fl z Ar snappy | gzip
 .Op Fl p Li -1
-.Op Fl D Ar delim
-.Op Fl K Ar delim
-.Op Fl c Ar cnt
 .Op Ar file Op ...
 .Nm
 .Fl L
@@ -57,9 +52,17 @@ partition. In consumer mode (
 .Fl C
 ),
 .Nm
-messages from a topic and
+reads messages from a topic and
 partition and prints them to stdout using the configured message
 delimiter.
+.Pp
+If neither
+.Fl P
+or
+.Fl C
+are specified
+.Nm
+attempts to figure out the mode automatically based on stdin/stdout tty types.
 .Pp
 .Nm
 also features a metadata list mode (
@@ -70,5 +73,5 @@ and partitions.
 For a more extensive help and some simple examples, run
 .Nm
 with
-.Fl -help
+.Fl h
 flag.
