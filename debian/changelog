@@ -1,3 +1,10 @@
+kafkacat (1.1.0-2) unstable; urgency=medium
+
+  * Fix manual page.
+  * Build-Depends on librdkafka-dev (>= 0.8.4)
+
+ -- Vincent Bernat <bernat@debian.org>  Tue, 09 Dec 2014 20:39:54 +0100
+
 kafkacat (1.1.0-1) unstable; urgency=medium
 
   * Initial release. Closes: #772011.
