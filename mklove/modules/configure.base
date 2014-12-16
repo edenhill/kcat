@@ -877,7 +877,9 @@ function mkl_compile_check {
         cflags="$(mkl_mkvar_get CFLAGS)"
     fi
 
-    local srcfile=$(mktemp _mkltmpXXXX.$ext)
+    local srcfile=$(mktemp _mkltmpXXXXX)
+    mv "$srcfile" "${srcfile}.$ext"
+    srcfile="$srcfile.$ext"
     echo "$6" > $srcfile
     echo "
 int main () { return 0; }
@@ -920,7 +922,7 @@ source: $6"
 function mkl_link_check {
     mkl_check_begin "$1" "$2" "$3" "$1 (by linking)" && return $?
 
-    local srcfile=$(mktemp _mktmplXXXX.$ext)
+    local srcfile=$(mktemp _mktmpXXXXX)
     echo "int main () { return 0; }" > $srcfile
 
     local cmd="${CC} $(mkl_mkvar_get LDFLAGS) -c $srcfile -o ${srcfile}.o $4";
@@ -1204,7 +1206,7 @@ function mkl_module_download {
     # Download
     mkl_info "${MKL_BLUE}downloading missing module $modname from $url${MKL_CLR_RESET}"
 
-    tmpfile=$(mktemp _mkltmpXXXX.download)
+    tmpfile=$(mktemp _mkltmpXXXXX)
     local out=
     out=$(wget -nv -O "$tmpfile" "$url" 2>&1)
 
