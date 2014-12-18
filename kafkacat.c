@@ -50,11 +50,11 @@ static struct conf {
         int     verbosity;
         int     exitcode;
         char    mode;
-	int     flags;
+        int     flags;
 #define CONF_F_KEY_DELIM  0x2
 #define CONF_F_OFFSET     0x4 /* Print offsets */
         int     delim;
-	int     key_delim;
+        int     key_delim;
         int     msg_size;
         char   *brokers;
         char   *topic;
@@ -77,7 +77,7 @@ static struct conf {
         .partition = RD_KAFKA_PARTITION_UA,
         .msg_size = 1024*1024,
         .delim = '\n',
-	.key_delim = '\t',
+        .key_delim = '\t',
 };
 
 
@@ -129,7 +129,7 @@ static void __attribute__((noreturn)) fatal0 (const char *func, int line,
  * exits hard on error.
  */
 static void produce (void *buf, size_t len,
-		     const void *key, size_t key_len, int msgflags) {
+                     const void *key, size_t key_len, int msgflags) {
 
         /* Produce message: keep trying until it succeeds. */
         do {
@@ -198,7 +198,7 @@ static ssize_t produce_file (const char *path) {
         }
 
         INFO(4, "Producing file %s (%"PRIdMAX" bytes)\n",
-	     path, (intmax_t)st.st_size);
+             path, (intmax_t)st.st_size);
         produce(ptr, st.st_size, NULL, 0, RD_KAFKA_MSG_F_COPY);
 
         munmap(ptr, st.st_size);
@@ -223,8 +223,8 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
 
         if (conf.debug)
                 rd_kafka_set_log_level(conf.rk, LOG_DEBUG);
-	else if (conf.verbosity == 0)
-		rd_kafka_set_log_level(conf.rk, 0);
+        else if (conf.verbosity == 0)
+                rd_kafka_set_log_level(conf.rk, 0);
 
         /* Create topic */
         if (!(conf.rkt = rd_kafka_topic_new(conf.rk, conf.topic,
@@ -256,9 +256,9 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                 while (conf.run &&
                        (len = getdelim(&sbuf, &size, conf.delim, fp)) != -1) {
                         int msgflags = 0;
-			char *buf = sbuf;
-			char *key = NULL;
-			size_t key_len = 0;
+                        char *buf = sbuf;
+                        char *key = NULL;
+                        size_t key_len = 0;
 
                         if (len == 0)
                                 continue;
@@ -270,16 +270,16 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                         if (len == 0)
                                 continue;
 
-			/* Extract key, if desired and found. */
-			if (conf.flags & CONF_F_KEY_DELIM) {
-				char *t;
-				if ((t = memchr(buf, conf.key_delim, len))) {
-					key_len = (size_t)(t-sbuf);
-					key     = buf;
-					buf    += key_len+1;
-					len    -= key_len+1;
-				}
-			}
+                        /* Extract key, if desired and found. */
+                        if (conf.flags & CONF_F_KEY_DELIM) {
+                                char *t;
+                                if ((t = memchr(buf, conf.key_delim, len))) {
+                                        key_len = (size_t)(t-sbuf);
+                                        key     = buf;
+                                        buf    += key_len+1;
+                                        len    -= key_len+1;
+                                }
+                        }
 
                         if (len > 1024) {
                                 /* If message is larger than this arbitrary
@@ -342,20 +342,20 @@ static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
         if (rkmessage->err) {
                 if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
                         if (conf.exit_eof) {
-				if (!part_eof[rkmessage->partition]) {
-					part_eof[rkmessage->partition] = 1;
-					part_eof_cnt++;
+                                if (!part_eof[rkmessage->partition]) {
+                                        part_eof[rkmessage->partition] = 1;
+                                        part_eof_cnt++;
 
-					if (part_eof_cnt >= part_eof_thres)
-						conf.run = 0;
-				}
+                                        if (part_eof_cnt >= part_eof_thres)
+                                                conf.run = 0;
+                                }
 
                                 INFO(1, "Reached end of topic %s [%"PRId32"] "
                                      "at offset %"PRId64"%s\n",
                                      rd_kafka_topic_name(rkmessage->rkt),
                                      rkmessage->partition,
                                      rkmessage->offset,
-				     !conf.run ? ": exiting" : "");
+                                     !conf.run ? ": exiting" : "");
                         }
                         return;
                 }
@@ -366,15 +366,15 @@ static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
                       rd_kafka_message_errstr(rkmessage));
         }
 
-	/* Print offset (using key delim), if desired */
-	if (conf.flags & CONF_F_OFFSET)
-		fprintf(fp, "%"PRId64"%c", rkmessage->offset, conf.key_delim);
+        /* Print offset (using key delim), if desired */
+        if (conf.flags & CONF_F_OFFSET)
+                fprintf(fp, "%"PRId64"%c", rkmessage->offset, conf.key_delim);
 
-	/* Print key, if desired */
-	if (conf.flags & CONF_F_KEY_DELIM)
-		fprintf(fp, "%.*s%c",
-			(int)rkmessage->key_len, (const char *)rkmessage->key,
-			conf.key_delim);
+        /* Print key, if desired */
+        if (conf.flags & CONF_F_KEY_DELIM)
+                fprintf(fp, "%.*s%c",
+                        (int)rkmessage->key_len, (const char *)rkmessage->key,
+                        conf.key_delim);
 
         if (fwrite(rkmessage->payload, rkmessage->len, 1, fp) == -1 ||
             fwrite(&conf.delim, 1, 1, fp) == -1)
@@ -392,10 +392,10 @@ static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
  */
 static void consumer_run (FILE *fp) {
         char    errstr[512];
-	rd_kafka_resp_err_t err;
-	const struct rd_kafka_metadata *metadata;
-	int i;
-	rd_kafka_queue_t *rkqu;
+        rd_kafka_resp_err_t err;
+        const struct rd_kafka_metadata *metadata;
+        int i;
+        rd_kafka_queue_t *rkqu;
 
         /* Create consumer */
         if (!(conf.rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf.rk_conf,
@@ -404,8 +404,8 @@ static void consumer_run (FILE *fp) {
 
         if (conf.debug)
                 rd_kafka_set_log_level(conf.rk, LOG_DEBUG);
-	else if (conf.verbosity == 0)
-		rd_kafka_set_log_level(conf.rk, 0);
+        else if (conf.verbosity == 0)
+                rd_kafka_set_log_level(conf.rk, 0);
 
         /* Create topic */
         if (!(conf.rkt = rd_kafka_topic_new(conf.rk, conf.topic,
@@ -417,92 +417,92 @@ static void consumer_run (FILE *fp) {
         conf.rkt_conf = NULL;
 
 
-	/* Query broker for topic + partition information. */
-	if ((err = rd_kafka_metadata(conf.rk, 0, conf.rkt, &metadata, 5000)))
-		FATAL("Failed to query metadata for topic %s: %s",
-		      rd_kafka_topic_name(conf.rkt), rd_kafka_err2str(err));
+        /* Query broker for topic + partition information. */
+        if ((err = rd_kafka_metadata(conf.rk, 0, conf.rkt, &metadata, 5000)))
+                FATAL("Failed to query metadata for topic %s: %s",
+                      rd_kafka_topic_name(conf.rkt), rd_kafka_err2str(err));
 
-	/* Error handling */
-	if (metadata->topic_cnt == 0)
-		FATAL("No such topic in cluster: %s",
-		      rd_kafka_topic_name(conf.rkt));
+        /* Error handling */
+        if (metadata->topic_cnt == 0)
+                FATAL("No such topic in cluster: %s",
+                      rd_kafka_topic_name(conf.rkt));
 
-	if ((err = metadata->topics[0].err))
-		FATAL("Topic %s error: %s",
-		      rd_kafka_topic_name(conf.rkt), rd_kafka_err2str(err));
+        if ((err = metadata->topics[0].err))
+                FATAL("Topic %s error: %s",
+                      rd_kafka_topic_name(conf.rkt), rd_kafka_err2str(err));
 
-	if (metadata->topics[0].partition_cnt == 0)
-		FATAL("Topic %s has no partitions",
-		      rd_kafka_topic_name(conf.rkt));
+        if (metadata->topics[0].partition_cnt == 0)
+                FATAL("Topic %s has no partitions",
+                      rd_kafka_topic_name(conf.rkt));
 
-	/* If Exit-at-EOF is enabled, set up array to track EOF
-	 * state for each partition. */
-	if (conf.exit_eof) {
-		part_eof = calloc(sizeof(*part_eof),
-				  metadata->topics[0].partition_cnt);
+        /* If Exit-at-EOF is enabled, set up array to track EOF
+         * state for each partition. */
+        if (conf.exit_eof) {
+                part_eof = calloc(sizeof(*part_eof),
+                                  metadata->topics[0].partition_cnt);
 
-		if (conf.partition != RD_KAFKA_PARTITION_UA)
-			part_eof_thres = 1;
-		else
-			part_eof_thres = metadata->topics[0].partition_cnt;
-	}
+                if (conf.partition != RD_KAFKA_PARTITION_UA)
+                        part_eof_thres = 1;
+                else
+                        part_eof_thres = metadata->topics[0].partition_cnt;
+        }
 
-	/* Create a shared queue that combines messages from
-	 * all wanted partitions. */
-	rkqu = rd_kafka_queue_new(conf.rk);
+        /* Create a shared queue that combines messages from
+         * all wanted partitions. */
+        rkqu = rd_kafka_queue_new(conf.rk);
 
-	/* Start consuming from all wanted partitions. */
-	for (i = 0 ; i < metadata->topics[0].partition_cnt ; i++) {
-		int32_t partition = metadata->topics[0].partitions[i].id;
+        /* Start consuming from all wanted partitions. */
+        for (i = 0 ; i < metadata->topics[0].partition_cnt ; i++) {
+                int32_t partition = metadata->topics[0].partitions[i].id;
 
-		/* If -p <part> was specified: skip unwanted partitions */
-		if (conf.partition != RD_KAFKA_PARTITION_UA &&
-		    conf.partition != partition)
-			continue;
+                /* If -p <part> was specified: skip unwanted partitions */
+                if (conf.partition != RD_KAFKA_PARTITION_UA &&
+                    conf.partition != partition)
+                        continue;
 
-		/* Start consumer for this partition */
-		if (rd_kafka_consume_start_queue(conf.rkt, partition,
-						 conf.offset, rkqu) == -1)
-			FATAL("Failed to start consuming "
-			      "topic %s [%"PRId32"]: %s",
-			      conf.topic, partition,
-			      rd_kafka_err2str(rd_kafka_errno2err(errno)));
+                /* Start consumer for this partition */
+                if (rd_kafka_consume_start_queue(conf.rkt, partition,
+                                                 conf.offset, rkqu) == -1)
+                        FATAL("Failed to start consuming "
+                              "topic %s [%"PRId32"]: %s",
+                              conf.topic, partition,
+                              rd_kafka_err2str(rd_kafka_errno2err(errno)));
 
-		if (conf.partition != RD_KAFKA_PARTITION_UA)
-			break;
-	}
+                if (conf.partition != RD_KAFKA_PARTITION_UA)
+                        break;
+        }
 
-	if (conf.partition != RD_KAFKA_PARTITION_UA &&
-	    i == metadata->topics[0].partition_cnt)
-		FATAL("Topic %s (with partitions 0..%i): "
-		      "partition %i does not exist",
-		      rd_kafka_topic_name(conf.rkt),
-		      metadata->topics[0].partition_cnt-1,
-		      conf.partition);
+        if (conf.partition != RD_KAFKA_PARTITION_UA &&
+            i == metadata->topics[0].partition_cnt)
+                FATAL("Topic %s (with partitions 0..%i): "
+                      "partition %i does not exist",
+                      rd_kafka_topic_name(conf.rkt),
+                      metadata->topics[0].partition_cnt-1,
+                      conf.partition);
 
 
         /* Read messages from Kafka, write to 'fp'. */
         while (conf.run) {
                 rd_kafka_consume_callback_queue(rkqu, 100,
-						consume_cb, fp);
+                                                consume_cb, fp);
         }
 
-	/* Stop consuming */
-	for (i = 0 ; i < metadata->topics[0].partition_cnt ; i++) {
-		int32_t partition = metadata->topics[0].partitions[i].id;
+        /* Stop consuming */
+        for (i = 0 ; i < metadata->topics[0].partition_cnt ; i++) {
+                int32_t partition = metadata->topics[0].partitions[i].id;
 
-		/* If -p <part> was specified: skip unwanted partitions */
-		if (conf.partition != RD_KAFKA_PARTITION_UA &&
-		    conf.partition != partition)
-			continue;
+                /* If -p <part> was specified: skip unwanted partitions */
+                if (conf.partition != RD_KAFKA_PARTITION_UA &&
+                    conf.partition != partition)
+                        continue;
 
-		rd_kafka_consume_stop(conf.rkt, partition);
-	}
+                rd_kafka_consume_stop(conf.rkt, partition);
+        }
 
-	/* Destroy shared queue */
-	rd_kafka_queue_destroy(rkqu);
+        /* Destroy shared queue */
+        rd_kafka_queue_destroy(rkqu);
 
-	/* Wait for outstanding requests to finish. */
+        /* Wait for outstanding requests to finish. */
         conf.run = 1;
         while (conf.run && rd_kafka_outq_len(conf.rk) > 0)
                 rd_kafka_poll(conf.rk, 50);
@@ -587,8 +587,8 @@ static void metadata_list (void) {
         rd_kafka_set_logger(conf.rk, rd_kafka_log_print);
         if (conf.debug)
                 rd_kafka_set_log_level(conf.rk, LOG_DEBUG);
-	else if (conf.verbosity == 0)
-		rd_kafka_set_log_level(conf.rk, 0);
+        else if (conf.verbosity == 0)
+                rd_kafka_set_log_level(conf.rk, 0);
 
         /* Create topic, if specified */
         if (conf.topic &&
@@ -642,7 +642,7 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                "  -D <delim>         Message delimiter character:\n"
                "                     a-z.. | \\r | \\n | \\t | \\xNN\n"
                "                     Default: \\n\n"
-	       "  -K <delim>         Key delimiter (same format as -D)\n"
+               "  -K <delim>         Key delimiter (same format as -D)\n"
                "  -c <cnt>           Limit message count\n"
                "  -X list            List available librdkafka configuration "
                "properties\n"
@@ -659,7 +659,7 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                "  -z snappy|gzip     Message compression. Default: none\n"
                "  -p -1              Use random partitioner\n"
                "  -D <delim>         Delimiter to split input into messages\n"
-	       "  -K <delim>         Parse key prefix for producing.\n"
+               "  -K <delim>         Parse key prefix for producing.\n"
                "  -c <cnt>           Exit after producing this number "
                "of messages\n"
                "  file1 file2..      Read messages from files.\n"
@@ -669,14 +669,14 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                "Consumer options:\n"
                "  -o <offset>        Offset to start consuming from:\n"
                "                     beginning | end | stored |\n"
-	       "                     <value>  (absolute offset) |\n"
-	       "                     -<value> (relative offset from end)\n"
+               "                     <value>  (absolute offset) |\n"
+               "                     -<value> (relative offset from end)\n"
                "  -e                 Exit successfully when last message "
                "received\n"
                "  -D <delim>         Delimiter to separate messages on output\n"
-	       "  -K <delim>         Print message keys prefixing the message\n"
-	       "                     with specified delimiter.\n"
-	       "  -O                 Print message offset using -K delimiter\n"
+               "  -K <delim>         Print message keys prefixing the message\n"
+               "                     with specified delimiter.\n"
+               "  -O                 Print message offset using -K delimiter\n"
                "  -c <cnt>           Exit after consuming this number "
                "of messages\n"
                "  -u                 Unbuffered output\n"
@@ -715,16 +715,16 @@ static void term (int sig) {
  * Parse delimiter string from command line arguments.
  */
 static int parse_delim (const char *str) {
-	int delim;
-	if (!strncmp(str, "\\x", strlen("\\x")))
-		delim = strtoul(str+strlen("\\x"), NULL, 16) & 0xff;
-	else if (!strcmp(str, "\\n"))
-		delim = (int)'\n';
-	else if (!strcmp(str, "\\t"))
-		delim = (int)'\t';
-	else
-		delim = (int)*str & 0xff;
-	return delim;
+        int delim;
+        if (!strncmp(str, "\\x", strlen("\\x")))
+                delim = strtoul(str+strlen("\\x"), NULL, 16) & 0xff;
+        else if (!strcmp(str, "\\n"))
+                delim = (int)'\n';
+        else if (!strcmp(str, "\\t"))
+                delim = (int)'\t';
+        else
+                delim = (int)*str & 0xff;
+        return delim;
 }
 
 /**
@@ -734,129 +734,129 @@ static void argparse (int argc, char **argv) {
         char errstr[512];
         int opt;
 
-	while ((opt = getopt(argc, argv,
-			     "PCLt:p:b:z:o:eD:K:Od:qvX:c:u")) != -1) {
-		switch (opt) {
-		case 'P':
-		case 'C':
+        while ((opt = getopt(argc, argv,
+                             "PCLt:p:b:z:o:eD:K:Od:qvX:c:u")) != -1) {
+                switch (opt) {
+                case 'P':
+                case 'C':
                 case 'L':
-			conf.mode = opt;
-			break;
-		case 't':
-			conf.topic = optarg;
-			break;
-		case 'p':
-			conf.partition = atoi(optarg);
-			break;
-		case 'b':
-                        conf.brokers = optarg;
-			break;
-		case 'z':
-			if (rd_kafka_conf_set(conf.rk_conf,
-                                              "compression.codec", optarg,
-					      errstr, sizeof(errstr)) !=
-			    RD_KAFKA_CONF_OK)
-                                FATAL("%s", errstr);
-			break;
-		case 'o':
-			if (!strcmp(optarg, "end"))
-				conf.offset = RD_KAFKA_OFFSET_END;
-			else if (!strcmp(optarg, "beginning"))
-				conf.offset = RD_KAFKA_OFFSET_BEGINNING;
-			else if (!strcmp(optarg, "stored"))
-				conf.offset = RD_KAFKA_OFFSET_STORED;
-			else {
-				conf.offset = strtoll(optarg, NULL, 10);
-				if (conf.offset < 0)
-					conf.offset = RD_KAFKA_OFFSET_TAIL(-conf.offset);
-			}
-			break;
-		case 'e':
-			conf.exit_eof = 1;
-			break;
-                case 'D':
-			conf.delim = parse_delim(optarg);
+                        conf.mode = opt;
                         break;
-		case 'K':
-			conf.key_delim = parse_delim(optarg);
-			conf.flags |= CONF_F_KEY_DELIM;
-			break;
-		case 'O':
-			conf.flags |= CONF_F_OFFSET;
-			break;
+                case 't':
+                        conf.topic = optarg;
+                        break;
+                case 'p':
+                        conf.partition = atoi(optarg);
+                        break;
+                case 'b':
+                        conf.brokers = optarg;
+                        break;
+                case 'z':
+                        if (rd_kafka_conf_set(conf.rk_conf,
+                                              "compression.codec", optarg,
+                                              errstr, sizeof(errstr)) !=
+                            RD_KAFKA_CONF_OK)
+                                FATAL("%s", errstr);
+                        break;
+                case 'o':
+                        if (!strcmp(optarg, "end"))
+                                conf.offset = RD_KAFKA_OFFSET_END;
+                        else if (!strcmp(optarg, "beginning"))
+                                conf.offset = RD_KAFKA_OFFSET_BEGINNING;
+                        else if (!strcmp(optarg, "stored"))
+                                conf.offset = RD_KAFKA_OFFSET_STORED;
+                        else {
+                                conf.offset = strtoll(optarg, NULL, 10);
+                                if (conf.offset < 0)
+                                        conf.offset = RD_KAFKA_OFFSET_TAIL(-conf.offset);
+                        }
+                        break;
+                case 'e':
+                        conf.exit_eof = 1;
+                        break;
+                case 'D':
+                        conf.delim = parse_delim(optarg);
+                        break;
+                case 'K':
+                        conf.key_delim = parse_delim(optarg);
+                        conf.flags |= CONF_F_KEY_DELIM;
+                        break;
+                case 'O':
+                        conf.flags |= CONF_F_OFFSET;
+                        break;
                 case 'c':
                         conf.msg_cnt = strtoll(optarg, NULL, 10);
                         break;
-		case 'd':
-			conf.debug = optarg;
+                case 'd':
+                        conf.debug = optarg;
                         if (rd_kafka_conf_set(conf.rk_conf, "debug", conf.debug,
                                               errstr, sizeof(errstr)) !=
                             RD_KAFKA_CONF_OK)
                                 FATAL("%s", errstr);
-			break;
-		case 'q':
+                        break;
+                case 'q':
                         conf.verbosity = 0;
-			break;
+                        break;
                 case 'v':
                         conf.verbosity++;
                         break;
                 case 'u':
                         setbuf(stdout, NULL);
                         break;
-		case 'X':
-		{
-			char *name, *val;
-			rd_kafka_conf_res_t res;
+                case 'X':
+                {
+                        char *name, *val;
+                        rd_kafka_conf_res_t res;
 
-			if (!strcmp(optarg, "list") ||
-			    !strcmp(optarg, "help")) {
-				rd_kafka_conf_properties_show(stdout);
-				exit(0);
-			}
+                        if (!strcmp(optarg, "list") ||
+                            !strcmp(optarg, "help")) {
+                                rd_kafka_conf_properties_show(stdout);
+                                exit(0);
+                        }
 
-			if (!strcmp(optarg, "dump")) {
-				conf.conf_dump = 1;
-				continue;
-			}
+                        if (!strcmp(optarg, "dump")) {
+                                conf.conf_dump = 1;
+                                continue;
+                        }
 
-			name = optarg;
-			if (!(val = strchr(name, '='))) {
-				fprintf(stderr, "%% Expected "
-					"-X property=value, not %s, "
+                        name = optarg;
+                        if (!(val = strchr(name, '='))) {
+                                fprintf(stderr, "%% Expected "
+                                        "-X property=value, not %s, "
                                         "use -X list to display available "
                                         "properties\n", name);
-				exit(1);
-			}
+                                exit(1);
+                        }
 
-			*val = '\0';
-			val++;
+                        *val = '\0';
+                        val++;
 
-			res = RD_KAFKA_CONF_UNKNOWN;
-			/* Try "topic." prefixed properties on topic
-			 * conf first, and then fall through to global if
-			 * it didnt match a topic configuration property. */
-			if (!strncmp(name, "topic.", strlen("topic.")))
-				res = rd_kafka_topic_conf_set(conf.rkt_conf,
-							      name+
-							      strlen("topic."),
-							      val,
-							      errstr,
-							      sizeof(errstr));
+                        res = RD_KAFKA_CONF_UNKNOWN;
+                        /* Try "topic." prefixed properties on topic
+                         * conf first, and then fall through to global if
+                         * it didnt match a topic configuration property. */
+                        if (!strncmp(name, "topic.", strlen("topic.")))
+                                res = rd_kafka_topic_conf_set(conf.rkt_conf,
+                                                              name+
+                                                              strlen("topic."),
+                                                              val,
+                                                              errstr,
+                                                              sizeof(errstr));
 
-			if (res == RD_KAFKA_CONF_UNKNOWN)
-				res = rd_kafka_conf_set(conf.rk_conf, name, val,
-							errstr, sizeof(errstr));
+                        if (res == RD_KAFKA_CONF_UNKNOWN)
+                                res = rd_kafka_conf_set(conf.rk_conf, name, val,
+                                                        errstr, sizeof(errstr));
 
-			if (res != RD_KAFKA_CONF_OK)
+                        if (res != RD_KAFKA_CONF_OK)
                                 FATAL("%s", errstr);
-		}
-		break;
+                }
+                break;
 
-		default:
+                default:
                         usage(argv[0], 1, "unknown argument");
                         break;
-		}
-	}
+                }
+        }
 
 
         if (!conf.brokers)
@@ -903,7 +903,7 @@ static void conf_dump (void) {
 
 
 int main (int argc, char **argv) {
-	char tmp[16];
+        char tmp[16];
 
         signal(SIGINT, term);
         signal(SIGTERM, term);
@@ -913,13 +913,13 @@ int main (int argc, char **argv) {
         conf.rk_conf  = rd_kafka_conf_new();
         conf.rkt_conf = rd_kafka_topic_conf_new();
 
-	/*
-	 * Default config
-	 */
-	/* Enable quick termination of librdkafka */
-	snprintf(tmp, sizeof(tmp), "%i", SIGIO);
-	rd_kafka_conf_set(conf.rk_conf, "internal.termination.signal",
-			  tmp, NULL, 0);
+        /*
+         * Default config
+         */
+        /* Enable quick termination of librdkafka */
+        snprintf(tmp, sizeof(tmp), "%i", SIGIO);
+        rd_kafka_conf_set(conf.rk_conf, "internal.termination.signal",
+                          tmp, NULL, 0);
 
         /* Parse command line arguments */
         argparse(argc, argv);
@@ -947,7 +947,7 @@ int main (int argc, char **argv) {
         switch (conf.mode)
         {
         case 'C':
-		consumer_run(stdout);
+                consumer_run(stdout);
                 break;
 
         case 'P':
