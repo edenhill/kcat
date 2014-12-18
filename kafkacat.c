@@ -299,7 +299,7 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                         produce(buf, len, key, key_len, msgflags);
 
                         /* Possible race condition if rdkafka frees the buffer */
-                        if (conf.tee && fwrite(buf, origlen, 1, stdout) == -1)
+                        if (conf.tee && fwrite(buf, origlen, 1, stdout) != 1)
                                 FATAL("Write error for message of %zd bytes): %s",
                                       origlen, strerror(errno));
 
@@ -383,8 +383,8 @@ static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
                         (int)rkmessage->key_len, (const char *)rkmessage->key,
                         conf.key_delim);
 
-        if (fwrite(rkmessage->payload, rkmessage->len, 1, fp) == -1 ||
-            fwrite(&conf.delim, 1, 1, fp) == -1)
+        if (fwrite(rkmessage->payload, rkmessage->len, 1, fp) != 1 ||
+            fwrite(&conf.delim, 1, 1, fp) != 1)
                 FATAL("Write error for message "
                       "of %zd bytes at offset %"PRId64"): %s",
                       rkmessage->len, rkmessage->offset, strerror(errno));
