@@ -53,6 +53,7 @@ static struct conf {
         int     flags;
 #define CONF_F_KEY_DELIM  0x2
 #define CONF_F_OFFSET     0x4 /* Print offsets */
+#define CONF_F_TEE        0x8 /* Tee output when producing */
         int     delim;
         int     key_delim;
         int     msg_size;
@@ -62,7 +63,6 @@ static struct conf {
         int64_t offset;
         int     exit_eof;
         int64_t msg_cnt;
-        int     tee;
 
         rd_kafka_conf_t       *rk_conf;
         rd_kafka_topic_conf_t *rkt_conf;
@@ -260,11 +260,11 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                         char *buf = sbuf;
                         char *key = NULL;
                         size_t key_len = 0;
+                        size_t orig_len = len;
 
                         if (len == 0)
                                 continue;
 
-                        ssize_t origlen = len;
                         /* Shave off delimiter */
                         if ((int)buf[len-1] == conf.delim)
                                 len--;
@@ -299,9 +299,10 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                         produce(buf, len, key, key_len, msgflags);
 
                         /* Possible race condition if rdkafka frees the buffer */
-                        if (conf.tee && fwrite(buf, origlen, 1, stdout) != 1)
+                        if (conf.flags & CONF_F_TEE &&
+                            fwrite(buf, orig_len, 1, stdout) != 1)
                                 FATAL("Write error for message of %zd bytes: %s",
-                                      origlen, strerror(errno));
+                                      orig_len, strerror(errno));
 
                         if (msgflags & RD_KAFKA_MSG_F_FREE) {
                                 /* rdkafka owns the allocated buffer
@@ -809,7 +810,7 @@ static void argparse (int argc, char **argv) {
                         conf.verbosity++;
                         break;
                 case 'T':
-                        conf.tee = 1;
+                        conf.flags |= CONF_F_TEE;
                         break;
                 case 'u':
                         setbuf(stdout, NULL);
