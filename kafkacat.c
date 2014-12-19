@@ -301,7 +301,7 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                         /* Possible race condition if rdkafka frees the buffer */
                         if (conf.flags & CONF_F_TEE &&
                             fwrite(buf, orig_len, 1, stdout) != 1)
-                                FATAL("Write error for message of %zd bytes: %s",
+                                FATAL("Tee write error for message of %zd bytes: %s",
                                       orig_len, strerror(errno));
 
                         if (msgflags & RD_KAFKA_MSG_F_FREE) {
