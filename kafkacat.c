@@ -283,11 +283,15 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                                 }
                         }
 
-                        if (len > 1024) {
+                        if (len > 1024 && !(conf.flags & CONF_F_TEE)) {
                                 /* If message is larger than this arbitrary
                                  * threshold it will be more effective to
                                  * not copy the data but let rdkafka own it
-                                 * instead. */
+                                 * instead.
+                                 *
+                                 * Note that CONF_T_TEE must be checked,
+                                 * otherwise a possible race might occur.
+                                 * */
                                 msgflags |= RD_KAFKA_MSG_F_FREE;
                         } else {
                                 /* For smaller messages a copy is
@@ -298,7 +302,6 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                         /* Produce message */
                         produce(buf, len, key, key_len, msgflags);
 
-                        /* Possible race condition if rdkafka frees the buffer */
                         if (conf.flags & CONF_F_TEE &&
                             fwrite(buf, orig_len, 1, stdout) != 1)
                                 FATAL("Tee write error for message of %zd bytes: %s",
