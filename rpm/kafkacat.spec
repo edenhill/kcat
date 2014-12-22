@@ -8,7 +8,7 @@ URL:      https://github.com/edenhill/kafkacat
 Source:   kafkacat-%{version}.tar.gz
 Requires: librdkafka1
 
-BuildRequires: zlib-devel libstdc++-devel gcc >= 4.1 gcc-c++ librdkafka-devel
+BuildRequires: zlib-devel gcc >= 4.1 librdkafka-devel
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 %description
