@@ -16,7 +16,7 @@ LIBRDKAFKA_DIR=librdkafka-${LIBRDKAFKA_VERSION}
 LIBRDKAFKA_URL=https://github.com/edenhill/librdkafka/archive/${LIBRDKAFKA_VERSION}.tar.gz
 
 mkdir -p tmp-bootstrap
-pushd tmp-bootstrap
+pushd tmp-bootstrap > /dev/null
 
 if [[ ! -d ${LIBRDKAFKA_DIR} ]]; then
     echo "Downloading ${LIBRDKAFKA_DIR}"
@@ -29,13 +29,13 @@ if [[ ! -d ${LIBRDKAFKA_DIR} ]]; then
 fi
 
 echo "Building ${LIBRDKAFKA_DIR}"
-pushd ${LIBRDKAFKA_DIR}
+pushd ${LIBRDKAFKA_DIR} > /dev/null
 ./configure
 make
 make DESTDIR="${PWD}/../" install
 
-popd
-popd
+popd > /dev/null
+popd > /dev/null
 
 echo "Building kafkacat"
 export CPPFLAGS="${CPPFLAGS:-} -Itmp-bootstrap/usr/local/include"
