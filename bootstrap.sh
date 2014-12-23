@@ -9,36 +9,40 @@
 # is the easiest and quickest way.
 #
 
-LIBRDKAFKA_VERSION=master
+set -o errexit -o nounset -o pipefail
 
-mkdir -p tmp-bootstrap || exit 1
-cd tmp-bootstrap || exit 1
+LIBRDKAFKA_VERSION=${LIBRDKAFKA_VERSION:-master}
+LIBRDKAFKA_DIR=librdkafka-${LIBRDKAFKA_VERSION}
+LIBRDKAFKA_URL=https://github.com/edenhill/librdkafka/archive/${LIBRDKAFKA_VERSION}.tar.gz
 
-if [[ ! -d librdkafka-$LIBRDKAFKA_VERSION ]]; then
-    echo "Downloading librdkafka-$LIBRDKAFKA_VERSION"
-    if [[ $(which wget 2>&1 > /dev/null) ]]; then
-	DL='wget -O-'
+mkdir -p tmp-bootstrap
+pushd tmp-bootstrap
+
+if [[ ! -d ${LIBRDKAFKA_DIR} ]]; then
+    echo "Downloading ${LIBRDKAFKA_DIR}"
+    if which wget 2>&1 > /dev/null; then
+        DL='wget -q -O-'
     else
-	DL='curl -L'
+        DL='curl -s -L'
     fi
-    $DL "https://github.com/edenhill/librdkafka/archive/${LIBRDKAFKA_VERSION}.tar.gz" | \
-        tar xzf -
-    [[ $? -eq 0 ]] || exit 1
+    $DL "${LIBRDKAFKA_URL}" | tar xzf -
 fi
 
-echo "Building librdkafka-$LIBRDKAFKA_VERSION"
-cd librdkafka-$LIBRDKAFKA_VERSION || exit 1
-./configure || exit 1
-make || exit 1
-make DESTDIR="${PWD}/../" install || exit 1
+echo "Building ${LIBRDKAFKA_DIR}"
+pushd ${LIBRDKAFKA_DIR}
+./configure
+make
+make DESTDIR="${PWD}/../" install
 
-cd ../../
+popd
+popd
+
 echo "Building kafkacat"
-export CPPFLAGS="$CPPFLAGS -Itmp-bootstrap/usr/local/include"
-export LDFLAGS="$LDFLAGS -Ltmp-bootstrap/usr/local/lib"
+export CPPFLAGS="${CPPFLAGS:-} -Itmp-bootstrap/usr/local/include"
+export LDFLAGS="${LDFLAGS:-} -Ltmp-bootstrap/usr/local/lib"
 export STATIC_LIB_rdkafka="tmp-bootstrap/usr/local/lib/librdkafka.a"
-./configure --enable-static || exit 1
-make || exit 1
+./configure --enable-static
+make
 
 echo ""
 echo "Success! kafkacat is now built"
