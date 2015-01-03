@@ -387,9 +387,10 @@ static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
                         (int)rkmessage->key_len, (const char *)rkmessage->key,
                         conf.key_delim);
 
-        if (rkmessage->len > 0
-            && (fwrite(rkmessage->payload, rkmessage->len, 1, fp) != 1 ||
-                fwrite(&conf.delim, 1, 1, fp) != 1))
+        size_t payload_entries_cnt = fwrite(rkmessage->payload, rkmessage->len, 1, fp);
+        if ((payload_entries_cnt != 1 && rkmessage->len  > 0) ||
+            (payload_entries_cnt != 0 && rkmessage->len == 0) ||
+            fwrite(&conf.delim, 1, 1, fp) != 1)
                 FATAL("Write error for message "
                       "of %zd bytes at offset %"PRId64"): %s",
                       rkmessage->len, rkmessage->offset, strerror(errno));
