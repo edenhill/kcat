@@ -4,7 +4,7 @@ BIN=	kafkacat
 SRCS=	kafkacat.c
 OBJS=	$(SRCS:.c=.o)
 
-.PHONY:
+.PHONY: doc
 
 all: $(BIN)
 
@@ -18,8 +18,10 @@ install: bin-install install-man
 
 install-man:
 	echo $(INSTALL) -d $$DESTDIR$(man1dir) && \
-	echo $(INSTALL) kafkacat.1 $$DESTDIR$(man1dir)
+	echo $(INSTALL) doc/kafkacat.1 $$DESTDIR$(man1dir)
 
+doc:
+	ronn doc/kafkacat.md
 
 clean: bin-clean
 
