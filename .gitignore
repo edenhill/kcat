@@ -9,3 +9,4 @@ config.h
 Makefile.config
 tmp-bootstrap
 *.offset
+src/kc
