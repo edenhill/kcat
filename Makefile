@@ -1,8 +1,6 @@
-
-BIN=	kafkacat
-
-SRCS=	kafkacat.c
-OBJS=	$(SRCS:.c=.o)
+SRCS=src/common.c src/producer.c src/consumer.c src/metadata.c src/kc.c
+OBJS=$(SRCS:.c=.o)
+BIN=src/kc
 
 .PHONY: doc
 
