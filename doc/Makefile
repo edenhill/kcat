@@ -1,3 +1,5 @@
+all: doc
+
 kafkacat.1: kafkacat.md
 	ronn -r $^
 
