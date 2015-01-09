@@ -21,7 +21,7 @@ install-man:
 	echo $(INSTALL) doc/kafkacat.1 $$DESTDIR$(man1dir)
 
 doc:
-	$(MAKE) -C doc $@
+	$(MAKE) -C doc
 
 clean: bin-clean
 

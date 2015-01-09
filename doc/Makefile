@@ -1,9 +1,9 @@
 all: doc
 
-kafkacat.1: kafkacat.md
+%.1: %.md
 	ronn -r $^
 
-kafkacat.1.html: kafkacat.md
+%.1.html: %.md
 	ronn -5 $^
 
 doc: kafkacat.1 kafkacat.1.html
