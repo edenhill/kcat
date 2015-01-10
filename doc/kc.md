@@ -26,11 +26,8 @@ DESCRIPTION
 `kc` also known as `kafkacat` is a generic non-JVM producer and consumer for
 Apache Kafka 0.8, think of it as a netcat for Kafka.
 
-In consumer mode, `kc` reads messages from a topic and partition and prints
-them to stdout using the configured message delimiter.
-
-In metadata mode, `kc` displays the current state of the Kafka cluster and
-its topics and partitions.
+`kc` works in different _command_: producer, consumer and metadata. Each one
+is described in the [COMMAND] section.
 
 COMMAND
 -------
@@ -123,13 +120,17 @@ OPTIONS
 CONFIGURATION
 -------------
 
+### General configuration
+
+### Topic configuration
+
 EXAMPLES
 --------
 
 * Producing a single message
 
 ```
-    $ echo "test message" | kc producer test`
+    $ echo "test message" | kc producer test
 ```
 
 * Consuming last message
@@ -157,3 +158,6 @@ EXAMPLES
       ]
     }
 ```
+
+DISCUSSION
+----------
