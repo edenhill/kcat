@@ -47,7 +47,7 @@ static kc_command argparse (int argc, char **argv) {
   }
 
   if (argc - optind == 0)
-    usage(argv[0], 1, "command missing");
+    usage(argv[0], 1, "Command missing");
 
   const char *cmd = argv[optind];
   if (!strcmp("producer", cmd))
@@ -87,13 +87,12 @@ int main(int argc, char **argv) {
     metadata_main(left_argc, left_argv);
     break;
   default:
-    usage("kc", 1, "unknown subcommand");
+    usage(argv[0], 1, "Unknown subcommand");
   }
 
-  /* Be warned that changing conf.run to non-zero is thread safe only if
-   * poll_loop is not running. In our case, pthread_join(poll_loop) is a
-   * stopping condition in producer_run(). */
+  /* Be warned that changing conf.run is highly risky. */
   conf.run = 1;
+
   /* Wait for all messages to be transmitted */
   while (conf.run && rd_kafka_outq_len(conf.rk))
     rd_kafka_poll(conf.rk, 50);
