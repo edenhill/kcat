@@ -207,32 +207,14 @@ static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
 }
 
 int consumer_main(int argc, char **argv) {
-  char errstr[512];
-  rd_kafka_resp_err_t err;
   const struct rd_kafka_metadata *metadata;
+  rd_kafka_resp_err_t err;
   rd_kafka_queue_t *rkqu;
   int i;
 
   consumer_argparse(argc, argv);
 
-  /* Create consumer */
-  if (!(conf.rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf.rk_conf,
-             errstr, sizeof(errstr))))
-    FATAL("Failed to create producer: %s", errstr);
-
-  if (conf.debug)
-    rd_kafka_set_log_level(conf.rk, LOG_DEBUG);
-  else if (conf.verbosity == 0)
-    rd_kafka_set_log_level(conf.rk, 0);
-
-  /* Create topic */
-  if (!(conf.rkt = rd_kafka_topic_new(conf.rk, conf.topic,
-              conf.rkt_conf)))
-    FATAL("Failed to create topic %s: %s", conf.topic,
-          rd_kafka_err2str(rd_kafka_errno2err(errno)));
-
-  conf.rk_conf  = NULL;
-  conf.rkt_conf = NULL;
+  kc_rdkafka_init(RD_KAFKA_CONSUMER);
 
   /* Query broker for topic + partition information. */
   if ((err = rd_kafka_metadata(conf.rk, 0, conf.rkt, &metadata, 5000)))

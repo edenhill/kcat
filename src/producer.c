@@ -318,42 +318,17 @@ static void produce_file (FILE *fp) {
 }
 
 void producer_main (int argc, char **argv) {
-  char tmp[16];
-  char errstr[512];
-  pthread_t poll_loop_t;
+  pthread_t poll_thread;
 
   /* Parse command line arguments */
   producer_argparse(argc, argv);
 
-  /* Enable quick termination of librdkafka */
-  snprintf(tmp, sizeof(tmp), "%i", SIGIO);
-  rd_kafka_conf_set(conf.rk_conf, "internal.termination.signal", tmp, NULL, 0);
-
   /* Set producer callback */
   rd_kafka_conf_set_dr_msg_cb(conf.rk_conf, produce_cb);
 
-  /* Create producer */
-  if (!(conf.rk = rd_kafka_new(RD_KAFKA_PRODUCER, conf.rk_conf,
-             errstr, sizeof(errstr))))
-    FATAL("Failed to create producer: %s", errstr);
+  kc_rdkafka_init(RD_KAFKA_PRODUCER);
 
-  /* set verbosity */
-  if (conf.debug)
-    rd_kafka_set_log_level(conf.rk, LOG_DEBUG);
-  else if (conf.verbosity == 0)
-    rd_kafka_set_log_level(conf.rk, 0);
-
-  /* Create topic */
-  if (!(conf.rkt = rd_kafka_topic_new(conf.rk, conf.topic,
-              conf.rkt_conf)))
-    FATAL("Failed to create topic %s: %s", conf.topic,
-          rd_kafka_err2str(rd_kafka_errno2err(errno)));
-
-  // Already free
-  conf.rkt_conf = NULL;
-  conf.rk_conf = NULL;
-
-  if(pthread_create(&poll_loop_t, NULL, &poll_loop, NULL))
+  if(pthread_create(&poll_thread, NULL, &poll_loop, NULL))
     FATAL("Could not create loop thread");
 
   for (size_t i = 0; i < conf.n_inputs; i++)
@@ -362,7 +337,7 @@ void producer_main (int argc, char **argv) {
   /* successfully completed */
   conf.run = 0;
 
-  pthread_join(poll_loop_t, NULL);
+  pthread_join(poll_thread, NULL);
 
   /* Close input files */
   for (int i = 0; i < conf.n_inputs; i++)

@@ -163,39 +163,13 @@ static void metadata_print (const struct rd_kafka_metadata *metadata) {
 }
 
 int metadata_main(int argc, char **argv) {
-  char errstr[512];
-  char tmp[16];
-
-  /* Enable quick termination of librdkafka */
-  snprintf(tmp, sizeof(tmp), "%i", SIGIO);
-  rd_kafka_conf_set(conf.rk_conf, "internal.termination.signal", tmp, NULL, 0);
+  rd_kafka_resp_err_t err;
+  const struct rd_kafka_metadata *metadata;
 
   /* Parse command line arguments */
   metadata_argparse(argc, argv);
 
-  /* Create handle */
-  if (!(conf.rk = rd_kafka_new(RD_KAFKA_PRODUCER, conf.rk_conf,
-             errstr, sizeof(errstr))))
-    FATAL("Failed to create rd_kafka producer: %s", errstr);
-
-  rd_kafka_set_logger(conf.rk, rd_kafka_log_print);
-  if (conf.debug)
-    rd_kafka_set_log_level(conf.rk, LOG_DEBUG);
-  else if (conf.verbosity == 0)
-    rd_kafka_set_log_level(conf.rk, 0);
-
-  /* Create topic, if specified */
-  if (conf.topic &&
-      !(conf.rkt = rd_kafka_topic_new(conf.rk, conf.topic,
-              conf.rkt_conf)))
-    FATAL("Failed to create rk_kafka_topic %s: %s", conf.topic,
-          rd_kafka_err2str(rd_kafka_errno2err(errno)));
-
-  conf.rk_conf  = NULL;
-  conf.rkt_conf = NULL;
-
-  rd_kafka_resp_err_t err;
-  const struct rd_kafka_metadata *metadata;
+  kc_rdkafka_init(RD_KAFKA_PRODUCER);
 
   /* Fetch metadata */
   err = rd_kafka_metadata(conf.rk, conf.rkt ? 0 : 1, conf.rkt, &metadata, 5000);

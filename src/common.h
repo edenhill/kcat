@@ -65,3 +65,5 @@ int parse_delim (const char *str);
 
 void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                                       const char *reason);
+
+void kc_rdkafka_init(rd_kafka_type_t type);

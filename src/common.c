@@ -28,6 +28,8 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <syslog.h>
+#include <errno.h>
 
 #include "common.h"
 
@@ -133,4 +135,36 @@ void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
          "Copyright (c) 2014, Magnus Edenhill\n"
          "\n");
   exit(exitcode);
+}
+
+void kc_rdkafka_init(rd_kafka_type_t type) {
+  char errstr[512];
+
+  if (type == RD_KAFKA_PRODUCER) {
+    char tmp[16];
+    snprintf(tmp, sizeof(tmp), "%i", SIGIO);
+    rd_kafka_conf_set(conf.rk_conf, "internal.termination.signal",
+                      tmp, NULL, 0);
+  }
+
+  /* Create handle */
+  if (!(conf.rk = rd_kafka_new(type, conf.rk_conf,
+             errstr, sizeof(errstr))))
+    FATAL("Failed to create rd_kafka struct: %s", errstr);
+
+  rd_kafka_set_logger(conf.rk, rd_kafka_log_print);
+  if (conf.debug)
+    rd_kafka_set_log_level(conf.rk, LOG_DEBUG);
+  else if (conf.verbosity == 0)
+    rd_kafka_set_log_level(conf.rk, 0);
+
+  /* Create topic, if specified */
+  if (conf.topic &&
+      !(conf.rkt = rd_kafka_topic_new(conf.rk, conf.topic,
+              conf.rkt_conf)))
+    FATAL("Failed to create rk_kafka_topic %s: %s", conf.topic,
+          rd_kafka_err2str(rd_kafka_errno2err(errno)));
+
+  conf.rk_conf  = NULL;
+  conf.rkt_conf = NULL;
 }
