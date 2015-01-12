@@ -70,7 +70,7 @@ void set_signals() {
   if (signal(SIGINT,  term) == SIG_ERR ||
       signal(SIGTERM, term) == SIG_ERR ||
       signal(SIGPIPE, term) == SIG_ERR)
-    FATAL("Could not set signal handler for SIGINT");
+    FATAL("Could not set signal handlers");
 }
 
 /**
