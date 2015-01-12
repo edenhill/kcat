@@ -78,7 +78,7 @@ kc \-\-version
 .SS "Producer options"
 .
 .IP "\[ci]" 4
-\fB\-d <delim>, \-\-delimiter=<delim>\fR Message delimiter character: a\-z\.\. | \er | \en | \et | \exNN [default: \en]\.
+\fB\-d <delim>, \-\-delimiter=<delim>\fR Message delimiter character: a\-z\.\. | \fI\er\fR | \en | \et | \exNN [default: \en]\.
 .
 .IP "\[ci]" 4
 \fB\-k <delim>, \-\-key\-delimiter=<delim>\fR Key delimiter character: a\-z\.\. | \er | \en | \et | \exNN\.
@@ -130,7 +130,7 @@ Producing a single message
 .
 .nf
 
-    $ echo "test message" | kc producer test`
+    $ echo "test message" | kc producer test
 .
 .fi
 .
@@ -179,4 +179,6 @@ Showing metadata on the test topic
 .fi
 .
 .IP "" 0
+.
+.SH "DISCUSSION"
 

@@ -63,6 +63,7 @@
     <a href="#OPTIONS">OPTIONS</a>
     <a href="#CONFIGURATION">CONFIGURATION</a>
     <a href="#EXAMPLES">EXAMPLES</a>
+    <a href="#DISCUSSION">DISCUSSION</a>
   </div>
 
   <ol class='man-decor man-head man head'>
@@ -150,7 +151,7 @@ Show the usage and help message.</p></li>
 
 <ul>
 <li><p><code>-d &lt;delim>, --delimiter=&lt;delim></code>
-Message delimiter character: a-z.. | \r | \n | \t | \xNN [default: \n].</p></li>
+Message delimiter character: a-z.. | <em>\r</em> | \n | \t | \xNN [default: \n].</p></li>
 <li><p><code>-k &lt;delim>, --key-delimiter=&lt;delim></code>
 Key delimiter character: a-z.. | \r | \n | \t | \xNN.</p></li>
 <li><p><code>-c &lt;cnt>, --count=&lt;cnt></code>
@@ -192,7 +193,7 @@ Exit when there is no message left to consumer in the topic.</p></li>
 </ul>
 
 
-<pre><code>    $ echo "test message" | kc producer test`
+<pre><code>    $ echo "test message" | kc producer test
 </code></pre>
 
 <ul>
@@ -224,6 +225,8 @@ Exit when there is no message left to consumer in the topic.</p></li>
       ]
     }
 </code></pre>
+
+<h2 id="DISCUSSION">DISCUSSION</h2>
 
 
   <ol class='man-decor man-foot man foot'>
