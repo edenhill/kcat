@@ -1,12 +1,12 @@
-#include <unistd.h>
+#include <errno.h>
 #include <getopt.h>
+#include <pthread.h>
+#include <signal.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
-#include <signal.h>
 #include <syslog.h>
-#include <stdbool.h>
-#include <pthread.h>
+#include <unistd.h>
 
 #include "common.h"
 
@@ -210,7 +210,8 @@ static void produce_message (void *buf, size_t len,
     rd_kafka_resp_err_t err;
 
     if (!conf.run)
-      FATAL("Program terminated while producing message of %zd bytes", len);
+      INFO(LOG_ERR,
+           "Program terminated while producing message of %zd bytes", len);
 
     if (rd_kafka_produce(conf.rkt, conf.partition, msgflags,
                          buf, len, key, key_len, NULL) != -1) {
@@ -221,7 +222,7 @@ static void produce_message (void *buf, size_t len,
     err = rd_kafka_errno2err(errno);
 
     if (err != RD_KAFKA_RESP_ERR__QUEUE_FULL)
-      FATAL("Failed to produce message (%zd bytes): %s",
+      INFO(LOG_ERR, "Failed to produce message (%zd bytes): %s",
             len, rd_kafka_err2str(err));
 
     stats.tx_err_q++;
