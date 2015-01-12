@@ -44,6 +44,12 @@ conf_t conf = {
   .brokers = "localhost",
 };
 
+stats_t stats = {
+  .tx = 0,
+  .tx_err_q = 0,
+  .rx = 0,
+};
+
 /**
  * Fatal error: print error and exit
  */

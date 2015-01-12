@@ -38,12 +38,14 @@ typedef struct {
 
 conf_t conf;
 
-static struct stats {
+typedef struct {
   uint64_t tx;
   uint64_t tx_err_q;
 
   uint64_t rx;
-} stats;
+} stats_t;
+
+stats_t stats;
 
 void term(int sig);
 
