@@ -1,6 +1,6 @@
-#include <unistd.h>
-#include <stdio.h>
 #include <inttypes.h>
+#include <stdio.h>
+#include <unistd.h>
 
 #include <librdkafka/rdkafka.h>
 

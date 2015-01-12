@@ -1,12 +1,12 @@
-#include <unistd.h>
+#include <errno.h>
 #include <getopt.h>
+#include <signal.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <signal.h>
 #include <syslog.h>
-#include <errno.h>
 #include <syslog.h>
-#include <stdbool.h>
+#include <unistd.h>
 
 #include "common.h"
 
