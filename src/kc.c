@@ -26,6 +26,9 @@ static kc_command argparse (int argc, char **argv) {
   int opt;
   int option_index = 0;
 
+  /* Prefixing the optstring with '+' will have the effect of
+   * stopping getopt_long on the first non option. In our case, this
+   * would be the command. */
   while ((opt = getopt_long(argc, argv,
                             "+Vh",
                             kc_long_options,
@@ -44,7 +47,7 @@ static kc_command argparse (int argc, char **argv) {
   }
 
   if (argc - optind == 0)
-    usage(argv[0], 1, "Command missing");
+    usage(argv[0], 1, "command missing");
 
   const char *cmd = argv[optind];
   if (!strcmp("producer", cmd))
@@ -84,7 +87,7 @@ int main(int argc, char **argv) {
     metadata_main(left_argc, left_argv);
     break;
   default:
-    usage("kc", 1, "Unknown subcommand");
+    usage("kc", 1, "unknown subcommand");
   }
 
   /* Be warned that changing conf.run to non-zero is thread safe only if
