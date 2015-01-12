@@ -57,13 +57,11 @@ void __attribute__((noreturn)) fatal0 (const char *func, int line,
   exit(1);
 }
 
-int run = 1;
-
 /**
  * Terminate by putting out the run flag.
  */
 void term(int sig) {
-  run = 0;
+  conf.run = 0;
 }
 
 void set_signals() {
