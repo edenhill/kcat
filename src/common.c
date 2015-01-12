@@ -74,8 +74,8 @@ void set_signals() {
 }
 
 /**
-* Parse delimiter string from command line arguments.
-*/
+ * Parse delimiter string from command line arguments.
+ */
 int parse_delim (const char *str) {
   int delim;
   if (!strncmp(str, "\\x", strlen("\\x")))
