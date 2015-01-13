@@ -26,6 +26,6 @@ clean: bin-clean
 
 dist-clean: clean
 	rm -rf tmp
-	rm config.* Makefile.config
+	rm -f config.* Makefile.config
 
 -include $(DEPS)
