@@ -1,5 +1,5 @@
 /*
- * kc - Apache Kafka consumer and producer
+ * kfc - Apache Kafka consumer and producer
  *
  * Copyright (c) 2015, François Saint-Jacques
  * Copyright (c) 2014, Magnus Edenhill
@@ -197,7 +197,7 @@ int metadata_main(int argc, char **argv) {
   /* Parse command line arguments */
   metadata_argparse(argc, argv);
 
-  kc_rdkafka_init(RD_KAFKA_PRODUCER);
+  kfc_rdkafka_init(RD_KAFKA_PRODUCER);
 
   /* Fetch metadata */
   err = rd_kafka_metadata(conf.rk, conf.rkt ? 0 : 1, conf.rkt, &metadata, 5000);

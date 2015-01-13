@@ -1,5 +1,5 @@
 /*
- * kc - Apache Kafka consumer and producer
+ * kfc - Apache Kafka consumer and producer
  *
  * Copyright (c) 2015, François Saint-Jacques
  * Copyright (c) 2014, Magnus Edenhill
@@ -172,7 +172,7 @@ static void consumer_argparse (int argc, char **argv) {
   if (rd_kafka_conf_set(conf.rk_conf, "metadata.broker.list",
                         conf.brokers, errstr, sizeof(errstr)) !=
         RD_KAFKA_CONF_OK)
-    usage("kc", 1, errstr);
+    usage("kfc", 1, errstr);
 }
 
 /* Partition's at EOF state array */
@@ -247,7 +247,7 @@ int consumer_main(int argc, char **argv) {
 
   consumer_argparse(argc, argv);
 
-  kc_rdkafka_init(RD_KAFKA_CONSUMER);
+  kfc_rdkafka_init(RD_KAFKA_CONSUMER);
 
   /* Query broker for topic + partition information. */
   if ((err = rd_kafka_metadata(conf.rk, 0, conf.rkt, &metadata, 5000)))

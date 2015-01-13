@@ -2,10 +2,10 @@
 #
 # This script provides a quick build alternative:
 # * Dependencies are downloaded and built automatically
-# * kc is built automatically.
-# * kc is linked statically to avoid runtime dependencies.
+# * kfc is built automatically.
+# * kfc is linked statically to avoid runtime dependencies.
 #
-# While this might not be the preferred method of building kc, it
+# While this might not be the preferred method of building kfc, it
 # is the easiest and quickest way.
 
 set -o errexit -o nounset -o pipefail
@@ -54,7 +54,7 @@ function bootstrap_kafka() {
 }
 
 function build() {
-  echo "Building kc "
+  echo "Building kfc "
   export STATIC_LIB_rdkafka="tmp/usr/local/lib/librdkafka.a"
   ./configure --enable-static \
       --CPPFLAGS=-Itmp/usr/local/include \

@@ -1,5 +1,5 @@
 /*
- * kc - Apache Kafka consumer and producer
+ * kfc - Apache Kafka consumer and producer
  *
  * Copyright (c) 2015, François Saint-Jacques
  * Copyright (c) 2014, Magnus Edenhill
@@ -96,4 +96,4 @@ int parse_delim (const char *str);
 void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                                       const char *reason);
 
-void kc_rdkafka_init(rd_kafka_type_t type);
+void kfc_rdkafka_init(rd_kafka_type_t type);

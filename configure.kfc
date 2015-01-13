@@ -3,12 +3,12 @@
 
 mkl_require good_cflags
 
-mkl_require fileversion .version KC_VERSION_STR
+mkl_require fileversion .version KFC_VERSION_STR
 
 function checks {
 
     # Check that librdkafka is available, and allow to link it statically.
-    mkl_meta_set "librdkafka" "desc" "librdkafka is available at http://github.com/edenhill/librdkafka. To quickly download all dependencies and build kc try tools/bootstrap.sh"
+    mkl_meta_set "librdkafka" "desc" "librdkafka is available at http://github.com/edenhill/librdkafka. To quickly download all dependencies and build kfc try tools/bootstrap.sh"
     mkl_meta_set "librdkafka" "deb" "librdkafka-dev"
     mkl_lib_check --static=-lrdkafka "librdkafka" "" fail CC "-lrdkafka -lpthread -lz" \
        "#include <librdkafka/rdkafka.h>"

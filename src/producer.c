@@ -1,5 +1,5 @@
 /*
- * kc - Apache Kafka consumer and producer
+ * kfc - Apache Kafka consumer and producer
  *
  * Copyright (c) 2015, François Saint-Jacques
  * Copyright (c) 2014, Magnus Edenhill
@@ -356,7 +356,7 @@ void producer_main (int argc, char **argv) {
   /* Set producer callback */
   rd_kafka_conf_set_dr_msg_cb(conf.rk_conf, produce_cb);
 
-  kc_rdkafka_init(RD_KAFKA_PRODUCER);
+  kfc_rdkafka_init(RD_KAFKA_PRODUCER);
 
   if(pthread_create(&poll_thread, NULL, &poll_loop, NULL))
     FATAL("Could not create loop thread");
