@@ -1,5 +1,5 @@
 /*
- * kc - Apache Kafka consumer and producer
+ * kfc - Apache Kafka consumer and producer
  *
  * Copyright (c) 2015, François Saint-Jacques
  * Copyright (c) 2014, Magnus Edenhill
@@ -107,11 +107,11 @@ void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
 
   printf("Usage:\n"
          "\n"
-         "kc producer <topic> [<file>...]\n"
-         "kc consumer <topic>\n"
-         "kc metadata [<topic>]\n"
-         "kc --help\n"
-         "kc --version\n"
+         "kfc producer <topic> [<file>...]\n"
+         "kfc consumer <topic>\n"
+         "kfc metadata [<topic>]\n"
+         "kfc --help\n"
+         "kfc --version\n"
          "\n"
          "General options:\n"
          "  -b <brokers,..>    Bootstrap broker(s) (host[:port])\n"
@@ -150,16 +150,16 @@ void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
          "of messages\n"
          "  -u                 Unbuffered output\n"
          "\n"
-         "See kc(1) for more information\n"
+         "See kfc(1) for more information\n"
          "\n"
-         "https://github.com/fsaintjacques/kc\n"
+         "https://github.com/fsaintjacques/kfc\n"
          "Copyright (c) 2015, François Saint-Jacques\n"
          "Copyright (c) 2014, Magnus Edenhill\n"
          "\n");
   exit(exitcode);
 }
 
-void kc_rdkafka_init(rd_kafka_type_t type) {
+void kfc_rdkafka_init(rd_kafka_type_t type) {
   char errstr[512];
 
   if (type == RD_KAFKA_PRODUCER) {

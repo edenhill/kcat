@@ -1,35 +1,35 @@
-kc(1) -- generic producer and consumer for Apache Kafka
+kfc(1) -- generic producer and consumer for Apache Kafka
 =======================================================
 
 SYNOPSIS
 --------
 
 ```
-kc producer [--brokers=<brks>] [--partition=<part>] [--compression=<comp>]
+kfc producer [--brokers=<brks>] [--partition=<part>] [--compression=<comp>]
             [--delimiter=<delim>] [--key-delimiter=<delim>] [--count=<cnt>]
             [--error-file=<file>] [-T | --tee] [-q | --quiet]
             [-v | --verbose] <topic> [<file>...]
 
-kc consumer [--brokers=<brks>] [--partition=<part>] [--offset=<off>]
+kfc consumer [--brokers=<brks>] [--partition=<part>] [--offset=<off>]
             [--delimiter=<delim>] [--key-delimiter=<delim>] [--count=<cnt>]
             [-e | --exit] [-O | --print-offset] [-u | --unbuffered]
             [-q | --quiet] [-v | --verbose] <topic>
 
-kc metadata [--brokers=<brks>] [--partition=<part>][-q | --quiet]
+kfc metadata [--brokers=<brks>] [--partition=<part>][-q | --quiet]
             [-v | --verbose] [<topic>]
 
-kc --help
+kfc --help
 
-kc --version
+kfc --version
 ```
 
 DESCRIPTION
 -----------
 
-`kc` also known as `kafkacat` is a generic non-JVM producer and consumer for
+`kfc` also known as `kafkacat` is a generic non-JVM producer and consumer for
 Apache Kafka 0.8, think of it as a netcat for Kafka.
 
-`kc` works in different <command>: producer, consumer and metadata. Each one
+`kfc` works in different <command>: producer, consumer and metadata. Each one
 is described in the [COMMAND] section.
 
 COMMAND
@@ -127,20 +127,20 @@ EXAMPLES
 * Producing a single message
 
 ```
-    $ echo "test message" | kc producer test
+    $ echo "test message" | kfc producer test
 ```
 
 * Consuming last message
 
 ```
-    $ kc consumer -e -o -1 test
+    $ kfc consumer -e -o -1 test
     test message
 ```
 
 * Showing metadata on the test topic
 
 ```
-    $ kc metadata test
+    $ kfc metadata test
     {
       "brokers": [
         { "id":0, "host":"localhost:9092" }

@@ -1,39 +1,39 @@
 .\" generated with Ronn/v0.7.3
 .\" http://github.com/rtomayko/ronn/tree/0.7.3
 .
-.TH "KC" "1" "January 2015" "" ""
+.TH "KFC" "1" "January 2015" "" ""
 .
 .SH "NAME"
-\fBkc\fR \- generic producer and consumer for Apache Kafka
+\fBkfc\fR \- generic producer and consumer for Apache Kafka
 .
 .SH "SYNOPSIS"
 .
 .nf
 
-kc producer [\-\-brokers=<brks>] [\-\-partition=<part>] [\-\-compression=<comp>]
+kfc producer [\-\-brokers=<brks>] [\-\-partition=<part>] [\-\-compression=<comp>]
             [\-\-delimiter=<delim>] [\-\-key\-delimiter=<delim>] [\-\-count=<cnt>]
             [\-\-error\-file=<file>] [\-T | \-\-tee] [\-q | \-\-quiet]
             [\-v | \-\-verbose] <topic> [<file>\|\.\|\.\|\.]
 
-kc consumer [\-\-brokers=<brks>] [\-\-partition=<part>] [\-\-offset=<off>]
+kfc consumer [\-\-brokers=<brks>] [\-\-partition=<part>] [\-\-offset=<off>]
             [\-\-delimiter=<delim>] [\-\-key\-delimiter=<delim>] [\-\-count=<cnt>]
-            [\-e | \-\-exit] [\-O | \-\-print\-offset] [\-q | \-\-quiet]
-            [\-v | \-\-verbose] <topic>
+            [\-e | \-\-exit] [\-O | \-\-print\-offset] [\-u | \-\-unbuffered]
+            [\-q | \-\-quiet] [\-v | \-\-verbose] <topic>
 
-kc metadata [\-\-brokers=<brks>] [\-\-partition=<part>][\-q | \-\-quiet]
+kfc metadata [\-\-brokers=<brks>] [\-\-partition=<part>][\-q | \-\-quiet]
             [\-v | \-\-verbose] [<topic>]
 
-kc \-\-help
+kfc \-\-help
 
-kc \-\-version
+kfc \-\-version
 .
 .fi
 .
 .SH "DESCRIPTION"
-\fBkc\fR also known as \fBkafkacat\fR is a generic non\-JVM producer and consumer for Apache Kafka 0\.8, think of it as a netcat for Kafka\.
+\fBkfc\fR also known as \fBkafkacat\fR is a generic non\-JVM producer and consumer for Apache Kafka 0\.8, think of it as a netcat for Kafka\.
 .
 .P
-\fBkc\fR works in different \fIcommand\fR: producer, consumer and metadata\. Each one is described in the [COMMAND] section\.
+\fBkfc\fR works in different \fIcommand\fR: producer, consumer and metadata\. Each one is described in the [COMMAND] section\.
 .
 .SH "COMMAND"
 .
@@ -129,6 +129,9 @@ kc \-\-version
 .IP "\[ci]" 4
 \fB\-e , \-\-exit\fR Exit when there is no message left to consumer in the topic\.
 .
+.IP "\[ci]" 4
+\fB\-u , \-\-unbuffered\fR Do not buffer stdout, useful for low volume topic\.
+.
 .IP "" 0
 .
 .SH "EXAMPLES"
@@ -142,7 +145,7 @@ Producing a single message
 .
 .nf
 
-    $ echo "test message" | kc producer test
+    $ echo "test message" | kfc producer test
 .
 .fi
 .
@@ -157,7 +160,7 @@ Consuming last message
 .
 .nf
 
-    $ kc consumer \-e \-o \-1 test
+    $ kfc consumer \-e \-o \-1 test
     test message
 .
 .fi
@@ -173,7 +176,7 @@ Showing metadata on the test topic
 .
 .nf
 
-    $ kc metadata test
+    $ kfc metadata test
     {
       "brokers": [
         { "id":0, "host":"localhost:9092" }

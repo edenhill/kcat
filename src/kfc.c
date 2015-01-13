@@ -1,5 +1,5 @@
 /*
- * kc - Apache Kafka consumer and producer
+ * kfc - Apache Kafka consumer and producer
  *
  * Copyright (c) 2015, François Saint-Jacques
  * Copyright (c) 2014, Magnus Edenhill
@@ -39,19 +39,19 @@ typedef enum {
   PRODUCER,
   CONSUMER,
   METADATA,
-} kc_command;
+} kfc_command;
 
 int producer_main(int argc, char **argv);
 int consumer_main(int argc, char **argv);
 int metadata_main(int argc, char **argv);
 
-static struct option kc_long_options[] = {
+static struct option kfc_long_options[] = {
     {"help",    no_argument, 0, 'h'},
     {"version", no_argument, 0, 'V'},
     {0,         0,           0,  0 }
 };
 
-static kc_command argparse (int argc, char **argv) {
+static kfc_command argparse (int argc, char **argv) {
   int opt;
   int option_index = 0;
 
@@ -60,11 +60,11 @@ static kc_command argparse (int argc, char **argv) {
    * would be the command. */
   while ((opt = getopt_long(argc, argv,
                             "+Vh",
-                            kc_long_options,
+                            kfc_long_options,
                             &option_index)) != -1) {
     switch (opt) {
     case 'V':
-      usage(argv[0], 0, KC_VERSION_STR);
+      usage(argv[0], 0, KFC_VERSION_STR);
       break;
     case 'h':
       usage(argv[0], 0, NULL);
@@ -99,7 +99,7 @@ int main(int argc, char **argv) {
   conf.rk_conf  = rd_kafka_conf_new();
   conf.rkt_conf = rd_kafka_topic_conf_new();
 
-  kc_command cmd = argparse(argc, argv);
+  kfc_command cmd = argparse(argc, argv);
 
   left_argc = argc - optind;
   left_argv = &argv[optind];
