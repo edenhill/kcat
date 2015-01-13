@@ -6,17 +6,17 @@ SYNOPSIS
 
 ```
 kfc producer [--brokers=<brks>] [--partition=<part>] [--compression=<comp>]
-            [--delimiter=<delim>] [--key-delimiter=<delim>] [--count=<cnt>]
-            [--error-file=<file>] [-T | --tee] [-q | --quiet]
-            [-v | --verbose] <topic> [<file>...]
+             [--delimiter=<delim>] [--key-delimiter=<delim>] [--count=<cnt>]
+             [--error-file=<file>] [-T | --tee] [-q | --quiet]
+             [-v | --verbose] <topic> [<file>...]
 
 kfc consumer [--brokers=<brks>] [--partition=<part>] [--offset=<off>]
-            [--delimiter=<delim>] [--key-delimiter=<delim>] [--count=<cnt>]
-            [-e | --exit] [-O | --print-offset] [-u | --unbuffered]
-            [-q | --quiet] [-v | --verbose] <topic>
+             [--delimiter=<delim>] [--key-delimiter=<delim>] [--count=<cnt>]
+             [-e | --exit] [-O | --print-offset] [-u | --unbuffered]
+             [-q | --quiet] [-v | --verbose] <topic>
 
 kfc metadata [--brokers=<brks>] [--partition=<part>][-q | --quiet]
-            [-v | --verbose] [<topic>]
+             [-v | --verbose] [<topic>]
 
 kfc --help
 
