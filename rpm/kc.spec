@@ -1,6 +1,6 @@
 Name:     kc
-Version:  1.1.0
-Release:  1%{?dist}
+Version:  0.9.1
+Release:  0%{?dist}
 Summary:  kc is a generic non-JVM producer and consumer for Apache Kafka 0.8, think of it as a netcat for Kafka.
 Group:    Productivity/Networking/Other
 License:  BSD-2-Clause
@@ -51,5 +51,5 @@ rm -rf %{buildroot}
 %doc doc/kc.1
 
 %changelog
-* Fri Dec 19 2014 François Saint-Jacques <fsaintjacques@gmail.com> 1.1.0-1
+* Tue Jan 14 2015 François Saint-Jacques <fsaintjacques@gmail.com> 0.9.1-0
 - Initial RPM package
