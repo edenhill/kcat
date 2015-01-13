@@ -47,6 +47,7 @@ static struct option consumer_long_options[] = {
     {"count",         required_argument, 0, 'c'},
     {"exit",          no_argument,       0, 'e'},
     {"print-offset",  no_argument,       0, 'O'},
+    {"unbuffered",    no_argument,       0, 'u'},
     {"verbose",       no_argument,       0, 'v'},
     {"quiet",         no_argument,       0, 'q'},
     {0,               0,                 0,  0 }

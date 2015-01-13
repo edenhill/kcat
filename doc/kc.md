@@ -12,8 +12,8 @@ kc producer [--brokers=<brks>] [--partition=<part>] [--compression=<comp>]
 
 kc consumer [--brokers=<brks>] [--partition=<part>] [--offset=<off>]
             [--delimiter=<delim>] [--key-delimiter=<delim>] [--count=<cnt>]
-            [-e | --exit] [-O | --print-offset] [-q | --quiet]
-            [-v | --verbose] <topic>
+            [-e | --exit] [-O | --print-offset] [-u | --unbuffered]
+            [-q | --quiet] [-v | --verbose] <topic>
 
 kc metadata [--brokers=<brks>] [--partition=<part>][-q | --quiet]
             [-v | --verbose] [<topic>]
@@ -117,6 +117,9 @@ OPTIONS
 
 * `-e , --exit`
   Exit when there is no message left to consumer in the topic.
+
+* `-u , --unbuffered`
+  Do not buffer stdout, useful for low volume topic.
 
 EXAMPLES
 --------
