@@ -12,13 +12,16 @@
 
 kc producer [\-\-brokers=<brks>] [\-\-partition=<part>] [\-\-compression=<comp>]
             [\-\-delimiter=<delim>] [\-\-key\-delimiter=<delim>] [\-\-count=<cnt>]
-            [\-T | \-\-tee] [\-q | \-\-quiet] [\-v | \-\-verbose] <topic> [<file>\|\.\|\.\|\.]
+            [\-\-error\-file=<file>] [\-T | \-\-tee] [\-q | \-\-quiet]
+            [\-v | \-\-verbose] <topic> [<file>\|\.\|\.\|\.]
 
-kc consumer [\-\-brokers=<brks>] [\-\-partition=<part>] [\-e | \-\-exit]
+kc consumer [\-\-brokers=<brks>] [\-\-partition=<part>] [\-\-offset=<off>]
             [\-\-delimiter=<delim>] [\-\-key\-delimiter=<delim>] [\-\-count=<cnt>]
-            [\-q | \-\-quiet] [\-v | \-\-verbose] <topic>
+            [\-e | \-\-exit] [\-O | \-\-print\-offset] [\-q | \-\-quiet]
+            [\-v | \-\-verbose] <topic>
 
-kc metadata [\-\-brokers=<brks>] [\-\-partition=<part>] [<topic>]
+kc metadata [\-\-brokers=<brks>] [\-\-partition=<part>][\-q | \-\-quiet]
+            [\-v | \-\-verbose] [<topic>]
 
 kc \-\-help
 
@@ -35,21 +38,15 @@ kc \-\-version
 .SH "COMMAND"
 .
 .IP "\[ci]" 4
-\fBproducer\fR reads messages from stdin, delimited with a configurable delimeter and produces them to the provided Kafka cluster, topic and partition\. See [PRODUCER] section for more information on producer\.
+\fBproducer\fR reads messages from stdin, delimited with a configurable delimeter and produces them to the provided Kafka cluster, topic and partition\.
 .
 .IP "\[ci]" 4
-\fBconsumer\fR reads messages from a topic (and possibly a specific partition ) and prints them to stdout using the configured message delimiter\. See [CONSUMER] section for more information on consumer\.
+\fBconsumer\fR reads messages from a topic (and possibly a specific partition ) and prints them to stdout using the configured message delimiter\.
 .
 .IP "\[ci]" 4
-\fBmetadata\fR displays the current state of the Kafka cluster and its topics and partitions\. See [METADATA] for more information on metadata\.
+\fBmetadata\fR displays the current state of the Kafka cluster and its topics and partitions\.
 .
 .IP "" 0
-.
-.SH "PRODUCER"
-.
-.SH "CONSUMER"
-.
-.SH "METADATA"
 .
 .SH "OPTIONS"
 .
@@ -78,7 +75,7 @@ kc \-\-version
 .SS "Producer options"
 .
 .IP "\[ci]" 4
-\fB\-d <delim>, \-\-delimiter=<delim>\fR Message delimiter character: a\-z\.\. | \fI\er\fR | \en | \et | \exNN [default: \en]\.
+\fB\-d <delim>, \-\-delimiter=<delim>\fR Message delimiter character: a\-z\.\. | \er | \en | \et | \exNN [default: \en]\.
 .
 .IP "\[ci]" 4
 \fB\-k <delim>, \-\-key\-delimiter=<delim>\fR Key delimiter character: a\-z\.\. | \er | \en | \et | \exNN\.
@@ -87,10 +84,13 @@ kc \-\-version
 \fB\-c <cnt>, \-\-count=<cnt>\fR Exit after producing \fB<cnt>\fR messages\.
 .
 .IP "\[ci]" 4
-\fB\-z <c>, \-\-compression=<c>\fR Compression applied to messages: snappy or gzip\.
+\fB\-z <c>, \-\-compression=<c>\fR Compression applied to messages: none, snappy or gzip [default: none]\.
 .
 .IP "\[ci]" 4
-\fB\-T, \-\-tee\fR Output queued messages to stdout, acting like tee\. Note that this does not guarantee that the message was correctly sent\.
+\fB\-T, \-\-tee\fR Output queued messages to stdout, acting like tee\. A message is relayed to stdout once it hits librdkafka\'s internal queue, it can still fail to reach the producer\. See \fB\-E\fR for more information on failed messages\.
+.
+.IP "\[ci]" 4
+\fB\-E <file>, \-\-error\-file=<file>\fR Messages that couldn\'t be sent are append to \fB<file>\fR, formatted according to delimiter and key delimiter (if provided)\. There is not guarantee on the ordering of the messages [default: stderr]\.
 .
 .IP "" 0
 .
@@ -103,21 +103,33 @@ kc \-\-version
 \fB\-k <delim>, \-\-key\-delimiter=<delim>\fR Key delimiter character: a\-z\.\. | \er | \en | \et | \exNN\.
 .
 .IP "\[ci]" 4
-\fB\-o <off>, \-\-offset=<off>\fR Exit after consumer \fB<cnt>\fR messages\.
+\fB\-o <off>, \-\-offset=<off>\fR Define the consuming offset, the possible values are:
 .
 .IP "\[ci]" 4
-\fB\-c <cnt>, \-\-count=<cnt>\fR Exit after consumer \fB<cnt>\fR messages\.
+\fBbeginning\fR: start from the beginning
+.
+.IP "\[ci]" 4
+\fBend\fR: start from the end
+.
+.IP "\[ci]" 4
+\fBstored\fR: start from a stored value
+.
+.IP "\[ci]" 4
+\fB<value>\fR: start at absolute \fIvalue\fR
+.
+.IP "\[ci]" 4
+\fB\-<value>\fR: start at relative offset from the end (acting like \fBtail\fR)\.
+.
+.IP "" 0
+
+.
+.IP "\[ci]" 4
+\fB\-c <cnt>, \-\-count=<cnt>\fR Exit after consuming \fB<cnt>\fR messages\.
 .
 .IP "\[ci]" 4
 \fB\-e , \-\-exit\fR Exit when there is no message left to consumer in the topic\.
 .
 .IP "" 0
-.
-.SH "CONFIGURATION"
-.
-.SS "General configuration"
-.
-.SS "Topic configuration"
 .
 .SH "EXAMPLES"
 .
@@ -179,6 +191,4 @@ Showing metadata on the test topic
 .fi
 .
 .IP "" 0
-.
-.SH "DISCUSSION"
 

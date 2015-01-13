@@ -18,8 +18,8 @@ static struct option producer_long_options[] = {
     {"key-delimiter", required_argument, 0, 'k'},
     {"count",         required_argument, 0, 'c'},
     {"compression",   required_argument, 0, 'z'},
-    {"tee",           no_argument,       0, 'T'},
     {"error-file",    required_argument, 0, 'E'},
+    {"tee",           no_argument,       0, 'T'},
     {"verbose",       no_argument,       0, 'v'},
     {"quiet",         no_argument,       0, 'q'},
     {0,               0,                 0,  0 }

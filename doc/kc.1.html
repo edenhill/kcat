@@ -57,13 +57,8 @@
     <a href="#SYNOPSIS">SYNOPSIS</a>
     <a href="#DESCRIPTION">DESCRIPTION</a>
     <a href="#COMMAND">COMMAND</a>
-    <a href="#PRODUCER">PRODUCER</a>
-    <a href="#CONSUMER">CONSUMER</a>
-    <a href="#METADATA">METADATA</a>
     <a href="#OPTIONS">OPTIONS</a>
-    <a href="#CONFIGURATION">CONFIGURATION</a>
     <a href="#EXAMPLES">EXAMPLES</a>
-    <a href="#DISCUSSION">DISCUSSION</a>
   </div>
 
   <ol class='man-decor man-head man head'>
@@ -81,13 +76,16 @@
 
 <pre><code>kc producer [--brokers=&lt;brks>] [--partition=&lt;part>] [--compression=&lt;comp>]
             [--delimiter=&lt;delim>] [--key-delimiter=&lt;delim>] [--count=&lt;cnt>]
-            [-T | --tee] [-q | --quiet] [-v | --verbose] &lt;topic> [&lt;file>...]
+            [--error-file=&lt;file>] [-T | --tee] [-q | --quiet]
+            [-v | --verbose] &lt;topic> [&lt;file>...]
 
-kc consumer [--brokers=&lt;brks>] [--partition=&lt;part>] [-e | --exit]
+kc consumer [--brokers=&lt;brks>] [--partition=&lt;part>] [--offset=&lt;off>]
             [--delimiter=&lt;delim>] [--key-delimiter=&lt;delim>] [--count=&lt;cnt>]
-            [-q | --quiet] [-v | --verbose] &lt;topic>
+            [-e | --exit] [-O | --print-offset] [-q | --quiet]
+            [-v | --verbose] &lt;topic>
 
-kc metadata [--brokers=&lt;brks>] [--partition=&lt;part>] [&lt;topic>]
+kc metadata [--brokers=&lt;brks>] [--partition=&lt;part>][-q | --quiet]
+            [-v | --verbose] [&lt;topic>]
 
 kc --help
 
@@ -99,7 +97,7 @@ kc --version
 <p><code>kc</code> also known as <code>kafkacat</code> is a generic non-JVM producer and consumer for
 Apache Kafka 0.8, think of it as a netcat for Kafka.</p>
 
-<p><code>kc</code> works in different <em>command</em>: producer, consumer and metadata. Each one
+<p><code>kc</code> works in different <var>command</var>: producer, consumer and metadata. Each one
 is described in the [COMMAND] section.</p>
 
 <h2 id="COMMAND">COMMAND</h2>
@@ -107,23 +105,14 @@ is described in the [COMMAND] section.</p>
 <ul>
 <li><p><code>producer</code>
 reads messages from stdin, delimited with a configurable delimeter and
-produces them to the provided Kafka cluster, topic and partition. See
-[PRODUCER] section for more information on producer.</p></li>
+produces them to the provided Kafka cluster, topic and partition.</p></li>
 <li><p><code>consumer</code>
 reads messages from a topic (and possibly a specific partition ) and prints
-them to stdout using the configured message delimiter.  See
-[CONSUMER] section for more information on consumer.</p></li>
+them to stdout using the configured message delimiter.</p></li>
 <li><p><code>metadata</code>
-displays the current state of the Kafka cluster and its topics and partitions.
-See [METADATA] for more information on metadata.</p></li>
+displays the current state of the Kafka cluster and its topics and partitions.</p></li>
 </ul>
 
-
-<h2 id="PRODUCER">PRODUCER</h2>
-
-<h2 id="CONSUMER">CONSUMER</h2>
-
-<h2 id="METADATA">METADATA</h2>
 
 <h2 id="OPTIONS">OPTIONS</h2>
 
@@ -151,16 +140,21 @@ Show the usage and help message.</p></li>
 
 <ul>
 <li><p><code>-d &lt;delim>, --delimiter=&lt;delim></code>
-Message delimiter character: a-z.. | <em>\r</em> | \n | \t | \xNN [default: \n].</p></li>
+Message delimiter character: a-z.. | \r | \n | \t | \xNN [default: \n].</p></li>
 <li><p><code>-k &lt;delim>, --key-delimiter=&lt;delim></code>
 Key delimiter character: a-z.. | \r | \n | \t | \xNN.</p></li>
 <li><p><code>-c &lt;cnt>, --count=&lt;cnt></code>
 Exit after producing <code>&lt;cnt></code> messages.</p></li>
 <li><p><code>-z &lt;c>, --compression=&lt;c></code>
-Compression applied to messages: snappy or gzip.</p></li>
+Compression applied to messages: none, snappy or gzip [default: none].</p></li>
 <li><p><code>-T, --tee</code>
-Output queued messages to stdout, acting like tee. Note that this does not
-guarantee that the message was correctly sent.</p></li>
+Output queued messages to stdout, acting like tee. A message is relayed to
+stdout once it hits librdkafka's internal queue, it can still fail to reach
+the producer. See <code>-E</code> for more information on failed messages.</p></li>
+<li><p><code>-E &lt;file>, --error-file=&lt;file></code>
+Messages that couldn't be sent are append to <code>&lt;file></code>, formatted according
+to delimiter and key delimiter (if provided). There is not guarantee
+on the ordering of the messages [default: stderr].</p></li>
 </ul>
 
 
@@ -172,19 +166,22 @@ Message delimiter character: a-z.. | \r | \n | \t | \xNN [default: \n].</p></li>
 <li><p><code>-k &lt;delim>, --key-delimiter=&lt;delim></code>
 Key delimiter character: a-z.. | \r | \n | \t | \xNN.</p></li>
 <li><p><code>-o &lt;off>, --offset=&lt;off></code>
-Exit after consumer <code>&lt;cnt></code> messages.</p></li>
+Define the consuming offset, the possible values are:</p>
+
+<ul>
+<li><code>beginning</code>: start from the beginning</li>
+<li><code>end</code>: start from the end</li>
+<li><code>stored</code>: start from a stored value</li>
+<li><code>&lt;value></code>: start at absolute <var>value</var></li>
+<li><code>-&lt;value></code>: start at relative offset from the end (acting like <code>tail</code>).</li>
+</ul>
+</li>
 <li><p><code>-c &lt;cnt>, --count=&lt;cnt></code>
-Exit after consumer <code>&lt;cnt></code> messages.</p></li>
+Exit after consuming <code>&lt;cnt></code> messages.</p></li>
 <li><p><code>-e , --exit</code>
 Exit when there is no message left to consumer in the topic.</p></li>
 </ul>
 
-
-<h2 id="CONFIGURATION">CONFIGURATION</h2>
-
-<h3 id="General-configuration">General configuration</h3>
-
-<h3 id="Topic-configuration">Topic configuration</h3>
 
 <h2 id="EXAMPLES">EXAMPLES</h2>
 
@@ -225,8 +222,6 @@ Exit when there is no message left to consumer in the topic.</p></li>
       ]
     }
 </code></pre>
-
-<h2 id="DISCUSSION">DISCUSSION</h2>
 
 
   <ol class='man-decor man-foot man foot'>

@@ -18,6 +18,7 @@ static struct option consumer_long_options[] = {
     {"offset",        required_argument, 0, 'o'},
     {"count",         required_argument, 0, 'c'},
     {"exit",          no_argument,       0, 'e'},
+    {"print-offset",  no_argument,       0, 'O'},
     {"verbose",       no_argument,       0, 'v'},
     {"quiet",         no_argument,       0, 'q'},
     {0,               0,                 0,  0 }
@@ -61,6 +62,9 @@ static void consumer_argparse (int argc, char **argv) {
         if (conf.offset < 0)
           conf.offset = RD_KAFKA_OFFSET_TAIL(-conf.offset);
       }
+      break;
+    case 'O':
+      conf.flags |= CONF_F_OFFSET;
       break;
     case 'e':
       conf.exit_eof = 1;
