@@ -3,6 +3,8 @@
 
 mkl_require good_cflags
 
+mkl_require fileversion .version KC_VERSION_STR
+
 function checks {
 
     # Check that librdkafka is available, and allow to link it statically.

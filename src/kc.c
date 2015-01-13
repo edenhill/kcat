@@ -32,6 +32,7 @@
 #include <string.h>
 
 #include "common.h"
+#include "../config.h"
 
 typedef enum {
   UNKNOWN,
@@ -63,7 +64,7 @@ static kc_command argparse (int argc, char **argv) {
                             &option_index)) != -1) {
     switch (opt) {
     case 'V':
-      usage(argv[0], 0, "2.0.0-beta");
+      usage(argv[0], 0, KC_VERSION_STR);
       break;
     case 'h':
       usage(argv[0], 0, NULL);
