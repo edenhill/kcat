@@ -152,7 +152,8 @@ void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
          "\n"
          "See kc(1) for more information\n"
          "\n"
-         "https://github.com/edenhill/kafkacat\n"
+         "https://github.com/fsaintjacques/kc\n"
+         "Copyright (c) 2015, François Saint-Jacques\n"
          "Copyright (c) 2014, Magnus Edenhill\n"
          "\n");
   exit(exitcode);

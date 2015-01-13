@@ -1,92 +1,89 @@
-kafkacat
-========
+kc(1) -- generic producer and consumer for Apache Kafka
+=======================================================
+
+Copyright (c) 2015, François Saint-Jacques
 Copyright (c) 2014, Magnus Edenhill
+
+https://github.com/fsaintjacques/kc
+
+A custom fork of
 
 https://github.com/edenhill/kafkacat
 
-**kafkacat** is a generic non-JVM producer and consumer for Apache Kafka 0.8,
+`kc` is a generic non-JVM producer and consumer for Apache Kafka 0.8,
 think of it as a netcat for Kafka.
 
-In **producer** mode kafkacat reads messages from stdin, delimited with a
+In `producer` mode `kc` reads messages from stdin, delimited with a
 configurable delimeter (-D, defaults to newline), and produces them to the
 provided Kafka cluster (-b), topic (-t) and partition (-p).
 
-In **consumer** mode kafkacat reads messages from a topic and partition and
+In `consumer` mode kc reads messages from a topic and partition and
 prints them to stdout using the configured message delimiter.
 
-kafkacat also features a Metadata list (-L) mode to display the current
+`kc` also features a Metadata list command to display the current
 state of the Kafka cluster and its topics and partitions.
 
-kafkacat is fast and lightweight; statically linked it is no more than 150Kb.
+`kc` is fast and lightweight; statically linked it is no more than 150Kb.
 
-
-
-# Requirements
+REQUIREMENTS
+------------
 
  * librdkafka - https://github.com/edenhill/librdkafka
 
-
-# Build
+BUILD
+-----
 
     ./configure <usual-configure-options>
     make
     sudo make install
 
-# Quick build
+QUICK BUILD
+===========
 
-The bootstrap.sh build script will download and build the required dependencies,
-providing a quick and easy means of building kafkacat.
-Internet connectivity and wget is required by this script.
-The resulting kafkacat binary will be linked statically to avoid runtime
+The tools/bootstrap.sh build script will download and build the required
+dependencies, providing a quick and easy means of building `kc`.
+Internet connectivity and git is required by this script.
+The resulting `kc` binary will be linked statically to avoid runtime
 dependencies.
 
-    ./bootstrap.sh
+    tools/bootstrap.sh
 
+EXAMPLES
+--------
 
-# Examples
+* Producing a single message
 
-### Read messages from stdin, produce to 'syslog' topic with snappy compression
+```
+    $ echo "test message" | kc producer test
+```
 
-    $ tail -f /var/log/syslog | kafkacat -b mybroker -t syslog -p 0 -z snappy
+* Consuming last message
 
-### Read messages from Kafka 'syslog' topic, print to stdout
+```
+    $ kc consumer -e -o -1 test
+    test message
+```
 
-    $ kafkacat -b mybroker -t syslog -p 0
+* Showing metadata on the test topic
 
+```
+    $ kc metadata test
+    {
+      "brokers": [
+        { "id":0, "host":"localhost:9092" }
+      ],
+      "topics": [
+        {
+          "name": "test",
+          "partitions": [
+            { "id": 0, "leader": 0, "replicas": [0], "isrs": [0] }
+          ]
+        }
+      ]
+    }
+```
 
-### Produce messages from file (one file is one message)
+DOCUMENATION
+------------
 
-    $ kafkacat -P -b mybroker -t filedrop -p 0 myfile1.bin /etc/motd thirdfile.tgz
-
-## Read the last 2000 messages from 'syslog' topic, then exit
-
-    $ kafkacat -C -b mybroker -t syslog -p 0 -o -2000 -e
-
-
-## Consume from all partitions from 'syslog' topic
-
-    $ kafkacat -C -b mybroker -t syslog
-
-
-### Metadata listing
-
-````
-$ kafkacat -L -b mybroker
-Metadata for all topics (from broker 1: mybroker:9092/1):
- 3 brokers:
-  broker 1 at mybroker:9092
-  broker 2 at mybrokertoo:9092
-  broker 3 at thirdbroker:9092
- 16 topics:
-  topic "syslog" with 3 partitions:
-    partition 0, leader 3, replicas: 1,2,3, isrs: 1,2,3
-    partition 1, leader 1, replicas: 1,2,3, isrs: 1,2,3
-    partition 2, leader 1, replicas: 1,2, isrs: 1,2
-  topic "rdkafkatest1_auto_49f744a4327b1b1e" with 2 partitions:
-    partition 0, leader 3, replicas: 3, isrs: 3
-    partition 1, leader 1, replicas: 1, isrs: 1
-  topic "rdkafkatest1_auto_e02f58f2c581cba" with 2 partitions:
-    partition 0, leader 3, replicas: 3, isrs: 3
-    partition 1, leader 1, replicas: 1, isrs: 1
-  ....
-````
+See doc/kc.md for a complete documentation.
