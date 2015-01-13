@@ -7,4 +7,4 @@ os:
   - osx
 
 script:
-  ./bootstrap.sh
+  tools/bootstrap.sh

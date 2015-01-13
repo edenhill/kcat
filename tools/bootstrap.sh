@@ -7,43 +7,59 @@
 #
 # While this might not be the preferred method of building kafkacat, it
 # is the easiest and quickest way.
-#
 
 set -o errexit -o nounset -o pipefail
 
-LIBRDKAFKA_VERSION=${LIBRDKAFKA_VERSION:-master}
-LIBRDKAFKA_DIR=librdkafka-${LIBRDKAFKA_VERSION}
-LIBRDKAFKA_URL=https://github.com/edenhill/librdkafka/archive/${LIBRDKAFKA_VERSION}.tar.gz
+: ${LIBRDKAFKA_VERSION:=0.8.5}
+: ${LIBRDKAFKA_GIT_TAG:=$LIBRDKAFKA_VERSION}
+: ${LIBRDKAFKA_GIT_REPO:=https://github.com/edenhill/librdkafka}
 
-mkdir -p tmp-bootstrap
-pushd tmp-bootstrap > /dev/null
+function bootstrap_librdkafka() {
+  mkdir -p tmp
+  if [[ ! -d tmp/librdkafka ]]; then
+    git -C tmp clone "$LIBRDKAFKA_GIT_REPO"
+    git -C tmp/librdkafka fetch --tags
+    git -C tmp/librdkafka checkout -B "$LIBRDKAFKA_GIT_TAG"
+  fi
 
-if [[ ! -d ${LIBRDKAFKA_DIR} ]]; then
-    echo "Downloading ${LIBRDKAFKA_DIR}"
-    if which wget 2>&1 > /dev/null; then
-        DL='wget -q -O-'
-    else
-        DL='curl -s -L'
-    fi
-    $DL "${LIBRDKAFKA_URL}" | tar xzf -
-fi
+  echo "Building librdkafka"
+  pushd tmp/librdkafka > /dev/null
+    ./configure
+    make DESTDIR="${PWD}/../" all install
+  popd > /dev/null
+}
 
-echo "Building ${LIBRDKAFKA_DIR}"
-pushd ${LIBRDKAFKA_DIR} > /dev/null
-./configure
-make
-make DESTDIR="${PWD}/../" install
+: ${SCALA_VERSION:=2.10}
+: ${KAFKA_VERSION:=0.8.1 0.8.1.1 0.8.2-beta}
+: ${KAFKA_ARCHIVE_URL:=https://archive.apache.org/dist/kafka}
 
-popd > /dev/null
-popd > /dev/null
+function bootstrap_kafka() {
+  mkdir -p tmp/kafka
+  pushd tmp/kafka > /dev/null
+    for version in ${KAFKA_VERSION}; do
+      local kafka_dir="kafka-$version"
+      if [ ! -d "$kafka_dir" ]; then
+        echo "Downloading kafka-$version"
+        local kafka_tmp_dir=kafka_${SCALA_VERSION}-${version}
+        local tar_file=${kafka_tmp_dir}.tgz
+        wget -q -N "${KAFKA_ARCHIVE_URL}/$version/$tar_file" || (rm -f $tar_file; exit 1)
+        tar xzf $tar_file || (rm -f $tar_file; exit 1)
+        rm $tar_file
+        mv $kafka_tmp_dir  $kafka_dir
+      fi
+    done
+  popd > /dev/null
+}
 
-echo "Building kafkacat"
-export CPPFLAGS="${CPPFLAGS:-} -Itmp-bootstrap/usr/local/include"
-export LDFLAGS="${LDFLAGS:-} -Ltmp-bootstrap/usr/local/lib"
-export STATIC_LIB_rdkafka="tmp-bootstrap/usr/local/lib/librdkafka.a"
-./configure --enable-static
-make
+function build() {
+  echo "Building kafkacat"
+  export STATIC_LIB_rdkafka="tmp/usr/local/lib/librdkafka.a"
+  ./configure --enable-static \
+      --CPPFLAGS=-Itmp/usr/local/include \
+      --LDFLAGS=-Ltmp/usr/local/lib
+  make clean all
+}
 
-echo ""
-echo "Success! kafkacat is now built"
-echo ""
+bootstrap_librdkafka
+# bootstrap_kafka
+build
