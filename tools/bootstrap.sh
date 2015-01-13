@@ -17,9 +17,11 @@ set -o errexit -o nounset -o pipefail
 function bootstrap_librdkafka() {
   mkdir -p tmp
   if [[ ! -d tmp/librdkafka ]]; then
-    git -C tmp clone "$LIBRDKAFKA_GIT_REPO"
-    git -C tmp/librdkafka fetch --tags
-    git -C tmp/librdkafka checkout -B "$LIBRDKAFKA_GIT_TAG"
+    git clone "$LIBRDKAFKA_GIT_REPO" tmp/librdkafka
+    pushd tmp/librdkafka > /dev/null
+      git fetch --tags
+      git checkout -B "$LIBRDKAFKA_GIT_TAG"
+    popd > /dev/null
   fi
 
   echo "Building librdkafka"
