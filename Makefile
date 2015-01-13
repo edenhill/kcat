@@ -24,4 +24,8 @@ doc:
 
 clean: bin-clean
 
+dist-clean: clean
+	rm -rf tmp
+	rm config.* Makefile.config
+
 -include $(DEPS)
