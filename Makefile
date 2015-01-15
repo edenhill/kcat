@@ -13,11 +13,8 @@ include mklove/Makefile.base
 CPPFLAGS := $(subst strict-dwarf,,$(CPPFLAGS))
 CFLAGS := $(CFLAGS) -std=gnu99
 
-install: bin-install install-man
-
-install-man:
-	echo $(INSTALL) -d $$DESTDIR$(man1dir) && \
-	echo $(INSTALL) doc/kfc.1 $$DESTDIR$(man1dir)
+install: bin-install
+	$(MAKE) -C doc $@
 
 doc:
 	$(MAKE) -C doc
@@ -26,6 +23,6 @@ clean: bin-clean
 
 dist-clean: clean
 	rm -rf tmp
-	rm config.* Makefile.config
+	rm -f config.* Makefile.config
 
 -include $(DEPS)

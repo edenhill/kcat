@@ -25,8 +25,8 @@ mkl_option "Standard" localstatedir "--localstatedir=PATH" \
 mkl_option "Standard" libdir "--libdir=PATH" "Libraries" "\$exec_prefix/lib"
 mkl_option "Standard" includedir "--includedir=PATH" "C/C++ header files" \
     "\$prefix/include"
-mkl_option "Standard" infodir "--infodir=PATH" "Info documentation" "\$prefix/info"
-mkl_option "Standard" mandir "--mandir=PATH" "Manual pages" "\$prefix/man"
+mkl_option "Standard" infodir "--infodir=PATH" "Info documentation" "\$datadir/info"
+mkl_option "Standard" mandir "--mandir=PATH" "Manual pages" "\$datadir/man"
 
 mkl_option "Configure tool" "" "--list-modules" "List loaded mklove modules"
 mkl_option "Configure tool" "" "--list-checks" "List checks"
