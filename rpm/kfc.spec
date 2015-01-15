@@ -1,5 +1,5 @@
 Name:     kfc
-Version:  0.10.0
+Version:  0.11.0
 Release:  0%{?dist}
 Summary:  kfc is a generic non-JVM producer and consumer for Apache Kafka 0.8, think of it as a netcat for Kafka.
 Group:    Productivity/Networking/Other
@@ -51,5 +51,7 @@ rm -rf %{buildroot}
 %doc doc/kfc.1
 
 %changelog
+* Thu Jan 15 2015 François Saint-Jacques <fsaintjacques@gmail.com> 0.11.0-0
+- Adds manpage
 * Tue Jan 14 2015 François Saint-Jacques <fsaintjacques@gmail.com> 0.10.0-0
 - Initial RPM package
