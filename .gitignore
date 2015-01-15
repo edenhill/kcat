@@ -9,4 +9,4 @@ config.h
 Makefile.config
 tmp
 *.offset
-src/kc
+src/kfc
