@@ -26,14 +26,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <stdarg.h>
-#include <errno.h>
-#include <inttypes.h>
 #include <signal.h>
 #include <syslog.h>
 #include <sys/types.h>
@@ -41,46 +37,16 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 
-#include <librdkafka/rdkafka.h>
 
-#include "config.h"
+#include "kafkacat.h"
 
-static struct conf {
-        int     run;
-        int     verbosity;
-        int     exitcode;
-        char    mode;
-        int     flags;
-#define CONF_F_KEY_DELIM  0x2
-#define CONF_F_OFFSET     0x4 /* Print offsets */
-#define CONF_F_TEE        0x8 /* Tee output when producing */
-        int     delim;
-        int     key_delim;
-        int     msg_size;
-        char   *brokers;
-        char   *topic;
-        int32_t partition;
-        int64_t offset;
-        int     exit_eof;
-        int64_t msg_cnt;
 
-        rd_kafka_conf_t       *rk_conf;
-        rd_kafka_topic_conf_t *rkt_conf;
-
-        rd_kafka_t            *rk;
-        rd_kafka_topic_t      *rkt;
-
-        char   *debug;
-        int     conf_dump;
-} conf = {
+struct conf conf = {
         .run = 1,
         .verbosity = 1,
         .partition = RD_KAFKA_PARTITION_UA,
         .msg_size = 1024*1024,
-        .delim = '\n',
-        .key_delim = '\t',
 };
-
 
 static struct stats {
         uint64_t tx;
@@ -97,18 +63,13 @@ int part_eof_cnt = 0;
 /* Threshold level (partitions at EOF) before exiting */
 int part_eof_thres = 0;
 
-/* Info printout */
-#define INFO(VERBLVL,FMT...) do {                    \
-                if (conf.verbosity >= (VERBLVL))     \
-                        fprintf(stderr, "%% " FMT);  \
-        } while (0)
 
 
 /**
  * Fatal error: print error and exit
  */
-static void __attribute__((noreturn)) fatal0 (const char *func, int line,
-                                              const char *fmt, ...) {
+void __attribute__((noreturn)) fatal0 (const char *func, int line,
+                                       const char *fmt, ...) {
         va_list ap;
         char buf[1024];
 
@@ -121,7 +82,6 @@ static void __attribute__((noreturn)) fatal0 (const char *func, int line,
         exit(1);
 }
 
-#define FATAL(fmt...)  fatal0(__FUNCTION__, __LINE__, fmt)
 
 
 
@@ -377,22 +337,9 @@ static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
                       rd_kafka_message_errstr(rkmessage));
         }
 
-        /* Print offset (using key delim), if desired */
-        if (conf.flags & CONF_F_OFFSET)
-                fprintf(fp, "%"PRId64"%c", rkmessage->offset, conf.key_delim);
+        /* Print message */
+        fmt_msg_output(fp, rkmessage);
 
-        /* Print key, if desired */
-        if (conf.flags & CONF_F_KEY_DELIM)
-                fprintf(fp, "%.*s%c",
-                        (int)rkmessage->key_len, (const char *)rkmessage->key,
-                        conf.key_delim);
-
-        if ((rkmessage->len > 0 &&
-             fwrite(rkmessage->payload, rkmessage->len, 1, fp) != 1) ||
-            fwrite(&conf.delim, 1, 1, fp) != 1)
-                FATAL("Write error for message "
-                      "of %zd bytes at offset %"PRId64"): %s",
-                      rkmessage->len, rkmessage->offset, strerror(errno));
 
         if (++stats.rx == conf.msg_cnt)
                 conf.run = 0;
@@ -620,7 +567,12 @@ static void metadata_list (void) {
                 FATAL("Failed to acquire metadata: %s", rd_kafka_err2str(err));
 
         /* Print metadata */
-        metadata_print(metadata);
+#if ENABLE_JSON
+        if (conf.flags & CONF_F_FMT_JSON)
+                metadata_print_json(metadata);
+        else
+#endif
+                metadata_print(metadata);
 
         rd_kafka_metadata_destroy(metadata);
 
@@ -686,6 +638,11 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                "                     -<value> (relative offset from end)\n"
                "  -e                 Exit successfully when last message "
                "received\n"
+               "  -f <fmt..>         Output formatting string, see below.\n"
+               "                     Takes precedence over -D and -K.\n"
+#if ENABLE_JSON
+               "  -J                 Output with JSON envelope\n"
+#endif
                "  -D <delim>         Delimiter to separate messages on output\n"
                "  -K <delim>         Print message keys prefixing the message\n"
                "                     with specified delimiter.\n"
@@ -696,6 +653,18 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                "\n"
                "Metadata options:\n"
                "  -t <topic>         Topic to query (optional)\n"
+               "\n"
+               "\n"
+               "Format string tokens:\n"
+               "  %%m                 Message payload\n"
+               "  %%k                 Message key\n"
+               "  %%t                 Topic\n"
+               "  %%p                 Partition\n"
+               "  %%o                 Message offset\n"
+               "  \\n \\r \\t           Newlines, tab\n"
+               "  \\xXX \\xNNN         Any ASCII character\n"
+               " Example:\n"
+               "  -f 'Topic %%t [%%p] at offset %%o: key %%k: %%m\\n'\n"
                "\n"
                "\n"
                "Consumer mode (writes messages to stdout):\n"
@@ -746,9 +715,17 @@ static int parse_delim (const char *str) {
 static void argparse (int argc, char **argv) {
         char errstr[512];
         int opt;
+        const char *fmt = NULL;
+        const char *delim = "\n";
+        const char *key_delim = NULL;
+        char tmp_fmt[64];
 
         while ((opt = getopt(argc, argv,
-                             "PCLt:p:b:z:o:eD:K:Od:qvX:c:Tu")) != -1) {
+                             "PCLt:p:b:z:o:eD:K:Od:qvX:c:Tuf:"
+#if ENABLE_JSON
+                             "J"
+#endif
+                        )) != -1) {
                 switch (opt) {
                 case 'P':
                 case 'C':
@@ -787,11 +764,19 @@ static void argparse (int argc, char **argv) {
                 case 'e':
                         conf.exit_eof = 1;
                         break;
+                case 'f':
+                        fmt = optarg;
+                        break;
+#if ENABLE_JSON
+                case 'J':
+                        conf.flags |= CONF_F_FMT_JSON;
+                        break;
+#endif
                 case 'D':
-                        conf.delim = parse_delim(optarg);
+                        delim = optarg;
                         break;
                 case 'K':
-                        conf.key_delim = parse_delim(optarg);
+                        key_delim = optarg;
                         conf.flags |= CONF_F_KEY_DELIM;
                         break;
                 case 'O':
@@ -885,6 +870,34 @@ static void argparse (int argc, char **argv) {
                               conf.brokers, errstr, sizeof(errstr)) !=
             RD_KAFKA_CONF_OK)
                 usage(argv[0], 1, errstr);
+
+        fmt_init();
+
+
+        if (conf.mode == 'C') {
+                if (!fmt) {
+                        if ((conf.flags & CONF_F_FMT_JSON)) {
+                                /* For JSON the format string is simply the
+                                 * output object delimiter (e.g., newline). */
+                                fmt = delim;
+                        } else {
+                                if (key_delim)
+                                        snprintf(tmp_fmt, sizeof(tmp_fmt),
+                                                 "%%k%s%%s%s",
+                                                 key_delim, delim);
+                                else
+                                        snprintf(tmp_fmt, sizeof(tmp_fmt),
+                                                 "%%s%s", delim);
+                                fmt = tmp_fmt;
+                        }
+                }
+
+                fmt_parse(fmt);
+
+        } else if (conf.mode == 'P') {
+                conf.delim = parse_delim(delim);
+                conf.key_delim = parse_delim(key_delim);
+        }
 }
 
 
@@ -980,6 +993,8 @@ int main (int argc, char **argv) {
         }
 
         rd_kafka_wait_destroyed(5000);
+
+        fmt_term();
 
         exit(conf.exitcode);
 }

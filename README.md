@@ -24,6 +24,9 @@ kafkacat is fast and lightweight; statically linked it is no more than 150Kb.
 # Requirements
 
  * librdkafka - https://github.com/edenhill/librdkafka
+ * libyajl (for JSON support, optional)
+
+ On Ubuntu or Debian: `sudo apt-get install librdkafka-dev libyajl-dev`
 
 
 # Build
