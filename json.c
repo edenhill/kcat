@@ -110,7 +110,7 @@ void metadata_print_json (const struct rd_kafka_metadata *metadata) {
         for (i = 0 ; i < metadata->broker_cnt ; i++) {
                 int blen = strlen(metadata->brokers[i].host);
                 char *host = alloca(blen+1+5+1);
-                sprintf(host, "%s:%hu",
+                sprintf(host, "%s:%i",
                         metadata->brokers[i].host, metadata->brokers[i].port);
 
                 yajl_gen_map_open(g);
