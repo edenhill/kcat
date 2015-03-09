@@ -594,7 +594,8 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
         printf("Usage: %s <options> [file1 file2 ..]\n"
                "kafkacat - Apache Kafka producer and consumer tool\n"
                "https://github.com/edenhill/kafkacat\n"
-               "Copyright (c) 2014, Magnus Edenhill\n"
+               "Copyright (c) 2014-2015, Magnus Edenhill\n"
+               "Version %s\n"
                "\n"
                "\n"
                "General options:\n"
@@ -680,7 +681,7 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                "Metadata listing:\n"
                "  kafkacat -L -b <broker> [-t <topic>]\n"
                "\n",
-               argv0);
+               argv0, KAFKACAT_VERSION);
         exit(exitcode);
 }
 
