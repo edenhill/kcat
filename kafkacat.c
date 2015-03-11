@@ -441,7 +441,7 @@ static void consumer_run (FILE *fp) {
 
         if ((err = metadata->topics[0].err))
                 FATAL("Topic %s error: %s",
-                      rd_kafka_topic_name(conf.rkt), rd_kafka_err2str(err));
+                      rd_kafka_topic_name(conf.rkt), rd_kafka_err2str(metadata->topics[0].err));
 
         if (metadata->topics[0].partition_cnt == 0)
                 FATAL("Topic %s has no partitions",
