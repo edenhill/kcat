@@ -405,7 +405,7 @@ static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
 static void consumer_run (FILE *fp) {
         char    errstr[512];
         rd_kafka_resp_err_t err;
-        const struct rd_kafka_metadata *metadata;
+        const rd_kafka_metadata_t *metadata;
         int i;
         rd_kafka_queue_t *rkqu;
 
@@ -527,7 +527,7 @@ static void consumer_run (FILE *fp) {
 /**
  * Print metadata information
  */
-static void metadata_print (const struct rd_kafka_metadata *metadata) {
+static void metadata_print (const rd_kafka_metadata_t *metadata) {
         int i, j, k;
 
         printf("Metadata for %s (from broker %"PRId32": %s):\n",
@@ -545,7 +545,7 @@ static void metadata_print (const struct rd_kafka_metadata *metadata) {
         /* Iterate topics */
         printf(" %i topics:\n", metadata->topic_cnt);
         for (i = 0 ; i < metadata->topic_cnt ; i++) {
-                const struct rd_kafka_metadata_topic *t = &metadata->topics[i];
+                const rd_kafka_metadata_topic_t *t = &metadata->topics[i];
                 printf("  topic \"%s\" with %i partitions:",
                        t->topic,
                        t->partition_cnt);
@@ -558,7 +558,7 @@ static void metadata_print (const struct rd_kafka_metadata *metadata) {
 
                 /* Iterate topic's partitions */
                 for (j = 0 ; j < t->partition_cnt ; j++) {
-                        const struct rd_kafka_metadata_partition *p;
+                        const rd_kafka_metadata_partition_t *p;
                         p = &t->partitions[j];
                         printf("    partition %"PRId32", "
                                "leader %"PRId32", replicas: ",
@@ -589,7 +589,7 @@ static void metadata_print (const struct rd_kafka_metadata *metadata) {
 static void metadata_list (void) {
         char    errstr[512];
         rd_kafka_resp_err_t err;
-        const struct rd_kafka_metadata *metadata;
+        const rd_kafka_metadata_t *metadata;
 
         /* Create handle */
         if (!(conf.rk = rd_kafka_new(RD_KAFKA_PRODUCER, conf.rk_conf,
