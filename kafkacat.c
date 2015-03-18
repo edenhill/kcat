@@ -864,6 +864,17 @@ static void argparse (int argc, char **argv) {
         if (!conf.brokers)
                 usage(argv[0], 1, "-b <broker,..> missing");
 
+        /* Decide mode if not specified */
+        if (!conf.mode) {
+                if (isatty(STDIN_FILENO))
+                        conf.mode = 'C';
+                else
+                        conf.mode = 'P';
+                INFO(1, "Auto-selecting %s mode (use -P or -C to override)\n",
+                     conf.mode == 'C' ? "Consumer":"Producer");
+        }
+
+
         if (conf.mode != 'L' && !conf.topic)
                 usage(argv[0], 1, "-t <topic> missing");
 
@@ -953,16 +964,6 @@ int main (int argc, char **argv) {
 
         /* Parse command line arguments */
         argparse(argc, argv);
-
-        /* Decide mode if not specified */
-        if (!conf.mode) {
-                if (isatty(STDIN_FILENO))
-                        conf.mode = 'C';
-                else
-                        conf.mode = 'P';
-                INFO(1, "Auto-selecting %s mode (use -P or -C to override)\n",
-                     conf.mode == 'C' ? "Consumer":"Producer");
-        }
 
         /* Dump configuration and exit, if so desired. */
         if (conf.conf_dump) {
