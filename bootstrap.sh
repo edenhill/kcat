@@ -37,6 +37,28 @@ function github_download {
     popd > /dev/null
 }
 
+function build {
+    dir=$1
+    cmds=$2
+
+
+    echo "Building $dir"
+    pushd $dir > /dev/null
+    set +o errexit
+    eval $cmds
+    ret=$?
+    set -o errexit
+    popd > /dev/null
+
+    if [[ $ret == 0 ]]; then
+        echo "Build of $dir SUCCEEDED!"
+    else
+        echo "Build of $dir FAILED!"
+    fi
+
+    return $ret
+}
+
 
 mkdir -p tmp-bootstrap
 pushd tmp-bootstrap > /dev/null
@@ -44,21 +66,9 @@ pushd tmp-bootstrap > /dev/null
 github_download "edenhill/librdkafka" "master" "librdkafka"
 github_download "lloyd/yajl" "master" "libyajl"
 
+build librdkafka "./configure && make && make DESTDIR=\"${PWD}/\" install" || (echo "Failed to build librdkafka: bootstrap failed" ; false)
 
-pushd librdkafka > /dev/null
-echo "Building librdkafka"
-./configure
-make
-make DESTDIR="${PWD}/../" install
-popd > /dev/null
-
-
-pushd libyajl > /dev/null
-echo "Building libyajl"
-./configure
-make
-make DESTDIR="${PWD}/../" install
-popd > /dev/null
+build libyajl "./configure && make && make DESTDIR=\"${PWD}/\" install" || (echo "Failed to build libyajl: JSON support will probably be disabled" ; true)
 
 
 popd > /dev/null
