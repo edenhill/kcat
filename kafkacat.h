@@ -41,7 +41,9 @@ typedef enum {
         KC_FMT_STR,
         KC_FMT_OFFSET,
         KC_FMT_KEY,
+        KC_FMT_KEY_LEN,
         KC_FMT_PAYLOAD,
+        KC_FMT_PAYLOAD_LEN,
         KC_FMT_TOPIC,
         KC_FMT_PARTITION,
 } fmt_type_t;
@@ -58,7 +60,7 @@ struct conf {
 #define CONF_F_KEY_DELIM  0x2 /* Producer: use key delimiter */
 #define CONF_F_OFFSET     0x4 /* Print offsets */
 #define CONF_F_TEE        0x8 /* Tee output when producing */
-
+#define CONF_F_NULL       0x10 /* Send empty messages as NULL */
         int     delim;
         int     key_delim;
 
@@ -75,6 +77,8 @@ struct conf {
         int64_t offset;
         int     exit_eof;
         int64_t msg_cnt;
+        char   *null_str;
+        int     null_str_len;
 
         rd_kafka_conf_t       *rk_conf;
         rd_kafka_topic_conf_t *rkt_conf;

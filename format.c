@@ -113,8 +113,14 @@ void fmt_parse (const char *fmt) {
                         case 'k':
                                 fmt_add(KC_FMT_KEY, NULL, 0);
                                 break;
+                        case 'K':
+                                fmt_add(KC_FMT_KEY_LEN, NULL, 0);
+                                break;
                         case 's':
                                 fmt_add(KC_FMT_PAYLOAD, NULL, 0);
+                                break;
+                        case 'S':
+                                fmt_add(KC_FMT_PAYLOAD_LEN, NULL, 0);
                                 break;
                         case 't':
                                 fmt_add(KC_FMT_TOPIC, NULL, 0);
@@ -180,12 +186,31 @@ static void fmt_msg_output_str (FILE *fp,
                         if (rkmessage->key_len)
                                 r = fwrite(rkmessage->key,
                                            rkmessage->key_len, 1, fp);
+                        else if (conf.flags & CONF_F_NULL)
+                                r = fwrite(conf.null_str,
+                                           conf.null_str_len, 1, fp);
+
+                        break;
+
+                case KC_FMT_KEY_LEN:
+                        r = fprintf(fp, "%zd",
+                                    /* Use -1 to indicate NULL keys */
+                                    rkmessage->key ? rkmessage->key_len : -1);
                         break;
 
                 case KC_FMT_PAYLOAD:
                         if (rkmessage->len)
                                 r = fwrite(rkmessage->payload,
                                            rkmessage->len, 1, fp);
+                        else if (conf.flags & CONF_F_NULL)
+                                r = fwrite(conf.null_str,
+                                           conf.null_str_len, 1, fp);
+                        break;
+
+                case KC_FMT_PAYLOAD_LEN:
+                        r = fprintf(fp, "%zd",
+                                    /* Use -1 to indicate NULL messages */
+                                    rkmessage->payload ? rkmessage->len : -1);
                         break;
 
                 case KC_FMT_STR:

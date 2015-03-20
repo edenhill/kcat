@@ -46,6 +46,7 @@ struct conf conf = {
         .verbosity = 1,
         .partition = RD_KAFKA_PARTITION_UA,
         .msg_size = 1024*1024,
+        .null_str = "NULL",
 };
 
 static struct stats {
@@ -240,6 +241,13 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                                         key     = buf;
                                         buf    += key_len+1;
                                         len    -= key_len+1;
+
+                                        if (conf.flags & CONF_F_NULL) {
+                                                if (len == 0)
+                                                        buf = NULL;
+                                                if (key_len == 0)
+                                                        key = NULL;
+                                        }
                                 }
                         }
 
@@ -645,6 +653,7 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                "  -T                 Output sent messages to stdout, acting like tee.\n"
                "  -c <cnt>           Exit after producing this number "
                "of messages\n"
+               "  -Z                 Send empty messages as NULL messages\n"
                "  file1 file2..      Read messages from files.\n"
                "                     The entire file contents will be sent as\n"
                "                     one single message.\n"
@@ -674,8 +683,10 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                "\n"
                "\n"
                "Format string tokens:\n"
-               "  %%m                 Message payload\n"
+               "  %%s                 Message payload\n"
+               "  %%S                 Message payload length (or -1 for NULL)\n"
                "  %%k                 Message key\n"
+               "  %%K                 Message key length (or -1 for NULL)\n"
                "  %%t                 Topic\n"
                "  %%p                 Partition\n"
                "  %%o                 Message offset\n"
@@ -745,7 +756,7 @@ static void argparse (int argc, char **argv) {
         char tmp_fmt[64];
 
         while ((opt = getopt(argc, argv,
-                             "PCLt:p:b:z:o:eD:K:Od:qvX:c:Tuf:"
+                             "PCLt:p:b:z:o:eD:K:Od:qvX:c:Tuf:Z"
 #if ENABLE_JSON
                              "J"
 #endif
@@ -808,6 +819,10 @@ static void argparse (int argc, char **argv) {
                         break;
                 case 'c':
                         conf.msg_cnt = strtoll(optarg, NULL, 10);
+                        break;
+                case 'Z':
+                        conf.flags |= CONF_F_NULL;
+                        conf.null_str_len = strlen(conf.null_str);
                         break;
                 case 'd':
                         conf.debug = optarg;
