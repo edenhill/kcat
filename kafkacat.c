@@ -306,12 +306,18 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
 static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
         FILE *fp = opaque;
 
-        /* FIXME: We dont want to commit offsets if we're not running. */
         if (!conf.run)
                 return;
 
         if (rkmessage->err) {
                 if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
+                        /* Store EOF offset.
+                         * If partition is empty and at offset 0,
+                         * store future first message (0). */
+                        rd_kafka_offset_store(rkmessage->rkt,
+                                              rkmessage->partition,
+                                              rkmessage->offset == 0 ?
+                                              0 : rkmessage->offset-1);
                         if (conf.exit_eof) {
                                 if (!part_eof[rkmessage->partition]) {
                                         part_eof[rkmessage->partition] = 1;
@@ -340,6 +346,9 @@ static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
         /* Print message */
         fmt_msg_output(fp, rkmessage);
 
+        rd_kafka_offset_store(rkmessage->rkt,
+                              rkmessage->partition,
+                              rkmessage->offset);
 
         if (++stats.rx == conf.msg_cnt)
                 conf.run = 0;
@@ -365,6 +374,14 @@ static void consumer_run (FILE *fp) {
                 rd_kafka_set_log_level(conf.rk, LOG_DEBUG);
         else if (conf.verbosity == 0)
                 rd_kafka_set_log_level(conf.rk, 0);
+
+        /* The callback-based consumer API's offset store granularity is
+         * not good enough for us, disable automatic offset store
+         * and do it explicitly per-message in the consume callback instead. */
+        if (rd_kafka_topic_conf_set(conf.rkt_conf,
+                                    "auto.commit.enable", "false",
+                                    errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK)
+                FATAL("%s", errstr);
 
         /* Create topic */
         if (!(conf.rkt = rd_kafka_topic_new(conf.rk, conf.topic,
