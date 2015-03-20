@@ -271,7 +271,7 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                         produce(buf, len, key, key_len, msgflags);
 
                         if (conf.flags & CONF_F_TEE &&
-                            fwrite(buf, orig_len, 1, stdout) != 1)
+                            fwrite(sbuf, orig_len, 1, stdout) != 1)
                                 FATAL("Tee write error for message of %zd bytes: %s",
                                       orig_len, strerror(errno));
 
