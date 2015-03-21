@@ -676,6 +676,8 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                "  -O                 Print message offset using -K delimiter\n"
                "  -c <cnt>           Exit after consuming this number "
                "of messages\n"
+               "  -Z                 Print NULL messages and keys as \"%s\""
+               "(instead of empty)\n"
                "  -u                 Unbuffered output\n"
                "\n"
                "Metadata options:\n"
@@ -715,7 +717,8 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
 #else
                "",
 #endif
-               rd_kafka_version_str()
+               rd_kafka_version_str(),
+               conf.null_str
                 );
         exit(exitcode);
 }
