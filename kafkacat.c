@@ -620,7 +620,7 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                "kafkacat - Apache Kafka producer and consumer tool\n"
                "https://github.com/edenhill/kafkacat\n"
                "Copyright (c) 2014-2015, Magnus Edenhill\n"
-               "Version %s%s\n"
+               "Version %s%s (librdkafka %s)\n"
                "\n"
                "\n"
                "General options:\n"
@@ -711,10 +711,11 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                "\n",
                argv0, KAFKACAT_VERSION,
 #if ENABLE_JSON
-               " (JSON)"
+               " (JSON)",
 #else
-               ""
+               "",
 #endif
+               rd_kafka_version_str()
                 );
         exit(exitcode);
 }
