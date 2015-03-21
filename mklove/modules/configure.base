@@ -995,7 +995,7 @@ function mkl_lib_check {
 
     if [[ $WITH_PKGCONFIG == "y" ]]; then
         if mkl_pkg_config_check $staticopt "$1" "$2" cont; then
-            return $?
+            return 0
         fi
     fi
 
@@ -1005,10 +1005,12 @@ function mkl_lib_check {
     fi
 
     if ! mkl_compile_check "$1" "$2" "$3" "$4" "$libs" "$6"; then
-        return $?
+        return 1
     fi
 
     mkl_mkvar_append "$1" LIBS "$libs"
+
+    return 0
 }
 
 
@@ -1123,6 +1125,29 @@ function mkl_config_check {
     [[ $status = "ok" ]] && return 0
     mkl_fail $1 "" "fail" "$MKL_MODULE requires $1"
     return 1
+}
+
+
+# Checks that all provided config names are set.
+# Arguments:
+#  config name
+#  define name
+#  action
+#  check_config_name1
+#  check_config_name2..
+function mkl_config_check_all {
+    local cname=
+    local res="ok"
+    echo start this now for $1
+    for cname in ${@:4}; do
+        local st=$(mkl_var_get "MKL_STATUS_$cname")
+        [[ $status = "ok" ]] && continue
+        mkl_fail $1 $2 $3 "depends on $cname"
+        res="failed"
+    done
+
+    echo "try res $res"
+    mkl_check_done "$1" "$2" "$3" $res
 }
 
 

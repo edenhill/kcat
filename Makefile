@@ -1,8 +1,10 @@
+include Makefile.config
 
 BIN=	kafkacat
 
-SRCS=	kafkacat.c
-OBJS=	$(SRCS:.c=.o)
+SRCS_y=	kafkacat.c format.c
+SRCS_$(ENABLE_JSON) += json.c
+OBJS=	$(SRCS_y:.c=.o)
 
 .PHONY:
 

@@ -11,37 +11,74 @@
 
 set -o errexit -o nounset -o pipefail
 
-LIBRDKAFKA_VERSION=${LIBRDKAFKA_VERSION:-master}
-LIBRDKAFKA_DIR=librdkafka-${LIBRDKAFKA_VERSION}
-LIBRDKAFKA_URL=https://github.com/edenhill/librdkafka/archive/${LIBRDKAFKA_VERSION}.tar.gz
 
-mkdir -p tmp-bootstrap
-pushd tmp-bootstrap > /dev/null
+function github_download {
+    repo=$1
+    version=$2
+    dir=$3
 
-if [[ ! -d ${LIBRDKAFKA_DIR} ]]; then
-    echo "Downloading ${LIBRDKAFKA_DIR}"
+    url=https://github.com/${repo}/archive/${version}.tar.gz
+
+    if [[ -d $dir ]]; then
+        echo "Directory $dir already exists, not downloading $url"
+        return 0
+    fi
+
+    echo "Downloading $url to $dir"
     if which wget 2>&1 > /dev/null; then
         DL='wget -q -O-'
     else
         DL='curl -s -L'
     fi
-    $DL "${LIBRDKAFKA_URL}" | tar xzf -
-fi
 
-echo "Building ${LIBRDKAFKA_DIR}"
-pushd ${LIBRDKAFKA_DIR} > /dev/null
-./configure
-make
-make DESTDIR="${PWD}/../" install
+    mkdir -p "$dir"
+    pushd "$dir" > /dev/null
+    ($DL "$url" | tar -xzf - --strip-components 1) || exit 1
+    popd > /dev/null
+}
 
-popd > /dev/null
+function build {
+    dir=$1
+    cmds=$2
+
+
+    echo "Building $dir"
+    pushd $dir > /dev/null
+    set +o errexit
+    eval $cmds
+    ret=$?
+    set -o errexit
+    popd > /dev/null
+
+    if [[ $ret == 0 ]]; then
+        echo "Build of $dir SUCCEEDED!"
+    else
+        echo "Build of $dir FAILED!"
+    fi
+
+    return $ret
+}
+
+
+mkdir -p tmp-bootstrap
+pushd tmp-bootstrap > /dev/null
+
+github_download "edenhill/librdkafka" "master" "librdkafka"
+github_download "lloyd/yajl" "master" "libyajl"
+
+build librdkafka "./configure && make && make DESTDIR=\"${PWD}/\" install" || (echo "Failed to build librdkafka: bootstrap failed" ; false)
+
+build libyajl "./configure && make && make DESTDIR=\"${PWD}/\" install" || (echo "Failed to build libyajl: JSON support will probably be disabled" ; true)
+
+
 popd > /dev/null
 
 echo "Building kafkacat"
 export CPPFLAGS="${CPPFLAGS:-} -Itmp-bootstrap/usr/local/include"
 export LDFLAGS="${LDFLAGS:-} -Ltmp-bootstrap/usr/local/lib"
 export STATIC_LIB_rdkafka="tmp-bootstrap/usr/local/lib/librdkafka.a"
-./configure --enable-static
+export STATIC_LIB_yajl="tmp-bootstrap/usr/local/lib/libyajl.a"
+./configure --enable-static --enable-json
 make
 
 echo ""
