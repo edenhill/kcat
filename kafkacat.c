@@ -695,7 +695,7 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                "  \\n \\r \\t           Newlines, tab\n"
                "  \\xXX \\xNNN         Any ASCII character\n"
                " Example:\n"
-               "  -f 'Topic %%t [%%p] at offset %%o: key %%k: %%m\\n'\n"
+               "  -f 'Topic %%t [%%p] at offset %%o: key %%k: %%s\\n'\n"
                "\n"
                "\n"
                "Consumer mode (writes messages to stdout):\n"
