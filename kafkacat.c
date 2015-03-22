@@ -950,7 +950,8 @@ static void argparse (int argc, char **argv) {
 
         } else if (conf.mode == 'P') {
                 conf.delim = parse_delim(delim);
-                conf.key_delim = parse_delim(key_delim);
+		if (conf.flags & CONF_F_KEY_DELIM)
+			conf.key_delim = parse_delim(key_delim);
         }
 }
 
