@@ -77,7 +77,7 @@ echo "Building kafkacat"
 export CPPFLAGS="${CPPFLAGS:-} -Itmp-bootstrap/usr/local/include"
 export LDFLAGS="${LDFLAGS:-} -Ltmp-bootstrap/usr/local/lib"
 export STATIC_LIB_rdkafka="tmp-bootstrap/usr/local/lib/librdkafka.a"
-export STATIC_LIB_yajl="tmp-bootstrap/usr/local/lib/libyajl.a"
+export STATIC_LIB_yajl="tmp-bootstrap/usr/local/lib/libyajl_s.a"
 ./configure --enable-static --enable-json
 make
 
