@@ -52,6 +52,8 @@ struct conf conf = {
 static struct stats {
         uint64_t tx;
         uint64_t tx_err_q;
+        uint64_t tx_err_dr;
+        uint64_t tx_delivered;
 
         uint64_t rx;
 } stats;
@@ -84,6 +86,31 @@ void __attribute__((noreturn)) fatal0 (const char *func, int line,
 }
 
 
+
+/**
+ * The delivery report callback is called once per message to
+ * report delivery success or failure.
+ */
+static void dr_msg_cb (rd_kafka_t *rk, const rd_kafka_message_t *rkmessage,
+                       void *opaque) {
+        static int say_once = 1;
+        if (rkmessage->err) {
+                INFO(1, "Delivery failed for message: %s\n",
+                     rd_kafka_err2str(rkmessage->err));
+                stats.tx_err_dr++;
+                return;
+        }
+
+        INFO(3, "Message delivered to partition %"PRId32" (offset %"PRId64")\n",
+             rkmessage->partition, rkmessage->offset);
+
+        if (rkmessage->offset == 0 && say_once) {
+                INFO(3, "Enable message offset reporting "
+                     "with '-X topic.produce.offset.report=true'\n");
+                say_once = 0;
+        }
+        stats.tx_delivered++;
+}
 
 
 /**
@@ -177,6 +204,9 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
         size_t  size = 0;
         ssize_t len;
         char    errstr[512];
+
+        /* Assign per-message delivery report callback. */
+        rd_kafka_conf_set_dr_msg_cb(conf.rk_conf, dr_msg_cb);
 
         /* Create producer */
         if (!(conf.rk = rd_kafka_new(RD_KAFKA_PRODUCER, conf.rk_conf,
@@ -304,6 +334,9 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
 
         if (sbuf)
                 free(sbuf);
+
+        if (stats.tx_err_q || stats.tx_err_dr)
+                conf.exitcode = 1;
 }
 
 
