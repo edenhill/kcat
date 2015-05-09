@@ -28,6 +28,12 @@ On recent enough Debian systems:
 apt-get install kafkacat
 ````
 
+And on Mac OS X with homebrew installed:
+
+````
+brew install kafkacat
+````
+
 Otherwise follow directions below.
 
 
