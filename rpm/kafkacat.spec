@@ -1,5 +1,5 @@
 Name:     kafkacat
-Version:  1.1.0
+Version:  1.2.0
 Release:  1%{?dist}
 Summary:  kafkacat is a generic non-JVM producer and consumer for Apache Kafka 0.8, think of it as a netcat for Kafka.
 Group:    Productivity/Networking/Other
@@ -50,5 +50,8 @@ rm -rf %{buildroot}
 %doc LICENSE
 
 %changelog
+* Wed Jun 03 2015 Magnus Edenhill <magnus@edenhill.se> 1.2.0-1
+- Relase 1.2.0
+
 * Fri Dec 19 2014 François Saint-Jacques <fsaintjacques@gmail.com> 1.1.0-1
 - Initial RPM package
