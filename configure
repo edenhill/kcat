@@ -13,6 +13,11 @@ mkl_in_list "$*" "--no-download" && MKL_NO_DOWNLOAD=1
 mkl_in_list "$*" "--help" && MKL_NO_DOWNLOAD=1
 mkl_in_list "$*" "--debug" && MKL_DEBUG=1
 
+# This is the earliest possible time to check for color support in
+# terminal because mkl_check_terminal_color_support uses mkl_dbg which
+# needs to know if MKL_DEBUG is set
+mkl_check_terminal_color_support
+
 # Delete temporary Makefile and header files on exit.
 trap "{ rm -f $MKL_OUTMK $MKL_OUTH; }" EXIT
 
@@ -108,7 +113,7 @@ while [[ ! -z $@ ]]; do
             oldcmd=$(grep '^# configure exec: ' config.log | \
                 sed -e 's/^\# configure exec: //')
             if [[ -z $oldcmd ]]; then
-                echo "No previous execution found in config.log"
+                mkl_err "No previous execution found in config.log"
                 exit 1
             fi
             echo "Reconfiguring: $oldcmd"

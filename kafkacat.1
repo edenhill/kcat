@@ -1,0 +1,80 @@
+.Dd $Mdocdate: December 09 2014 $
+.Dt KAFKACAT 1
+.Os
+.Sh NAME
+.Nm kafkacat
+.Nd generic producer and consumer for Apache Kafka
+.Sh SYNOPSIS
+.Nm
+.Fl C | P | L
+.Fl t Ar topic
+.Op Fl p Ar partition
+.Fl b Ar brokers Op , Ar ...
+.Op Fl D Ar delim
+.Op Fl K Ar delim
+.Op Fl c Ar cnt
+.Op Fl X Ar list
+.Op Fl X Ar prop=val
+.Op Fl X Ar dump
+.Op Fl d Ar dbg Op , Ar ...
+.Op Fl q
+.Op Fl v
+.Op Fl Z
+.Op specific options
+.Nm
+.Fl C
+.Op generic options
+.Op Fl o Ar offset
+.Op Fl e
+.Op Fl O
+.Op Fl u
+.Op Fl J
+.Op Fl f Ar fmtstr
+.Nm
+.Fl P
+.Op generic options
+.Op Fl z Ar snappy | gzip
+.Op Fl p Li -1
+.Op Ar file Op ...
+.Nm
+.Fl L
+.Op generic options
+.Op Fl t Ar topic
+.Sh DESCRIPTION
+.Nm
+is a generic non-JVM producer and consumer for Apache Kafka
+0.8, think of it as a netcat for Kafka.
+.Pp
+In producer mode (
+.Fl P
+),
+.Nm
+reads messages from stdin, delimited with a configurable
+delimeter and produces them to the provided Kafka cluster, topic and
+partition. In consumer mode (
+.Fl C
+),
+.Nm
+reads messages from a topic and
+partition and prints them to stdout using the configured message
+delimiter.
+.Pp
+If neither
+.Fl P
+or
+.Fl C
+are specified
+.Nm
+attempts to figure out the mode automatically based on stdin/stdout tty types.
+.Pp
+.Nm
+also features a metadata list mode (
+.Fl L
+), to display the current state of the Kafka cluster and its topics
+and partitions.
+.Sh SEE ALSO
+For a more extensive help and some simple examples, run
+.Nm
+with
+.Fl h
+flag.

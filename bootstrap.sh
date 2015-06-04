@@ -9,36 +9,77 @@
 # is the easiest and quickest way.
 #
 
-LIBRDKAFKA_VERSION=master
+set -o errexit -o nounset -o pipefail
 
-mkdir -p tmp-bootstrap || exit 1
-cd tmp-bootstrap || exit 1
 
-if [[ ! -d librdkafka-$LIBRDKAFKA_VERSION ]]; then
-    echo "Downloading librdkafka-$LIBRDKAFKA_VERSION"
-    if [[ $(which wget 2>&1 > /dev/null) ]]; then
-	DL='wget -O-'
-    else
-	DL='curl -L'
+function github_download {
+    repo=$1
+    version=$2
+    dir=$3
+
+    url=https://github.com/${repo}/archive/${version}.tar.gz
+
+    if [[ -d $dir ]]; then
+        echo "Directory $dir already exists, not downloading $url"
+        return 0
     fi
-    $DL "https://github.com/edenhill/librdkafka/archive/${LIBRDKAFKA_VERSION}.tar.gz" | \
-        tar xzf -
-    [[ $? -eq 0 ]] || exit 1
-fi
 
-echo "Building librdkafka-$LIBRDKAFKA_VERSION"
-cd librdkafka-$LIBRDKAFKA_VERSION || exit 1
-./configure || exit 1
-make || exit 1
-make DESTDIR="${PWD}/../" install || exit 1
+    echo "Downloading $url to $dir"
+    if which wget 2>&1 > /dev/null; then
+        DL='wget -q -O-'
+    else
+        DL='curl -s -L'
+    fi
 
-cd ../../
+    mkdir -p "$dir"
+    pushd "$dir" > /dev/null
+    ($DL "$url" | tar -xzf - --strip-components 1) || exit 1
+    popd > /dev/null
+}
+
+function build {
+    dir=$1
+    cmds=$2
+
+
+    echo "Building $dir"
+    pushd $dir > /dev/null
+    set +o errexit
+    eval $cmds
+    ret=$?
+    set -o errexit
+    popd > /dev/null
+
+    if [[ $ret == 0 ]]; then
+        echo "Build of $dir SUCCEEDED!"
+    else
+        echo "Build of $dir FAILED!"
+    fi
+
+    return $ret
+}
+
+
+mkdir -p tmp-bootstrap
+pushd tmp-bootstrap > /dev/null
+
+github_download "edenhill/librdkafka" "master" "librdkafka"
+github_download "lloyd/yajl" "master" "libyajl"
+
+build librdkafka "./configure && make && make DESTDIR=\"${PWD}/\" install" || (echo "Failed to build librdkafka: bootstrap failed" ; false)
+
+build libyajl "./configure && make && make DESTDIR=\"${PWD}/\" install" || (echo "Failed to build libyajl: JSON support will probably be disabled" ; true)
+
+
+popd > /dev/null
+
 echo "Building kafkacat"
-export CPPFLAGS="$CPPFLAGS -Itmp-bootstrap/usr/local/include"
-export LDFLAGS="$LDFLAGS -Ltmp-bootstrap/usr/local/lib"
+export CPPFLAGS="${CPPFLAGS:-} -Itmp-bootstrap/usr/local/include"
+export LDFLAGS="${LDFLAGS:-} -Ltmp-bootstrap/usr/local/lib"
 export STATIC_LIB_rdkafka="tmp-bootstrap/usr/local/lib/librdkafka.a"
-./configure --enable-static || exit 1
-make || exit 1
+export STATIC_LIB_yajl="tmp-bootstrap/usr/local/lib/libyajl_s.a"
+./configure --enable-static --enable-json
+make
 
 echo ""
 echo "Success! kafkacat is now built"

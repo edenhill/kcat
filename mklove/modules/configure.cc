@@ -79,18 +79,19 @@ function checks {
     [[ ! -z $LDFLAGS ]]  && mkl_mkvar_set "LDFLAGS" "LDFLAGS" "$LDFLAGS"
     [[ ! -z $ARFLAGS ]]  && mkl_mkvar_set "ARFLAGS" "ARFLAGS" "$ARFLAGS"
 
-
-    # Add debug symbol flag (-g)
-    # OSX 10.9 requires -gstrict-dwarf for some reason.
-    mkl_meta_set cc_g_dwarf name "debug symbols compiler flag (-g...)"
-    if [[ $MKL_DISTRO == "osx" ]]; then
-	if mkl_compile_check cc_g_dwarf "" cont CC "-gstrict-dwarf"; then
-	    mkl_mkvar_append CPPFLAGS CPPFLAGS "-gstrict-dwarf"
-	else
-	    mkl_mkvar_append CPPFLAGS CPPFLAGS "-g"
-	fi
-    else
-	mkl_mkvar_append CPPFLAGS CPPFLAGS "-g"
+    if [[ $MKL_NO_DEBUG_SYMBOLS != "y" ]]; then
+        # Add debug symbol flag (-g)
+        # OSX 10.9 requires -gstrict-dwarf for some reason.
+        mkl_meta_set cc_g_dwarf name "debug symbols compiler flag (-g...)"
+        if [[ $MKL_DISTRO == "osx" ]]; then
+            if mkl_compile_check cc_g_dwarf "" cont CC "-gstrict-dwarf"; then
+                mkl_mkvar_append CPPFLAGS CPPFLAGS "-gstrict-dwarf"
+            else
+                mkl_mkvar_append CPPFLAGS CPPFLAGS "-g"
+            fi
+        else
+            mkl_mkvar_append CPPFLAGS CPPFLAGS "-g"
+        fi
     fi
 
 
@@ -166,3 +167,5 @@ mkl_option "Compiler" "env:PKG_CONFIG_PATH" "--pkg-config-path" "Extra paths for
 mkl_option "Compiler" "WITH_PROFILING" "--enable-profiling" "Enable profiling"
 mkl_option "Compiler" "WITH_STATIC_LINKING" "--enable-static" "Enable static linking"
 mkl_option "Compiler" "WITHOUT_OPTIMIZATION" "--disable-optimization" "Disable optimization flag to compiler" "n"
+mkl_option "Compiler" "env:MKL_NO_DEBUG_SYMBOLS" "--disable-debug-symbols" "Disable debugging symbols" "n"
+mkl_option "Compiler" "env:MKL_WANT_WERROR" "--enable-werror" "Enable compiler warnings as errors" "n"

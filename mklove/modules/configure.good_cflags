@@ -9,5 +9,10 @@
 
 function checks {
     mkl_mkvar_append CPPFLAGS CPPFLAGS \
-        "-Wall -Werror -Wfloat-equal -Wpointer-arith"
+        "-Wall -Wfloat-equal -Wpointer-arith"
+
+    if [[ $MKL_WANT_WERROR = "y" ]]; then
+        mkl_mkvar_append CPPFLAGS CPPFLAGS \
+            "-Werror"
+    fi
 }

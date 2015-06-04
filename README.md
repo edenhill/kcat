@@ -1,8 +1,8 @@
 kafkacat
 ========
-Copyright (c) 2014, Magnus Edenhill
+Copyright (c) 2014-2015 Magnus Edenhill
 
-https://github.com/edenhill/kafkacat
+[https://github.com/edenhill/kafkacat](https://github.com/edenhill/kafkacat)
 
 **kafkacat** is a generic non-JVM producer and consumer for Apache Kafka 0.8,
 think of it as a netcat for Kafka.
@@ -20,11 +20,29 @@ state of the Kafka cluster and its topics and partitions.
 kafkacat is fast and lightweight; statically linked it is no more than 150Kb.
 
 
+# Install
+
+On recent enough Debian systems:
+
+````
+apt-get install kafkacat
+````
+
+And on Mac OS X with homebrew installed:
+
+````
+brew install kafkacat
+````
+
+Otherwise follow directions below.
+
 
 # Requirements
 
  * librdkafka - https://github.com/edenhill/librdkafka
+ * libyajl (for JSON support, optional)
 
+On Ubuntu or Debian: `sudo apt-get install librdkafka-dev libyajl-dev`
 
 # Build
 
@@ -36,7 +54,7 @@ kafkacat is fast and lightweight; statically linked it is no more than 150Kb.
 
 The bootstrap.sh build script will download and build the required dependencies,
 providing a quick and easy means of building kafkacat.
-Internet connectivity and wget is required by this script.
+Internet connectivity and wget/curl is required by this script.
 The resulting kafkacat binary will be linked statically to avoid runtime
 dependencies.
 
@@ -45,30 +63,40 @@ dependencies.
 
 # Examples
 
-### Read messages from stdin, produce to 'syslog' topic with snappy compression
+Read messages from stdin, produce to 'syslog' topic with snappy compression
 
-    $ tail -f /var/log/syslog | kafkacat -b mybroker -t syslog -p 0 -z snappy
-
-### Read messages from Kafka 'syslog' topic, print to stdout
-
-    $ kafkacat -b mybroker -t syslog -p 0
+    $ tail -f /var/log/syslog | kafkacat -b mybroker -t syslog -z snappy
 
 
-### Produce messages from file (one file is one message)
+Read messages from Kafka 'syslog' topic, print to stdout
+
+    $ kafkacat -b mybroker -t syslog
+
+
+Produce messages from file (one file is one message)
 
     $ kafkacat -P -b mybroker -t filedrop -p 0 myfile1.bin /etc/motd thirdfile.tgz
 
-## Read the last 2000 messages from 'syslog' topic, then exit
+Read the last 2000 messages from 'syslog' topic, then exit
 
     $ kafkacat -C -b mybroker -t syslog -p 0 -o -2000 -e
 
 
-## Consume from all partitions from 'syslog' topic
+Consume from all partitions from 'syslog' topic
 
     $ kafkacat -C -b mybroker -t syslog
 
 
-### Metadata listing
+Output consumed messages in JSON envelope:
+
+    $ kafkacat -b mybroker -t syslog -J
+
+
+Output consumed messages according to format string:
+
+    $ kafkacat -b mybroker -t syslog -f 'Topic %t[%p], offset: %o, key: %k, payload: %S bytes: %s\n'
+
+Metadata listing
 
 ````
 $ kafkacat -L -b mybroker
@@ -90,3 +118,11 @@ Metadata for all topics (from broker 1: mybroker:9092/1):
     partition 1, leader 1, replicas: 1, isrs: 1
   ....
 ````
+
+JSON metadata listing
+
+    $ kafkacat -b mybroker -L -J
+
+Pretty-printed JSON metadata listing
+
+    $ kafkacat -b mybroker -L -J | jq .
