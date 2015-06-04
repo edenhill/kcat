@@ -4,5 +4,4 @@
 	dh $@
 
 override_dh_auto_configure:
-	dh_auto_configure -- --enable-json
-
+	dh_auto_configure -- --enable-json --no-download

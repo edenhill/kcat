@@ -2,6 +2,7 @@ kafkacat (1.2.0-1) UNRELEASED; urgency=medium
 
   * New upstream release.
   * Enable JSON support.
+  * Patch to let configure accept --disable-silent-rules.
 
  -- Vincent Bernat <bernat@debian.org>  Thu, 04 Jun 2015 10:04:02 +0200
 
