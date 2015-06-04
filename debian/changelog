@@ -1,4 +1,4 @@
-kafkacat (1.2.0-1) UNRELEASED; urgency=medium
+kafkacat (1.2.0-1) unstable; urgency=medium
 
   * New upstream release.
   * Enable JSON support.
