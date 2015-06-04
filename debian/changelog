@@ -1,3 +1,9 @@
+kafkacat (1.2.0-1) UNRELEASED; urgency=medium
+
+  * New upstream release.
+
+ -- Vincent Bernat <bernat@debian.org>  Thu, 04 Jun 2015 10:04:02 +0200
+
 kafkacat (1.1.0-2) unstable; urgency=medium
 
   * Fix manual page.
