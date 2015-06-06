@@ -5,3 +5,10 @@
 
 override_dh_auto_configure:
 	dh_auto_configure -- --enable-json --no-download
+
+override_dh_auto_clean:
+	dh_clean
+
+override_dh_auto_build:
+	make clean
+	dh_auto_build

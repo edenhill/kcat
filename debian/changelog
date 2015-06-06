@@ -1,3 +1,10 @@
+kafkacat (1.2.0-2) unstable; urgency=medium
+
+  * Fix FTBFS due to dh trying to run "make distclean". Patch from Gustavo
+    Prado Alkmim. Closes: #787844.
+
+ -- Vincent Bernat <bernat@debian.org>  Sat, 06 Jun 2015 18:50:15 +0200
+
 kafkacat (1.2.0-1) unstable; urgency=medium
 
   * New upstream release.
