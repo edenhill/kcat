@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 
 MKL_CONFIGURE_ARGS="$0 $*"
