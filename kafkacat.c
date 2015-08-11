@@ -94,6 +94,7 @@ void __attribute__((noreturn)) fatal0 (const char *func, int line,
 static void dr_msg_cb (rd_kafka_t *rk, const rd_kafka_message_t *rkmessage,
                        void *opaque) {
         static int say_once = 1;
+
         if (rkmessage->err) {
                 INFO(1, "Delivery failed for message: %s\n",
                      rd_kafka_err2str(rkmessage->err));
@@ -272,6 +273,13 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                                         buf    += key_len+1;
                                         len    -= key_len+1;
 
+                                        /* Since buf has been forwarded
+                                         * from its initial allocation point
+                                         * we must make sure we dont tell
+                                         * librdkafka to free it (since the
+                                         * address would be wrong). */
+                                        msgflags |= RD_KAFKA_MSG_F_COPY;
+
                                         if (conf.flags & CONF_F_NULL) {
                                                 if (len == 0)
                                                         buf = NULL;
@@ -281,7 +289,8 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                                 }
                         }
 
-                        if (len > 1024 && !(conf.flags & CONF_F_TEE)) {
+                        if (!(msgflags & RD_KAFKA_MSG_F_COPY) &&
+                            len > 1024 && !(conf.flags & CONF_F_TEE)) {
                                 /* If message is larger than this arbitrary
                                  * threshold it will be more effective to
                                  * not copy the data but let rdkafka own it
