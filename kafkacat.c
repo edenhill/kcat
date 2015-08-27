@@ -58,7 +58,8 @@ static struct stats {
         uint64_t rx;
 } stats;
 
-
+char * g_keys = NULL;
+bool g_base_64 = false;
 /* Partition's at EOF state array */
 int *part_eof = NULL;
 /* Number of partitions that has reached EOF */
@@ -129,12 +130,45 @@ static void produce (void *buf, size_t len,
                         FATAL("Program terminated while "
                               "producing message of %zd bytes", len);
 
+                void* keys_;
+                if (g_keys)
+                {
+                    keys_ = g_keys;
+                    key_len = strlen(keys_);
+                }
+                else
+                {
+                    keys_ = key;
+                }
+
+
+                if (g_base_64)
+                {
+                    char dst[len];
+                    base64_encode(buf, dst, strlen(buf));
+                    if (rd_kafka_produce(conf.rkt, conf.partition, msgflags,
+                                     dst, len, keys_, key_len, NULL) != -1) {
+                        stats.tx++;
+                        break;
+                    }
+
+                }
+                else 
+                {
+                    void *dst = buf;
+                    if (rd_kafka_produce(conf.rkt, conf.partition, msgflags,
+                                     dst, len, keys_, key_len, NULL) != -1) {
+                        stats.tx++;
+                        break;
+                    }
+                }
+                /*
                 if (rd_kafka_produce(conf.rkt, conf.partition, msgflags,
-                                     buf, len, key, key_len, NULL) != -1) {
+                                     dst, len, keys_, key_len, NULL) != -1) {
                         stats.tx++;
                         break;
                 }
-
+                */
                 err = rd_kafka_errno2err(errno);
 
                 if (err != RD_KAFKA_RESP_ERR__QUEUE_FULL)
@@ -395,8 +429,11 @@ static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
                       rd_kafka_message_errstr(rkmessage));
         }
 
+
         /* Print message */
         fmt_msg_output(fp, rkmessage);
+
+
 
         rd_kafka_offset_store(rkmessage->rkt,
                               rkmessage->partition,
@@ -511,6 +548,7 @@ static void consumer_run (FILE *fp) {
 
         /* Read messages from Kafka, write to 'fp'. */
         while (conf.run) {
+                
                 rd_kafka_consume_callback_queue(rkqu, 100,
                                                 consume_cb, fp);
 
@@ -675,7 +713,7 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                "\n"
                "\n"
                "General options:\n"
-               "  -C | -P | -L       Mode: Consume, Produce or metadata List\n"
+               "  -C | -P | -l | -L       Mode: Consume, Produce, Produce (loop) or metadata List\n"
                "  -t <topic>         Topic to consume from, produce to, "
                "or list\n"
                "  -p <partition>     Partition\n"
@@ -708,6 +746,8 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                "  file1 file2..      Read messages from files.\n"
                "                     The entire file contents will be sent as\n"
                "                     one single message.\n"
+               "  -k key             specify the key of messages. \n"
+               "  -B base64 encode   encode messages with base64. Fetch the integrate messages while decoding. \n"
                "\n"
                "Consumer options:\n"
                "  -o <offset>        Offset to start consuming from:\n"
@@ -733,6 +773,7 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                "\n"
                "Metadata options:\n"
                "  -t <topic>         Topic to query (optional)\n"
+               //"  -r <file_path>     Read file ........"
                "\n"
                "\n"
                "Format string tokens:\n"
@@ -826,7 +867,7 @@ static void argparse (int argc, char **argv) {
         char tmp_fmt[64];
 
         while ((opt = getopt(argc, argv,
-                             "PCLt:p:b:z:o:eD:K:Od:qvX:c:Tuf:Z"
+                             "PCLlt:p:b:z:o:eD:K:Od:qvX:c:Tuf:Zk:B"
 #if ENABLE_JSON
                              "J"
 #endif
@@ -835,6 +876,7 @@ static void argparse (int argc, char **argv) {
                 case 'P':
                 case 'C':
                 case 'L':
+                case 'l':
                         conf.mode = opt;
                         break;
                 case 't':
@@ -962,6 +1004,18 @@ static void argparse (int argc, char **argv) {
                 }
                 break;
 
+                /* Run Producer mode in cycles with a xx interval.
+                 * And this option comes into effects only in Producer mode.*/                                            
+                ///case 'i':
+                ///        optarg;
+
+                ///        break;
+                case 'k':
+                        g_keys = optarg;
+                        break;
+                case 'B':
+                        g_base_64 = true;
+                        break;
                 default:
                         usage(argv[0], 1, "unknown argument");
                         break;
@@ -1016,12 +1070,22 @@ static void argparse (int argc, char **argv) {
 
                 fmt_parse(fmt);
 
-        } else if (conf.mode == 'P') {
-                conf.delim = parse_delim(delim);
-		if (conf.flags & CONF_F_KEY_DELIM)
-			conf.key_delim = parse_delim(key_delim);
+        } 
+        else if (conf.mode == 'P') 
+        {
+            conf.delim = parse_delim(delim);
+		    if (conf.flags & CONF_F_KEY_DELIM)
+			    conf.key_delim = parse_delim(key_delim);
+        } 
+        else if (conf.mode == 'l')
+        {
+            conf.delim = parse_delim(delim);
+            if (conf.flags & CONF_F_KEY_DELIM)
+                conf.key_delim = parse_delim(key_delim);
         }
 }
+
+
 
 
 /**
@@ -1081,23 +1145,61 @@ int main (int argc, char **argv) {
                 conf_dump();
                 exit(0);
         }
-
-        if (optind < argc && conf.mode != 'P')
-                usage(argv[0], 1, "file list only allowed in produce mode");
-
+        
+        //if (optind < argc && conf.mode != 'P')
+        //    usage(argv[0], 1, "file list only allowed in produce mode");
+         
+        if (optind < argc && conf.mode != 'P' && conf.mode != 'l')
+            usage(argv[0], 1, "file list only allowed in produce mode");
         /* Run according to mode */
         switch (conf.mode)
         {
         case 'C':
                 consumer_run(stdout);
                 break;
-
+ 
         case 'P':
-                producer_run(stdin, &argv[optind], argc-optind);
+                producer_run(stdin, &argv[optind], argc-optind);   
                 break;
 
         case 'L':
                 metadata_list();
+                break;
+        case 'l':
+                while(true)
+                {
+                    producer_run(stdin, &argv[optind], argc-optind);
+                    rd_kafka_wait_destroyed(5000);
+                    fmt_term();
+                    sleep(5);
+
+                    char tmp[16];
+
+                    signal(SIGINT, term);
+                    signal(SIGTERM, term);
+                    signal(SIGPIPE, term);
+
+                    /* Create config containers */
+                    conf.rk_conf  = rd_kafka_conf_new();
+                    conf.rkt_conf = rd_kafka_topic_conf_new();
+
+                    /*
+                    * Default config
+                         */
+                    /* Enable quick termination of librdkafka */
+                    snprintf(tmp, sizeof(tmp), "%i", SIGIO);
+                    rd_kafka_conf_set(conf.rk_conf, "internal.termination.signal",
+                          tmp, NULL, 0);
+
+                    /* Parse command line arguments */
+                    argparse(argc, argv);
+
+                    /* Dump configuration and exit, if so desired. */
+                    if (conf.conf_dump) {
+                            conf_dump();
+                            exit(0);
+                    }
+                }
                 break;
 
         default:
