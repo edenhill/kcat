@@ -513,6 +513,9 @@ static void consumer_run (FILE *fp) {
         while (conf.run) {
                 rd_kafka_consume_callback_queue(rkqu, 100,
                                                 consume_cb, fp);
+
+                /* Poll for errors, etc */
+                rd_kafka_poll(conf.rk, 0);
         }
 
         /* Stop consuming */
@@ -781,6 +784,21 @@ static void term (int sig) {
 
 
 /**
+ * librdkafka error callback
+ */
+static void error_cb (rd_kafka_t *rk, int err,
+                      const char *reason, void *opaque) {
+
+        if (err == RD_KAFKA_RESP_ERR__ALL_BROKERS_DOWN)
+                FATAL("%s: %s: terminating", rd_kafka_err2str(err),
+                      reason ? reason : "");
+
+        INFO(1, "ERROR: %s: %s\n", rd_kafka_err2str(err),
+             reason ? reason : "");
+}
+
+
+/**
  * Parse delimiter string from command line arguments.
  */
 static int parse_delim (const char *str) {
@@ -972,6 +990,8 @@ static void argparse (int argc, char **argv) {
                               conf.brokers, errstr, sizeof(errstr)) !=
             RD_KAFKA_CONF_OK)
                 usage(argv[0], 1, errstr);
+
+        rd_kafka_conf_set_error_cb(conf.rk_conf, error_cb);
 
         fmt_init();
 
