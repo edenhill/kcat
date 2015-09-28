@@ -61,6 +61,7 @@ struct conf {
 #define CONF_F_OFFSET     0x4 /* Print offsets */
 #define CONF_F_TEE        0x8 /* Tee output when producing */
 #define CONF_F_NULL       0x10 /* Send empty messages as NULL */
+#define CONF_F_LINE	  0x100 /* Read files in line mode when producing */
         int     delim;
         int     key_delim;
 

@@ -229,7 +229,7 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
         conf.rkt_conf = NULL;
 
 
-        if (pathcnt > 0) {
+        if (pathcnt > 0 && !(conf.flags & CONF_F_LINE)) {
                 int i;
                 int good = 0;
                 /* Read messages from files, each file is its own message. */
@@ -245,7 +245,7 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                              pathcnt - good, pathcnt);
 
         } else {
-                /* Read messages from stdin, delimited by conf.delim */
+                /* Read messages from input, delimited by conf.delim */
                 while (conf.run &&
                        (len = getdelim(&sbuf, &size, conf.delim, fp)) != -1) {
                         int msgflags = 0;
@@ -331,6 +331,8 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                                 FATAL("Unable to read message: %s",
                                       strerror(errno));
                 }
+                if (fp != stdin)
+                        fclose(fp);
         }
 
         /* Wait for all messages to be transmitted */
@@ -701,13 +703,17 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                "  -p -1              Use random partitioner\n"
                "  -D <delim>         Delimiter to split input into messages\n"
                "  -K <delim>         Delimiter to split input key and message\n"
+               "  -l                 Send messages from a file separated by\n"
+               "                     delimiter, as with stdin.\n"
+               "                     (only one file allowed)\n"
                "  -T                 Output sent messages to stdout, acting like tee.\n"
                "  -c <cnt>           Exit after producing this number "
                "of messages\n"
                "  -Z                 Send empty messages as NULL messages\n"
                "  file1 file2..      Read messages from files.\n"
-               "                     The entire file contents will be sent as\n"
-               "                     one single message.\n"
+               "                     With -l, only one file permitted.\n"
+               "                     Otherwise, the entire file contents will\n"
+               "                     be sent as one single message.\n"
                "\n"
                "Consumer options:\n"
                "  -o <offset>        Offset to start consuming from:\n"
@@ -826,7 +832,7 @@ static void argparse (int argc, char **argv) {
         char tmp_fmt[64];
 
         while ((opt = getopt(argc, argv,
-                             "PCLt:p:b:z:o:eD:K:Od:qvX:c:Tuf:Z"
+                             "PCLt:p:b:z:o:eD:K:Od:qvX:c:Tuf:Zl"
 #if ENABLE_JSON
                              "J"
 #endif
@@ -883,6 +889,9 @@ static void argparse (int argc, char **argv) {
                 case 'K':
                         key_delim = optarg;
                         conf.flags |= CONF_F_KEY_DELIM;
+                        break;
+                case 'l':
+                        conf.flags |= CONF_F_LINE;
                         break;
                 case 'O':
                         conf.flags |= CONF_F_OFFSET;
@@ -1056,6 +1065,7 @@ static void conf_dump (void) {
 
 int main (int argc, char **argv) {
         char tmp[16];
+        FILE *in = stdin;
 
         signal(SIGINT, term);
         signal(SIGTERM, term);
@@ -1082,8 +1092,19 @@ int main (int argc, char **argv) {
                 exit(0);
         }
 
-        if (optind < argc && conf.mode != 'P')
-                usage(argv[0], 1, "file list only allowed in produce mode");
+        if (optind < argc) {
+                if (conf.mode != 'P')
+                        usage(argv[0], 1,
+                              "file list only allowed in produce mode");
+                else if ((conf.flags & CONF_F_LINE) && argc - optind > 1)
+                        FATAL("Only one file allowed for line mode (-l)");
+                else if (conf.flags & CONF_F_LINE) {
+                        in = fopen(argv[optind], "r");
+                        if (in == NULL)
+                                FATAL("Cannot open %s: %s", argv[optind],
+                                      strerror(errno));
+                }
+        }
 
         /* Run according to mode */
         switch (conf.mode)
@@ -1093,7 +1114,7 @@ int main (int argc, char **argv) {
                 break;
 
         case 'P':
-                producer_run(stdin, &argv[optind], argc-optind);
+                producer_run(in, &argv[optind], argc-optind);
                 break;
 
         case 'L':
