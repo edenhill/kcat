@@ -619,7 +619,6 @@ static void metadata_list (void) {
                                      errstr, sizeof(errstr))))
                 FATAL("Failed to create producer: %s", errstr);
 
-        rd_kafka_set_logger(conf.rk, rd_kafka_log_print);
         if (conf.debug)
                 rd_kafka_set_log_level(conf.rk, LOG_DEBUG);
         else if (conf.verbosity == 0)
@@ -1080,6 +1079,9 @@ int main (int argc, char **argv) {
         snprintf(tmp, sizeof(tmp), "%i", SIGIO);
         rd_kafka_conf_set(conf.rk_conf, "internal.termination.signal",
                           tmp, NULL, 0);
+
+        /* Log callback */
+        rd_kafka_conf_set_log_cb(conf.rk_conf, rd_kafka_log_print);
 
         /* Parse command line arguments */
         argparse(argc, argv);
