@@ -331,8 +331,6 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                                 FATAL("Unable to read message: %s",
                                       strerror(errno));
                 }
-                if (fp != stdin)
-                        fclose(fp);
         }
 
         /* Wait for all messages to be transmitted */
@@ -1125,6 +1123,9 @@ int main (int argc, char **argv) {
                 usage(argv[0], 0, NULL);
                 break;
         }
+
+        if (in != stdin)
+                fclose(in);
 
         rd_kafka_wait_destroyed(5000);
 
