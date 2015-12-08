@@ -63,6 +63,12 @@ dependencies.
 
 # Examples
 
+High-level balanced KafkaConsumer: subscribe to topic1 and topic2
+(requires broker >=0.9.0 and librdkafka version >=0.9.0)
+
+    $ kafkacat -b mybroker -G mygroup topic1 topic2
+
+
 Read messages from stdin, produce to 'syslog' topic with snappy compression
 
     $ tail -f /var/log/syslog | kafkacat -b mybroker -t syslog -z snappy

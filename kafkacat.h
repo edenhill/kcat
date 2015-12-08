@@ -75,6 +75,7 @@ struct conf {
         char   *brokers;
         char   *topic;
         int32_t partition;
+        char   *group;
         int64_t offset;
         int     exit_eof;
         int64_t msg_cnt;

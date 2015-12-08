@@ -20,6 +20,16 @@ function checks {
 "#include <librdkafka/rdkafka.h>
 struct rd_kafka_metadata foo;"
 
+    # Enable KafkaConsumer support if librdkafka is new enough
+    mkl_meta_set "librdkafka_ge_090" "name" "librdkafka KafkaConsumer support"
+    mkl_compile_check "librdkafka_ge_090" ENABLE_KAFKACONSUMER disable CC "" "
+    #include <librdkafka/rdkafka.h>
+    #if RD_KAFKA_VERSION >= 0x00090000
+    #else
+    #error \"rdkafka version < 0.9.0\"
+    #endif"
+
+
     # -lrt required on linux
     mkl_lib_check "librt" "" cont CC "-lrt"
 
