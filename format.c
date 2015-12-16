@@ -178,7 +178,7 @@ static void fmt_msg_output_str (FILE *fp,
 
         for (i = 0 ; i < conf.fmt_cnt ; i++) {
                 int r = 1;
-		uint64_t belen;
+		uint32_t belen;
 
                 switch (conf.fmt[i].type)
                 {
@@ -218,10 +218,10 @@ static void fmt_msg_output_str (FILE *fp,
 			break;
 
                 case KC_FMT_PAYLOAD_LEN_BINARY:
-			belen = htobe64((uint64_t)(rkmessage->payload ? rkmessage->len : -1));
+			belen = htonl((uint32_t)(rkmessage->payload ? rkmessage->len : -1));
 			r = fwrite(&belen,
                                     /* Use -1 to indicate NULL messages */
-				sizeof(uint64_t), 1, fp);
+				sizeof(uint32_t), 1, fp);
                         break;
 
                 case KC_FMT_STR:
