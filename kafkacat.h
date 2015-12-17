@@ -44,6 +44,7 @@ typedef enum {
         KC_FMT_KEY_LEN,
         KC_FMT_PAYLOAD,
         KC_FMT_PAYLOAD_LEN,
+        KC_FMT_PAYLOAD_LEN_BINARY,
         KC_FMT_TOPIC,
         KC_FMT_PARTITION,
 } fmt_type_t;

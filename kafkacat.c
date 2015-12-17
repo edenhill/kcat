@@ -877,6 +877,8 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                "Format string tokens:\n"
                "  %%s                 Message payload\n"
                "  %%S                 Message payload length (or -1 for NULL)\n"
+               "  %%R                 Message payload length (or -1 for NULL) serialized\n"
+               "                     as a binary big endian 32-bit signed integer\n"
                "  %%k                 Message key\n"
                "  %%K                 Message key length (or -1 for NULL)\n"
                "  %%t                 Topic\n"
