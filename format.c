@@ -28,6 +28,7 @@
 
 #include "kafkacat.h"
 
+#include <arpa/inet.h>
 
 
 static void fmt_add (fmt_type_t type, const char *str, int len) {
