@@ -10,7 +10,7 @@ function checks {
     # Check that librdkafka is available, and allow to link it statically.
     mkl_meta_set "librdkafka" "desc" "librdkafka is available at http://github.com/edenhill/librdkafka. To quickly download all dependencies and build kafkacat try ./bootstrap.sh"
     mkl_meta_set "librdkafka" "deb" "librdkafka-dev"
-    mkl_lib_check --static=-lrdkafka "librdkafka" "" fail CC "-lrdkafka -lpthread -lz" \
+    mkl_lib_check --static=-lrdkafka "librdkafka" "" fail CC "-lrdkafka" \
        "#include <librdkafka/rdkafka.h>"
 
     # Make sure rdkafka is new enough.
@@ -28,10 +28,6 @@ struct rd_kafka_metadata foo;"
     #else
     #error \"rdkafka version < 0.9.0\"
     #endif"
-
-
-    # -lrt required on linux
-    mkl_lib_check "librt" "" cont CC "-lrt"
 
 
     mkl_meta_set "yajl" "deb" "libyajl-dev"
