@@ -59,6 +59,16 @@ function build {
     return $ret
 }
 
+function pkg_cfg_lib {
+    pkg=$1
+
+    local libs=$(PKG_CONFIG_PATH=tmp-bootstrap/usr/local/lib/pkgconfig pkg-config --libs --static $pkg)
+
+    # Since we specify the exact .a files to link further down below
+    # we need to remove the -l<libname> here.
+    libs=$(echo $libs | sed -e "s/-l${pkg}//g")
+    echo " $libs"
+}
 
 mkdir -p tmp-bootstrap
 pushd tmp-bootstrap > /dev/null
@@ -76,6 +86,7 @@ popd > /dev/null
 echo "Building kafkacat"
 export CPPFLAGS="${CPPFLAGS:-} -Itmp-bootstrap/usr/local/include"
 export LDFLAGS="${LDFLAGS:-} -Ltmp-bootstrap/usr/local/lib"
+export LIBS="$(pkg_cfg_lib rdkafka) $(pkg_cfg_lib yajl)"
 export STATIC_LIB_rdkafka="tmp-bootstrap/usr/local/lib/librdkafka.a"
 export STATIC_LIB_yajl="tmp-bootstrap/usr/local/lib/libyajl_s.a"
 ./configure --enable-static --enable-json
