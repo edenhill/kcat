@@ -64,6 +64,11 @@ function pkg_cfg_lib {
 
     local libs=$(PKG_CONFIG_PATH=tmp-bootstrap/usr/local/lib/pkgconfig pkg-config --libs --static $pkg)
 
+    # If pkg-config isnt working try grabbing the library list manually.
+    if [[ -z "$libs" ]]; then
+        libs=$(grep ^Libs.private tmp-bootstrap/usr/local/lib/pkgconfig/${pkg}.pc | sed -e s'/^Libs.private: //g')
+    fi
+
     # Since we specify the exact .a files to link further down below
     # we need to remove the -l<libname> here.
     libs=$(echo $libs | sed -e "s/-l${pkg}//g")
