@@ -8,3 +8,7 @@ os:
 
 script:
   ./bootstrap.sh
+
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get install -y libssl-dev libsasl2-dev
