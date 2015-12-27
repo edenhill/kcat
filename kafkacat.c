@@ -793,18 +793,34 @@ static void metadata_list (void) {
  * Print usage and exit.
  */
 static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
-                                             const char *reason) {
+                                             const char *reason,
+                                             int version_only) {
 
         if (reason)
                 printf("Error: %s\n\n", reason);
 
-        printf("Usage: %s <options> [file1 file2 .. | topic1 topic2 ..]]\n"
-               "kafkacat - Apache Kafka producer and consumer tool\n"
+        if (!version_only)
+                printf("Usage: %s <options> [file1 file2 .. | topic1 topic2 ..]]\n",
+                       argv0);
+
+        printf("kafkacat - Apache Kafka producer and consumer tool\n"
                "https://github.com/edenhill/kafkacat\n"
                "Copyright (c) 2014-2015, Magnus Edenhill\n"
                "Version %s%s (librdkafka %s)\n"
-               "\n"
-               "\n"
+               "\n",
+               KAFKACAT_VERSION,
+#if ENABLE_JSON
+               " (JSON)",
+#else
+               "",
+#endif
+               rd_kafka_version_str()
+                );
+
+        if (version_only)
+                exit(exitcode);
+
+        printf("\n"
                "General options:\n"
                "  -C | -P | -L       Mode: Consume, Produce or metadata List\n"
 #if ENABLE_KAFKACONSUMER
@@ -830,6 +846,7 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                "                     " RD_KAFKA_DEBUG_CONTEXTS "\n"
                "  -q                 Be quiet (verbosity set to 0)\n"
                "  -v                 Increase verbosity\n"
+               "  -V                 Print version\n"
                "\n"
                "Producer options:\n"
                "  -z snappy|gzip     Message compression. Default: none\n"
@@ -908,13 +925,6 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                "Metadata listing:\n"
                "  kafkacat -L -b <broker> [-t <topic>]\n"
                "\n",
-               argv0, KAFKACAT_VERSION,
-#if ENABLE_JSON
-               " (JSON)",
-#else
-               "",
-#endif
-               rd_kafka_version_str(),
                conf.null_str
                 );
         exit(exitcode);
@@ -972,7 +982,7 @@ static void argparse (int argc, char **argv) {
         char tmp_fmt[64];
 
         while ((opt = getopt(argc, argv,
-                             "PCG:Lt:p:b:z:o:eD:K:Od:qvX:c:Tuf:Zl"
+                             "PCG:Lt:p:b:z:o:eD:K:Od:qvX:c:Tuf:ZlV"
 #if ENABLE_JSON
                              "J"
 #endif
@@ -1130,15 +1140,19 @@ static void argparse (int argc, char **argv) {
                 }
                 break;
 
+                case 'V':
+                        usage(argv[0], 0, NULL, 1);
+                        break;
+
                 default:
-                        usage(argv[0], 1, "unknown argument");
+                        usage(argv[0], 1, "unknown argument", 0);
                         break;
                 }
         }
 
 
         if (!conf.brokers)
-                usage(argv[0], 1, "-b <broker,..> missing");
+                usage(argv[0], 1, "-b <broker,..> missing", 0);
 
         /* Decide mode if not specified */
         if (!conf.mode) {
@@ -1152,12 +1166,12 @@ static void argparse (int argc, char **argv) {
 
 
         if (!strchr("GL", conf.mode) && !conf.topic)
-                usage(argv[0], 1, "-t <topic> missing");
+                usage(argv[0], 1, "-t <topic> missing", 0);
 
         if (rd_kafka_conf_set(conf.rk_conf, "metadata.broker.list",
                               conf.brokers, errstr, sizeof(errstr)) !=
             RD_KAFKA_CONF_OK)
-                usage(argv[0], 1, errstr);
+                usage(argv[0], 1, errstr, 0);
 
         rd_kafka_conf_set_error_cb(conf.rk_conf, error_cb);
 
@@ -1258,7 +1272,7 @@ int main (int argc, char **argv) {
                 if (!strchr("PG", conf.mode))
                         usage(argv[0], 1,
                               "file/topic list only allowed in "
-                              "producer(-P)/kafkaconsumer(-G) mode");
+                              "producer(-P)/kafkaconsumer(-G) mode", 0);
                 else if ((conf.flags & CONF_F_LINE) && argc - optind > 1)
                         FATAL("Only one file allowed for line mode (-l)");
                 else if (conf.flags & CONF_F_LINE) {
@@ -1291,7 +1305,7 @@ int main (int argc, char **argv) {
                 break;
 
         default:
-                usage(argv[0], 0, NULL);
+                usage(argv[0], 0, NULL, 0);
                 break;
         }
 
