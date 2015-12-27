@@ -95,3 +95,5 @@ make
 echo ""
 echo "Success! kafkacat is now built"
 echo ""
+
+./kafkacat -V
