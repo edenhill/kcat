@@ -33,7 +33,7 @@ struct rd_kafka_metadata foo;"
     mkl_meta_set "yajl" "deb" "libyajl-dev"
     # Check for JSON library (yajl)
     if [[ $WITH_JSON == y ]] && \
-        mkl_lib_check --static=-lyajl_s "yajl" HAVE_YAJL disable CC "-lyajl" \
+        mkl_lib_check --static=-lyajl "yajl" HAVE_YAJL disable CC "-lyajl" \
         "#include  <yajl/yajl_version.h>
 #if YAJL_MAJOR >= 2
 #else
