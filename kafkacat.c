@@ -796,136 +796,140 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                                              const char *reason,
                                              int version_only) {
 
-        if (reason)
-                printf("Error: %s\n\n", reason);
+        FILE *out = stdout;
+        if (reason) {
+                out = stderr;
+                fprintf(out, "Error: %s\n\n", reason);
+        }
 
         if (!version_only)
-                printf("Usage: %s <options> [file1 file2 .. | topic1 topic2 ..]]\n",
-                       argv0);
+                fprintf(out, "Usage: %s <options> [file1 file2 .. | topic1 topic2 ..]]\n",
+                        argv0);
 
-        printf("kafkacat - Apache Kafka producer and consumer tool\n"
-               "https://github.com/edenhill/kafkacat\n"
-               "Copyright (c) 2014-2015, Magnus Edenhill\n"
-               "Version %s%s (librdkafka %s)\n"
-               "\n",
-               KAFKACAT_VERSION,
+        fprintf(out,
+                "kafkacat - Apache Kafka producer and consumer tool\n"
+                "https://github.com/edenhill/kafkacat\n"
+                "Copyright (c) 2014-2015, Magnus Edenhill\n"
+                "Version %s%s (librdkafka %s)\n"
+                "\n",
+                KAFKACAT_VERSION,
 #if ENABLE_JSON
-               " (JSON)",
+                " (JSON)",
 #else
-               "",
+                "",
 #endif
-               rd_kafka_version_str()
+                rd_kafka_version_str()
                 );
 
         if (version_only)
                 exit(exitcode);
 
-        printf("\n"
-               "General options:\n"
-               "  -C | -P | -L       Mode: Consume, Produce or metadata List\n"
+        fprintf(out, "\n"
+                "General options:\n"
+                "  -C | -P | -L       Mode: Consume, Produce or metadata List\n"
 #if ENABLE_KAFKACONSUMER
-               "  -G <group-id>      Mode: High-level KafkaConsumer (Kafka 0.9 balanced consumer groups)\n"
-               "                     Expects a list of topics to subscribe to\n"
+                "  -G <group-id>      Mode: High-level KafkaConsumer (Kafka 0.9 balanced consumer groups)\n"
+                "                     Expects a list of topics to subscribe to\n"
 #endif
-               "  -t <topic>         Topic to consume from, produce to, "
-               "or list\n"
-               "  -p <partition>     Partition\n"
-               "  -b <brokers,..>    Bootstrap broker(s) (host[:port])\n"
-               "  -D <delim>         Message delimiter character:\n"
-               "                     a-z.. | \\r | \\n | \\t | \\xNN\n"
-               "                     Default: \\n\n"
-               "  -K <delim>         Key delimiter (same format as -D)\n"
-               "  -c <cnt>           Limit message count\n"
-               "  -X list            List available librdkafka configuration "
-               "properties\n"
-               "  -X prop=val        Set librdkafka configuration property.\n"
-               "                     Properties prefixed with \"topic.\" are\n"
-               "                     applied as topic properties.\n"
-               "  -X dump            Dump configuration and exit.\n"
-               "  -d <dbg1,...>      Enable librdkafka debugging:\n"
-               "                     " RD_KAFKA_DEBUG_CONTEXTS "\n"
-               "  -q                 Be quiet (verbosity set to 0)\n"
-               "  -v                 Increase verbosity\n"
-               "  -V                 Print version\n"
-               "\n"
-               "Producer options:\n"
-               "  -z snappy|gzip     Message compression. Default: none\n"
-               "  -p -1              Use random partitioner\n"
-               "  -D <delim>         Delimiter to split input into messages\n"
-               "  -K <delim>         Delimiter to split input key and message\n"
-               "  -l                 Send messages from a file separated by\n"
-               "                     delimiter, as with stdin.\n"
-               "                     (only one file allowed)\n"
-               "  -T                 Output sent messages to stdout, acting like tee.\n"
-               "  -c <cnt>           Exit after producing this number "
-               "of messages\n"
-               "  -Z                 Send empty messages as NULL messages\n"
-               "  file1 file2..      Read messages from files.\n"
-               "                     With -l, only one file permitted.\n"
-               "                     Otherwise, the entire file contents will\n"
-               "                     be sent as one single message.\n"
-               "\n"
-               "Consumer options:\n"
-               "  -o <offset>        Offset to start consuming from:\n"
-               "                     beginning | end | stored |\n"
-               "                     <value>  (absolute offset) |\n"
-               "                     -<value> (relative offset from end)\n"
-               "  -e                 Exit successfully when last message "
-               "received\n"
-               "  -f <fmt..>         Output formatting string, see below.\n"
-               "                     Takes precedence over -D and -K.\n"
+                "  -t <topic>         Topic to consume from, produce to, "
+                "or list\n"
+                "  -p <partition>     Partition\n"
+                "  -b <brokers,..>    Bootstrap broker(s) (host[:port])\n"
+                "  -D <delim>         Message delimiter character:\n"
+                "                     a-z.. | \\r | \\n | \\t | \\xNN\n"
+                "                     Default: \\n\n"
+                "  -K <delim>         Key delimiter (same format as -D)\n"
+                "  -c <cnt>           Limit message count\n"
+                "  -X list            List available librdkafka configuration "
+                "properties\n"
+                "  -X prop=val        Set librdkafka configuration property.\n"
+                "                     Properties prefixed with \"topic.\" are\n"
+                "                     applied as topic properties.\n"
+                "  -X dump            Dump configuration and exit.\n"
+                "  -d <dbg1,...>      Enable librdkafka debugging:\n"
+                "                     " RD_KAFKA_DEBUG_CONTEXTS "\n"
+                "  -q                 Be quiet (verbosity set to 0)\n"
+                "  -v                 Increase verbosity\n"
+                "  -V                 Print version\n"
+                "\n"
+                "Producer options:\n"
+                "  -z snappy|gzip     Message compression. Default: none\n"
+                "  -p -1              Use random partitioner\n"
+                "  -D <delim>         Delimiter to split input into messages\n"
+                "  -K <delim>         Delimiter to split input key and message\n"
+                "  -l                 Send messages from a file separated by\n"
+                "                     delimiter, as with stdin.\n"
+                "                     (only one file allowed)\n"
+                "  -T                 Output sent messages to stdout, acting like tee.\n"
+                "  -c <cnt>           Exit after producing this number "
+                "of messages\n"
+                "  -Z                 Send empty messages as NULL messages\n"
+                "  file1 file2..      Read messages from files.\n"
+                "                     With -l, only one file permitted.\n"
+                "                     Otherwise, the entire file contents will\n"
+                "                     be sent as one single message.\n"
+                "\n"
+                "Consumer options:\n"
+                "  -o <offset>        Offset to start consuming from:\n"
+                "                     beginning | end | stored |\n"
+                "                     <value>  (absolute offset) |\n"
+                "                     -<value> (relative offset from end)\n"
+                "  -e                 Exit successfully when last message "
+                "received\n"
+                "  -f <fmt..>         Output formatting string, see below.\n"
+                "                     Takes precedence over -D and -K.\n"
 #if ENABLE_JSON
-               "  -J                 Output with JSON envelope\n"
+                "  -J                 Output with JSON envelope\n"
 #endif
-               "  -D <delim>         Delimiter to separate messages on output\n"
-               "  -K <delim>         Print message keys prefixing the message\n"
-               "                     with specified delimiter.\n"
-               "  -O                 Print message offset using -K delimiter\n"
-               "  -c <cnt>           Exit after consuming this number "
-               "of messages\n"
-               "  -Z                 Print NULL messages and keys as \"%s\""
-               "(instead of empty)\n"
-               "  -u                 Unbuffered output\n"
-               "\n"
-               "Metadata options:\n"
-               "  -t <topic>         Topic to query (optional)\n"
-               "\n"
-               "\n"
-               "Format string tokens:\n"
-               "  %%s                 Message payload\n"
-               "  %%S                 Message payload length (or -1 for NULL)\n"
-               "  %%R                 Message payload length (or -1 for NULL) serialized\n"
-               "                     as a binary big endian 32-bit signed integer\n"
-               "  %%k                 Message key\n"
-               "  %%K                 Message key length (or -1 for NULL)\n"
-               "  %%t                 Topic\n"
-               "  %%p                 Partition\n"
-               "  %%o                 Message offset\n"
-               "  \\n \\r \\t           Newlines, tab\n"
-               "  \\xXX \\xNNN         Any ASCII character\n"
-               " Example:\n"
-               "  -f 'Topic %%t [%%p] at offset %%o: key %%k: %%s\\n'\n"
-               "\n"
-               "\n"
-               "Consumer mode (writes messages to stdout):\n"
-               "  kafkacat -b <broker> -t <topic> -p <partition>\n"
-               " or:\n"
-               "  kafkacat -C -b ...\n"
-               "\n"
+                "  -D <delim>         Delimiter to separate messages on output\n"
+                "  -K <delim>         Print message keys prefixing the message\n"
+                "                     with specified delimiter.\n"
+                "  -O                 Print message offset using -K delimiter\n"
+                "  -c <cnt>           Exit after consuming this number "
+                "of messages\n"
+                "  -Z                 Print NULL messages and keys as \"%s\""
+                "(instead of empty)\n"
+                "  -u                 Unbuffered output\n"
+                "\n"
+                "Metadata options:\n"
+                "  -t <topic>         Topic to query (optional)\n"
+                "\n"
+                "\n"
+                "Format string tokens:\n"
+                "  %%s                 Message payload\n"
+                "  %%S                 Message payload length (or -1 for NULL)\n"
+                "  %%R                 Message payload length (or -1 for NULL) serialized\n"
+                "                     as a binary big endian 32-bit signed integer\n"
+                "  %%k                 Message key\n"
+                "  %%K                 Message key length (or -1 for NULL)\n"
+                "  %%t                 Topic\n"
+                "  %%p                 Partition\n"
+                "  %%o                 Message offset\n"
+                "  \\n \\r \\t           Newlines, tab\n"
+                "  \\xXX \\xNNN         Any ASCII character\n"
+                " Example:\n"
+                "  -f 'Topic %%t [%%p] at offset %%o: key %%k: %%s\\n'\n"
+                "\n"
+                "\n"
+                "Consumer mode (writes messages to stdout):\n"
+                "  kafkacat -b <broker> -t <topic> -p <partition>\n"
+                " or:\n"
+                "  kafkacat -C -b ...\n"
+                "\n"
 #if ENABLE_KAFKACONSUMER
-               "High-level KafkaConsumer mode:\n"
-               "  kafkacat -b <broker> -G <group-id> topic1 top2 ^aregex\\d+\n"
-               "\n"
+                "High-level KafkaConsumer mode:\n"
+                "  kafkacat -b <broker> -G <group-id> topic1 top2 ^aregex\\d+\n"
+                "\n"
 #endif
-               "Producer mode (reads messages from stdin):\n"
-               "  ... | kafkacat -b <broker> -t <topic> -p <partition>\n"
-               " or:\n"
-               "  kafkacat -P -b ...\n"
-               "\n"
-               "Metadata listing:\n"
-               "  kafkacat -L -b <broker> [-t <topic>]\n"
-               "\n",
-               conf.null_str
+                "Producer mode (reads messages from stdin):\n"
+                "  ... | kafkacat -b <broker> -t <topic> -p <partition>\n"
+                " or:\n"
+                "  kafkacat -P -b ...\n"
+                "\n"
+                "Metadata listing:\n"
+                "  kafkacat -L -b <broker> [-t <topic>]\n"
+                "\n",
+                conf.null_str
                 );
         exit(exitcode);
 }
