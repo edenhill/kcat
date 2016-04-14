@@ -768,7 +768,7 @@ static void list_metadata_for_consumergroup() {
 }
 
 static void metadata_print_consumergroup(const rd_kafka_metadata_t *metadata, rd_kafka_t *rk) {
-        int i, j;
+        int i, j, jj;
 
         printf("Metadata for %s (from broker %"PRId32": %s):\n", conf.topic ? : "all topics",
                         metadata->orig_broker_id, metadata->orig_broker_name);
@@ -814,7 +814,7 @@ static void metadata_print_consumergroup(const rd_kafka_metadata_t *metadata, rd
                                 printf(" (try again)");
                 }
                 /* Iterate topic's partitions */
-                for (int jj = 0; jj < t->partition_cnt; jj++) {
+                for (jj = 0; jj < t->partition_cnt; jj++) {
                         j = reordered[runner + jj];
                         const rd_kafka_metadata_partition_t *p;
                         p = &t->partitions[j];
