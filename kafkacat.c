@@ -803,9 +803,12 @@ static void metadata_print_consumergroup(const rd_kafka_metadata_t *metadata, rd
 
         int32_t runner = 0;
 
+        int64_t totallag = 0;
+
         /* Iterate topics */
         printf(" %i topics:\n", metadata->topic_cnt);
-        printf("  topic               partition leader #replicas #isrs lowwatermark storedoffset highwatermark\n");
+        printf("  topic               partition    lowwm   stored   highwm      lag leader #replicas  #isrs\n");
+//        printf("                      partition  #replicas lowwatermark highwatermark\n");
         for (i = 0; i < metadata->topic_cnt; i++) {
                 const rd_kafka_metadata_topic_t *t = &metadata->topics[i];
                 if (t->err) {
@@ -827,10 +830,23 @@ static void metadata_print_consumergroup(const rd_kafka_metadata_t *metadata, rd
                         if (topars->elems[runner + j].err != RD_KAFKA_RESP_ERR_NO_ERROR)
                                 FATAL("Failed to acquire stored offset: %s",
                                                 rd_kafka_err2str(topars->elems[runner + j].err));
-                        printf(
-                                        "  %-25s %3"PRId32"     %2"PRId32"        %2i    %2i     %8i     %8i      %8i", //
-                                        t->topic, p->id, p->leader, p->replica_cnt, p->isr_cnt, (int) low,
-                                        (int) topars->elems[runner + j].offset, (int) high);
+                        if (high >= 0 && topars->elems[runner + j].offset >= 0) {
+                                int64_t lag = high - topars->elems[runner + j].offset;
+                                if (lag < 0)
+                                        lag = 0;
+                                printf(
+                                                "  %-25s %3d %8d %8d %8d %8d %2d %2d %2d", //
+                                                t->topic, p->id,
+                                                (int) low, (int) topars->elems[runner + j].offset,
+                                                (int) high, (int) lag, p->leader, p->replica_cnt, p->isr_cnt);
+                                totallag += lag;
+                        } else {
+                                printf(
+                                                "  %-25s %3d %8d %8d %8d       -1 %2d %2d %2d", //
+                                                t->topic, p->id,
+                                                (int) low, (int) topars->elems[runner + j].offset,
+                                                (int) high, p->leader, p->replica_cnt, p->isr_cnt);
+                        }
                         if (p->err)
                                 printf(", %s\n", rd_kafka_err2str(p->err));
                         else
@@ -839,6 +855,7 @@ static void metadata_print_consumergroup(const rd_kafka_metadata_t *metadata, rd
                 }
                 runner += t->partition_cnt;
         }
+        printf("                                            total lag: %12d\n" , totallag);
         rd_kafka_topic_partition_list_destroy(topars);
         free((void*) reordered);
 }
