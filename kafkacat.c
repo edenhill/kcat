@@ -747,9 +747,10 @@ static void metadata_print (const rd_kafka_metadata_t *metadata) {
 
 int64_t get_current_time_in_s()
 {
-    struct timespec spec;
-    clock_gettime(0, &spec); // CLOCK_REALTIME is 0
-    return spec.tv_sec;// * 1000 + round(spec.tv_nsec / 1.0e6);
+        int secs, msecs;
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        return (int64_t) tv.tv_sec;
 }
 
 struct totals_t {
@@ -821,7 +822,11 @@ static void periodically_print_consumergroup_offset_totals(const struct conf* co
                 if (prev_totals_i >= 0) {
                         struct totals_t delta;
                         delta.time_s = (totalsring[totals_i].time_s - totalsring[prev_totals_i].time_s);
-                        if (delta.time_s >= 0) {
+                        if (delta.time_s < 0) {
+                                delta.time_s = totalsring[totals_i].time_s + (24 * 60 * 60)
+                                                - totalsring[prev_totals_i].time_s;
+                        }
+                        if (delta.time_s > 0) {
                                 delta.lag = (totalsring[totals_i].lag - totalsring[prev_totals_i].lag);
                                 delta.lowwm = (totalsring[totals_i].lowwm
                                                 - totalsring[prev_totals_i].lowwm);
@@ -839,11 +844,11 @@ static void periodically_print_consumergroup_offset_totals(const struct conf* co
                                                 totalsring[totals_i].lag,
                                                 (double) delta.lag / (double) delta.time_s);
                         } else {
-                                printf("%8"PRId64" %8.1f %8"PRId64" %8.1f %8"PRId64" %8.1f %8"PRId64" %8.1f\n",
-                                                totalsring[totals_i].lowwm, (double) -1,
-                                                totalsring[totals_i].stored, (double) -1,
-                                                totalsring[totals_i].highwm, (double) -1,
-                                                totalsring[totals_i].lag, (double) -1);
+                                printf("%8"PRId64"          %8"PRId64"          %8"PRId64"          %8"PRId64"         \n",
+                                                totalsring[totals_i].lowwm,
+                                                totalsring[totals_i].stored,
+                                                totalsring[totals_i].highwm,
+                                                totalsring[totals_i].lag);
                         }
                 } else {
                         printf("%8"PRId64"          %8"PRId64"          %8"PRId64"          %8"PRId64"         \n",
