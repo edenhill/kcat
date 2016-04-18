@@ -5,6 +5,7 @@ Maintainer: Vincent Bernat <bernat@debian.org>
 Uploaders: Faidon Liambotis <paravoid@debian.org>
 Build-Depends: debhelper (>= 9),
                librdkafka-dev (>= 0.9.0),
+               pkg-config,
                zlib1g-dev,
                libyajl-dev
 Standards-Version: 3.9.7
