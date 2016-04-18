@@ -7,7 +7,7 @@ Build-Depends: debhelper (>= 9),
                librdkafka-dev (>= 0.9.0),
                pkg-config,
                zlib1g-dev,
-               libyajl-dev
+               libyajl-dev (>= 2)
 Standards-Version: 3.9.7
 Homepage: https://github.com/edenhill/kafkacat
 Vcs-Browser: https://github.com/edenhill/kafkacat/tree/debian
