@@ -1,3 +1,10 @@
+kafkacat (1.3.0-1) UNRELEASED; urgency=medium
+
+  * New upstream release.
+  * d/control: ensure librdkafka can handle consumer mode.
+
+ -- Vincent Bernat <bernat@debian.org>  Mon, 18 Apr 2016 11:53:44 +0200
+
 kafkacat (1.2.0-2) unstable; urgency=medium
 
   * Fix FTBFS due to dh trying to run "make distclean". Patch from Gustavo
