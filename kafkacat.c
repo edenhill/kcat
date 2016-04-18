@@ -828,7 +828,7 @@ static void periodically_print_consumergroup_offset_totals(const struct conf* co
                                                 - totalsring[prev_totals_i].highwm);
                                 delta.stored = (totalsring[totals_i].stored
                                                 - totalsring[prev_totals_i].stored);
-                                printf("%8li %8.1f %8li %8.1f %8li %8.1f %8li %8.1f\n",
+                                printf("%8"PRId64" %8.1f %8"PRId64" %8.1f %8"PRId64" %8.1f %8"PRId64" %8.1f\n",
                                                 totalsring[totals_i].lowwm,
                                                 (double) delta.lowwm / (double) delta.time_s,
                                                 totalsring[totals_i].stored,
@@ -838,14 +838,14 @@ static void periodically_print_consumergroup_offset_totals(const struct conf* co
                                                 totalsring[totals_i].lag,
                                                 (double) delta.lag / (double) delta.time_s);
                         } else {
-                                printf("%8li %8.1f %8li %8.1f %8li %8.1f %8li %8.1f\n",
+                                printf("%8"PRId64" %8.1f %8"PRId64" %8.1f %8"PRId64" %8.1f %8"PRId64" %8.1f\n",
                                                 totalsring[totals_i].lowwm, (double) -1,
                                                 totalsring[totals_i].stored, (double) -1,
                                                 totalsring[totals_i].highwm, (double) -1,
                                                 totalsring[totals_i].lag, (double) -1);
                         }
                 } else {
-                        printf("%8li          %8li          %8li          %8li         \n",
+                        printf("%8"PRId64"          %8"PRId64"          %8"PRId64"          %8"PRId64"         \n",
                                         totalsring[totals_i].lowwm,
                                         totalsring[totals_i].stored,
                                         totalsring[totals_i].highwm,
