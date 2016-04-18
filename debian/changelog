@@ -2,6 +2,7 @@ kafkacat (1.3.0-1) UNRELEASED; urgency=medium
 
   * New upstream release.
   * d/control: ensure librdkafka can handle consumer mode.
+  * d/control: use TLS for Vcs-Git URL.
 
  -- Vincent Bernat <bernat@debian.org>  Mon, 18 Apr 2016 11:53:44 +0200
 
