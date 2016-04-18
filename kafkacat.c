@@ -744,10 +744,11 @@ static void metadata_print (const rd_kafka_metadata_t *metadata) {
 #include <stdio.h>
 #include <time.h>
 
+
 int64_t get_current_time_in_s()
 {
     struct timespec spec;
-    clock_gettime(CLOCK_REALTIME, &spec);
+    clock_gettime(0, &spec); // CLOCK_REALTIME is 0
     return spec.tv_sec;// * 1000 + round(spec.tv_nsec / 1.0e6);
 }
 
