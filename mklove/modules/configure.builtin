@@ -46,4 +46,5 @@ mkl_toggle_option "Compatibility" "mk:MKL_MAINT_MODE" "--enable-maintainer-mode"
 mkl_option "Configure tool" "mk:PROGRAM_PREFIX" "--program-prefix=PFX" "Program prefix"
 
 mkl_option "Compatibility" "mk:DISABL_DEP_TRACK" "--disable-dependency-tracking" "Disable dependency tracking (no-op)"
+mkl_option "Compatibility" "mk:DISABL_SILENT_RULES" "--disable-silent-rules" "Verbose build output (no-op)"
 

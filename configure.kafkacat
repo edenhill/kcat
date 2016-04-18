@@ -8,9 +8,9 @@ mkl_require gitversion as KAFKACAT_VERSION
 function checks {
 
     # Check that librdkafka is available, and allow to link it statically.
-    mkl_meta_set "librdkafka" "desc" "librdkafka is available at http://github.com/edenhill/librdkafka. To quickly download all dependencies and build kafkacat try ./bootstrap.sh"
-    mkl_meta_set "librdkafka" "deb" "librdkafka-dev"
-    mkl_lib_check --static=-lrdkafka "librdkafka" "" fail CC "-lrdkafka -lpthread -lz" \
+    mkl_meta_set "rdkafka" "desc" "librdkafka is available at http://github.com/edenhill/librdkafka. To quickly download all dependencies and build kafkacat try ./bootstrap.sh"
+    mkl_meta_set "rdkafka" "deb" "librdkafka-dev"
+    mkl_lib_check --static=-lrdkafka "rdkafka" "" fail CC "-lrdkafka" \
        "#include <librdkafka/rdkafka.h>"
 
     # Make sure rdkafka is new enough.
@@ -20,8 +20,14 @@ function checks {
 "#include <librdkafka/rdkafka.h>
 struct rd_kafka_metadata foo;"
 
-    # -lrt required on linux
-    mkl_lib_check "librt" "" cont CC "-lrt"
+    # Enable KafkaConsumer support if librdkafka is new enough
+    mkl_meta_set "librdkafka_ge_090" "name" "librdkafka KafkaConsumer support"
+    mkl_compile_check "librdkafka_ge_090" ENABLE_KAFKACONSUMER disable CC "" "
+    #include <librdkafka/rdkafka.h>
+    #if RD_KAFKA_VERSION >= 0x00090000
+    #else
+    #error \"rdkafka version < 0.9.0\"
+    #endif"
 
 
     mkl_meta_set "yajl" "deb" "libyajl-dev"

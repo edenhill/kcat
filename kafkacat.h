@@ -44,6 +44,7 @@ typedef enum {
         KC_FMT_KEY_LEN,
         KC_FMT_PAYLOAD,
         KC_FMT_PAYLOAD_LEN,
+        KC_FMT_PAYLOAD_LEN_BINARY,
         KC_FMT_TOPIC,
         KC_FMT_PARTITION,
 } fmt_type_t;
@@ -61,6 +62,7 @@ struct conf {
 #define CONF_F_OFFSET     0x4 /* Print offsets */
 #define CONF_F_TEE        0x8 /* Tee output when producing */
 #define CONF_F_NULL       0x10 /* Send empty messages as NULL */
+#define CONF_F_LINE	  0x20 /* Read files in line mode when producing */
         int     delim;
         int     key_delim;
 
@@ -74,6 +76,7 @@ struct conf {
         char   *brokers;
         char   *topic;
         int32_t partition;
+        char   *group;
         int64_t offset;
         int     exit_eof;
         int64_t msg_cnt;

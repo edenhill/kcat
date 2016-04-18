@@ -59,6 +59,23 @@ function build {
     return $ret
 }
 
+function pkg_cfg_lib {
+    pkg=$1
+
+    local libs=$(PKG_CONFIG_PATH=tmp-bootstrap/usr/local/lib/pkgconfig pkg-config --libs --static $pkg)
+
+    # If pkg-config isnt working try grabbing the library list manually.
+    if [[ -z "$libs" ]]; then
+        libs=$(grep ^Libs.private tmp-bootstrap/usr/local/lib/pkgconfig/${pkg}.pc | sed -e s'/^Libs.private: //g')
+    fi
+
+    # Since we specify the exact .a files to link further down below
+    # we need to remove the -l<libname> here.
+    libs=$(echo $libs | sed -e "s/-l${pkg}//g")
+    echo " $libs"
+
+    >&2 echo "Using $libs for $pkg"
+}
 
 mkdir -p tmp-bootstrap
 pushd tmp-bootstrap > /dev/null
@@ -66,16 +83,16 @@ pushd tmp-bootstrap > /dev/null
 github_download "edenhill/librdkafka" "master" "librdkafka"
 github_download "lloyd/yajl" "master" "libyajl"
 
-build librdkafka "./configure && make && make DESTDIR=\"${PWD}/\" install" || (echo "Failed to build librdkafka: bootstrap failed" ; false)
+build librdkafka "([ -f config.h ] || ./configure) && make && make DESTDIR=\"${PWD}/\" install" || (echo "Failed to build librdkafka: bootstrap failed" ; false)
 
-build libyajl "./configure && make && make DESTDIR=\"${PWD}/\" install" || (echo "Failed to build libyajl: JSON support will probably be disabled" ; true)
+build libyajl "([ -f config.h ] || ./configure) && make && make DESTDIR=\"${PWD}/\" install" || (echo "Failed to build libyajl: JSON support will probably be disabled" ; true)
 
 
 popd > /dev/null
 
 echo "Building kafkacat"
 export CPPFLAGS="${CPPFLAGS:-} -Itmp-bootstrap/usr/local/include"
-export LDFLAGS="${LDFLAGS:-} -Ltmp-bootstrap/usr/local/lib"
+export LIBS="$(pkg_cfg_lib rdkafka) $(pkg_cfg_lib yajl)"
 export STATIC_LIB_rdkafka="tmp-bootstrap/usr/local/lib/librdkafka.a"
 export STATIC_LIB_yajl="tmp-bootstrap/usr/local/lib/libyajl_s.a"
 ./configure --enable-static --enable-json
@@ -84,3 +101,5 @@ make
 echo ""
 echo "Success! kafkacat is now built"
 echo ""
+
+./kafkacat -V

@@ -94,6 +94,7 @@ void __attribute__((noreturn)) fatal0 (const char *func, int line,
 static void dr_msg_cb (rd_kafka_t *rk, const rd_kafka_message_t *rkmessage,
                        void *opaque) {
         static int say_once = 1;
+
         if (rkmessage->err) {
                 INFO(1, "Delivery failed for message: %s\n",
                      rd_kafka_err2str(rkmessage->err));
@@ -228,7 +229,7 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
         conf.rkt_conf = NULL;
 
 
-        if (pathcnt > 0) {
+        if (pathcnt > 0 && !(conf.flags & CONF_F_LINE)) {
                 int i;
                 int good = 0;
                 /* Read messages from files, each file is its own message. */
@@ -244,7 +245,7 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                              pathcnt - good, pathcnt);
 
         } else {
-                /* Read messages from stdin, delimited by conf.delim */
+                /* Read messages from input, delimited by conf.delim */
                 while (conf.run &&
                        (len = getdelim(&sbuf, &size, conf.delim, fp)) != -1) {
                         int msgflags = 0;
@@ -272,6 +273,13 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                                         buf    += key_len+1;
                                         len    -= key_len+1;
 
+                                        /* Since buf has been forwarded
+                                         * from its initial allocation point
+                                         * we must make sure we dont tell
+                                         * librdkafka to free it (since the
+                                         * address would be wrong). */
+                                        msgflags |= RD_KAFKA_MSG_F_COPY;
+
                                         if (conf.flags & CONF_F_NULL) {
                                                 if (len == 0)
                                                         buf = NULL;
@@ -281,7 +289,8 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                                 }
                         }
 
-                        if (len > 1024 && !(conf.flags & CONF_F_TEE)) {
+                        if (!(msgflags & RD_KAFKA_MSG_F_COPY) &&
+                            len > 1024 && !(conf.flags & CONF_F_TEE)) {
                                 /* If message is larger than this arbitrary
                                  * threshold it will be more effective to
                                  * not copy the data but let rdkafka own it
@@ -340,6 +349,41 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
 }
 
 
+static void handle_partition_eof (rd_kafka_message_t *rkmessage) {
+
+        if (conf.mode == 'C') {
+                /* Store EOF offset.
+                 * If partition is empty and at offset 0,
+                 * store future first message (0). */
+                rd_kafka_offset_store(rkmessage->rkt,
+                                      rkmessage->partition,
+                                      rkmessage->offset == 0 ?
+                                      0 : rkmessage->offset-1);
+                if (conf.exit_eof) {
+                        if (!part_eof[rkmessage->partition]) {
+                                /* Stop consuming this partition */
+                                rd_kafka_consume_stop(rkmessage->rkt,
+                                                      rkmessage->partition);
+                                part_eof[rkmessage->partition] = 1;
+                                part_eof_cnt++;
+                                if (part_eof_cnt >= part_eof_thres)
+                                        conf.run = 0;
+                        }
+                }
+
+        } else if (conf.mode == 'G') {
+                /* FIXME: Not currently handled */
+
+        }
+
+        INFO(1, "Reached end of topic %s [%"PRId32"] "
+             "at offset %"PRId64"%s\n",
+             rd_kafka_topic_name(rkmessage->rkt),
+             rkmessage->partition,
+             rkmessage->offset,
+             !conf.run ? ": exiting" : "");
+}
+
 
 /**
  * Consume callback, called for each message consumed.
@@ -352,31 +396,7 @@ static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
 
         if (rkmessage->err) {
                 if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
-                        /* Store EOF offset.
-                         * If partition is empty and at offset 0,
-                         * store future first message (0). */
-                        rd_kafka_offset_store(rkmessage->rkt,
-                                              rkmessage->partition,
-                                              rkmessage->offset == 0 ?
-                                              0 : rkmessage->offset-1);
-                        if (conf.exit_eof) {
-                                if (!part_eof[rkmessage->partition]) {
-					/* Stop consuming this partition */
-					rd_kafka_consume_stop(rkmessage->rkt,
-							      rkmessage->partition);
-                                        part_eof[rkmessage->partition] = 1;
-                                        part_eof_cnt++;
-                                        if (part_eof_cnt >= part_eof_thres)
-                                                conf.run = 0;
-                                }
-
-                                INFO(1, "Reached end of topic %s [%"PRId32"] "
-                                     "at offset %"PRId64"%s\n",
-                                     rd_kafka_topic_name(rkmessage->rkt),
-                                     rkmessage->partition,
-                                     rkmessage->offset,
-                                     !conf.run ? ": exiting" : "");
-                        }
+                        handle_partition_eof(rkmessage);
                         return;
                 }
 
@@ -389,13 +409,134 @@ static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
         /* Print message */
         fmt_msg_output(fp, rkmessage);
 
-        rd_kafka_offset_store(rkmessage->rkt,
-                              rkmessage->partition,
-                              rkmessage->offset);
+        if (conf.mode == 'C') {
+                rd_kafka_offset_store(rkmessage->rkt,
+                                      rkmessage->partition,
+                                      rkmessage->offset);
+        }
 
         if (++stats.rx == conf.msg_cnt)
                 conf.run = 0;
 }
+
+
+#if RD_KAFKA_VERSION >= 0x00090000
+static void throttle_cb (rd_kafka_t *rk, const char *broker_name,
+                         int32_t broker_id, int throttle_time_ms, void *opaque){
+        INFO(1, "Broker %s (%"PRId32") throttled request for %dms\n",
+             broker_name, broker_id, throttle_time_ms);
+}
+#endif
+
+#if ENABLE_KAFKACONSUMER
+static void print_partition_list (int is_assigned,
+                                  const rd_kafka_topic_partition_list_t
+                                  *partitions) {
+        int i;
+        for (i = 0 ; i < partitions->cnt ; i++) {
+                fprintf(stderr, "%s%s [%"PRId32"]",
+                        i > 0 ? ", ":"",
+                        partitions->elems[i].topic,
+                        partitions->elems[i].partition);
+        }
+        fprintf(stderr, "\n");
+}
+
+static void rebalance_cb (rd_kafka_t *rk, rd_kafka_resp_err_t err,
+                          rd_kafka_topic_partition_list_t *partitions,
+                          void *opaque) {
+
+        INFO(1, "Group %s rebalanced (memberid %s): ",
+             conf.group, rd_kafka_memberid(rk));
+
+	switch (err)
+	{
+	case RD_KAFKA_RESP_ERR__ASSIGN_PARTITIONS:
+                if (conf.verbosity >= 1) {
+                        fprintf(stderr, "assigned: ");
+                        print_partition_list(1, partitions);
+                }
+		rd_kafka_assign(rk, partitions);
+		break;
+
+	case RD_KAFKA_RESP_ERR__REVOKE_PARTITIONS:
+                if (conf.verbosity >= 1) {
+                        fprintf(stderr, "revoked: ");
+                        print_partition_list(1, partitions);
+                }
+		rd_kafka_assign(rk, NULL);
+		break;
+
+	default:
+                INFO(0, "failed: %s\n", rd_kafka_err2str(err));
+		break;
+	}
+}
+
+/**
+ * Run high-level KafkaConsumer, write messages to 'fp'
+ */
+static void kafkaconsumer_run (FILE *fp, char *const *topics, int topic_cnt) {
+        char    errstr[512];
+        rd_kafka_resp_err_t err;
+        rd_kafka_topic_partition_list_t *topiclist;
+        int i;
+
+        rd_kafka_conf_set_rebalance_cb(conf.rk_conf, rebalance_cb);
+        rd_kafka_conf_set_default_topic_conf(conf.rk_conf, conf.rkt_conf);
+        conf.rkt_conf = NULL;
+
+        /* Create consumer */
+        if (!(conf.rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf.rk_conf,
+                                     errstr, sizeof(errstr))))
+                FATAL("Failed to create producer: %s", errstr);
+        conf.rk_conf  = NULL;
+
+        /* Forward main event queue to consumer queue so we can
+         * serve both queues with a single consumer_poll() call. */
+        rd_kafka_poll_set_consumer(conf.rk);
+
+        if (conf.debug)
+                rd_kafka_set_log_level(conf.rk, LOG_DEBUG);
+        else if (conf.verbosity == 0)
+                rd_kafka_set_log_level(conf.rk, 0);
+
+        /* Build subscription set */
+        topiclist = rd_kafka_topic_partition_list_new(topic_cnt);
+        for (i = 0 ; i < topic_cnt ; i++)
+                rd_kafka_topic_partition_list_add(topiclist, topics[i], -1);
+
+        /* Subscribe */
+        if ((err = rd_kafka_subscribe(conf.rk, topiclist)))
+                FATAL("Failed to subscribe to %d topics: %s\n",
+                      topiclist->cnt, rd_kafka_err2str(err));
+
+        rd_kafka_topic_partition_list_destroy(topiclist);
+
+        /* Read messages from Kafka, write to 'fp'. */
+        while (conf.run) {
+                rd_kafka_message_t *rkmessage;
+
+                rkmessage = rd_kafka_consumer_poll(conf.rk, 100);
+                if (!rkmessage)
+                        continue;
+
+                consume_cb(rkmessage, fp);
+
+                rd_kafka_message_destroy(rkmessage);
+        }
+
+        if ((err = rd_kafka_consumer_close(conf.rk)))
+                FATAL("Failed to close consumer: %s\n", rd_kafka_err2str(err));
+
+        /* Wait for outstanding requests to finish. */
+        conf.run = 1;
+        while (conf.run && rd_kafka_outq_len(conf.rk) > 0)
+                rd_kafka_poll(conf.rk, 50);
+
+        rd_kafka_destroy(conf.rk);
+}
+#endif
 
 
 /**
@@ -504,6 +645,9 @@ static void consumer_run (FILE *fp) {
         while (conf.run) {
                 rd_kafka_consume_callback_queue(rkqu, 100,
                                                 consume_cb, fp);
+
+                /* Poll for errors, etc */
+                rd_kafka_poll(conf.rk, 0);
         }
 
         /* Stop consuming */
@@ -607,7 +751,6 @@ static void metadata_list (void) {
                                      errstr, sizeof(errstr))))
                 FATAL("Failed to create producer: %s", errstr);
 
-        rd_kafka_set_logger(conf.rk, rd_kafka_log_print);
         if (conf.debug)
                 rd_kafka_set_log_level(conf.rk, LOG_DEBUG);
         else if (conf.verbosity == 0)
@@ -650,114 +793,143 @@ static void metadata_list (void) {
  * Print usage and exit.
  */
 static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
-                                             const char *reason) {
+                                             const char *reason,
+                                             int version_only) {
 
-        if (reason)
-                printf("Error: %s\n\n", reason);
+        FILE *out = stdout;
+        if (reason) {
+                out = stderr;
+                fprintf(out, "Error: %s\n\n", reason);
+        }
 
-        printf("Usage: %s <options> [file1 file2 ..]\n"
-               "kafkacat - Apache Kafka producer and consumer tool\n"
-               "https://github.com/edenhill/kafkacat\n"
-               "Copyright (c) 2014-2015, Magnus Edenhill\n"
-               "Version %s%s (librdkafka %s)\n"
-               "\n"
-               "\n"
-               "General options:\n"
-               "  -C | -P | -L       Mode: Consume, Produce or metadata List\n"
-               "  -t <topic>         Topic to consume from, produce to, "
-               "or list\n"
-               "  -p <partition>     Partition\n"
-               "  -b <brokers,..>    Bootstrap broker(s) (host[:port])\n"
-               "  -D <delim>         Message delimiter character:\n"
-               "                     a-z.. | \\r | \\n | \\t | \\xNN\n"
-               "                     Default: \\n\n"
-               "  -K <delim>         Key delimiter (same format as -D)\n"
-               "  -c <cnt>           Limit message count\n"
-               "  -X list            List available librdkafka configuration "
-               "properties\n"
-               "  -X prop=val        Set librdkafka configuration property.\n"
-               "                     Properties prefixed with \"topic.\" are\n"
-               "                     applied as topic properties.\n"
-               "  -X dump            Dump configuration and exit.\n"
-               "  -d <dbg1,...>      Enable librdkafka debugging:\n"
-               "                     " RD_KAFKA_DEBUG_CONTEXTS "\n"
-               "  -q                 Be quiet (verbosity set to 0)\n"
-               "  -v                 Increase verbosity\n"
-               "\n"
-               "Producer options:\n"
-               "  -z snappy|gzip     Message compression. Default: none\n"
-               "  -p -1              Use random partitioner\n"
-               "  -D <delim>         Delimiter to split input into messages\n"
-               "  -K <delim>         Delimiter to split input key and message\n"
-               "  -T                 Output sent messages to stdout, acting like tee.\n"
-               "  -c <cnt>           Exit after producing this number "
-               "of messages\n"
-               "  -Z                 Send empty messages as NULL messages\n"
-               "  file1 file2..      Read messages from files.\n"
-               "                     The entire file contents will be sent as\n"
-               "                     one single message.\n"
-               "\n"
-               "Consumer options:\n"
-               "  -o <offset>        Offset to start consuming from:\n"
-               "                     beginning | end | stored |\n"
-               "                     <value>  (absolute offset) |\n"
-               "                     -<value> (relative offset from end)\n"
-               "  -e                 Exit successfully when last message "
-               "received\n"
-               "  -f <fmt..>         Output formatting string, see below.\n"
-               "                     Takes precedence over -D and -K.\n"
+        if (!version_only)
+                fprintf(out, "Usage: %s <options> [file1 file2 .. | topic1 topic2 ..]]\n",
+                        argv0);
+
+        fprintf(out,
+                "kafkacat - Apache Kafka producer and consumer tool\n"
+                "https://github.com/edenhill/kafkacat\n"
+                "Copyright (c) 2014-2015, Magnus Edenhill\n"
+                "Version %s%s (librdkafka %s)\n"
+                "\n",
+                KAFKACAT_VERSION,
 #if ENABLE_JSON
-               "  -J                 Output with JSON envelope\n"
-#endif
-               "  -D <delim>         Delimiter to separate messages on output\n"
-               "  -K <delim>         Print message keys prefixing the message\n"
-               "                     with specified delimiter.\n"
-               "  -O                 Print message offset using -K delimiter\n"
-               "  -c <cnt>           Exit after consuming this number "
-               "of messages\n"
-               "  -Z                 Print NULL messages and keys as \"%s\""
-               "(instead of empty)\n"
-               "  -u                 Unbuffered output\n"
-               "\n"
-               "Metadata options:\n"
-               "  -t <topic>         Topic to query (optional)\n"
-               "\n"
-               "\n"
-               "Format string tokens:\n"
-               "  %%s                 Message payload\n"
-               "  %%S                 Message payload length (or -1 for NULL)\n"
-               "  %%k                 Message key\n"
-               "  %%K                 Message key length (or -1 for NULL)\n"
-               "  %%t                 Topic\n"
-               "  %%p                 Partition\n"
-               "  %%o                 Message offset\n"
-               "  \\n \\r \\t           Newlines, tab\n"
-               "  \\xXX \\xNNN         Any ASCII character\n"
-               " Example:\n"
-               "  -f 'Topic %%t [%%p] at offset %%o: key %%k: %%s\\n'\n"
-               "\n"
-               "\n"
-               "Consumer mode (writes messages to stdout):\n"
-               "  kafkacat -b <broker> -t <topic> -p <partition>\n"
-               " or:\n"
-               "  kafkacat -C -b ...\n"
-               "\n"
-               "Producer mode (reads messages from stdin):\n"
-               "  ... | kafkacat -b <broker> -t <topic> -p <partition>\n"
-               " or:\n"
-               "  kafkacat -P -b ...\n"
-               "\n"
-               "Metadata listing:\n"
-               "  kafkacat -L -b <broker> [-t <topic>]\n"
-               "\n",
-               argv0, KAFKACAT_VERSION,
-#if ENABLE_JSON
-               " (JSON)",
+                " (JSON)",
 #else
-               "",
+                "",
 #endif
-               rd_kafka_version_str(),
-               conf.null_str
+                rd_kafka_version_str()
+                );
+
+        if (version_only)
+                exit(exitcode);
+
+        fprintf(out, "\n"
+                "General options:\n"
+                "  -C | -P | -L       Mode: Consume, Produce or metadata List\n"
+#if ENABLE_KAFKACONSUMER
+                "  -G <group-id>      Mode: High-level KafkaConsumer (Kafka 0.9 balanced consumer groups)\n"
+                "                     Expects a list of topics to subscribe to\n"
+#endif
+                "  -t <topic>         Topic to consume from, produce to, "
+                "or list\n"
+                "  -p <partition>     Partition\n"
+                "  -b <brokers,..>    Bootstrap broker(s) (host[:port])\n"
+                "  -D <delim>         Message delimiter character:\n"
+                "                     a-z.. | \\r | \\n | \\t | \\xNN\n"
+                "                     Default: \\n\n"
+                "  -K <delim>         Key delimiter (same format as -D)\n"
+                "  -c <cnt>           Limit message count\n"
+                "  -X list            List available librdkafka configuration "
+                "properties\n"
+                "  -X prop=val        Set librdkafka configuration property.\n"
+                "                     Properties prefixed with \"topic.\" are\n"
+                "                     applied as topic properties.\n"
+                "  -X dump            Dump configuration and exit.\n"
+                "  -d <dbg1,...>      Enable librdkafka debugging:\n"
+                "                     " RD_KAFKA_DEBUG_CONTEXTS "\n"
+                "  -q                 Be quiet (verbosity set to 0)\n"
+                "  -v                 Increase verbosity\n"
+                "  -V                 Print version\n"
+                "\n"
+                "Producer options:\n"
+                "  -z snappy|gzip     Message compression. Default: none\n"
+                "  -p -1              Use random partitioner\n"
+                "  -D <delim>         Delimiter to split input into messages\n"
+                "  -K <delim>         Delimiter to split input key and message\n"
+                "  -l                 Send messages from a file separated by\n"
+                "                     delimiter, as with stdin.\n"
+                "                     (only one file allowed)\n"
+                "  -T                 Output sent messages to stdout, acting like tee.\n"
+                "  -c <cnt>           Exit after producing this number "
+                "of messages\n"
+                "  -Z                 Send empty messages as NULL messages\n"
+                "  file1 file2..      Read messages from files.\n"
+                "                     With -l, only one file permitted.\n"
+                "                     Otherwise, the entire file contents will\n"
+                "                     be sent as one single message.\n"
+                "\n"
+                "Consumer options:\n"
+                "  -o <offset>        Offset to start consuming from:\n"
+                "                     beginning | end | stored |\n"
+                "                     <value>  (absolute offset) |\n"
+                "                     -<value> (relative offset from end)\n"
+                "  -e                 Exit successfully when last message "
+                "received\n"
+                "  -f <fmt..>         Output formatting string, see below.\n"
+                "                     Takes precedence over -D and -K.\n"
+#if ENABLE_JSON
+                "  -J                 Output with JSON envelope\n"
+#endif
+                "  -D <delim>         Delimiter to separate messages on output\n"
+                "  -K <delim>         Print message keys prefixing the message\n"
+                "                     with specified delimiter.\n"
+                "  -O                 Print message offset using -K delimiter\n"
+                "  -c <cnt>           Exit after consuming this number "
+                "of messages\n"
+                "  -Z                 Print NULL messages and keys as \"%s\""
+                "(instead of empty)\n"
+                "  -u                 Unbuffered output\n"
+                "\n"
+                "Metadata options:\n"
+                "  -t <topic>         Topic to query (optional)\n"
+                "\n"
+                "\n"
+                "Format string tokens:\n"
+                "  %%s                 Message payload\n"
+                "  %%S                 Message payload length (or -1 for NULL)\n"
+                "  %%R                 Message payload length (or -1 for NULL) serialized\n"
+                "                     as a binary big endian 32-bit signed integer\n"
+                "  %%k                 Message key\n"
+                "  %%K                 Message key length (or -1 for NULL)\n"
+                "  %%t                 Topic\n"
+                "  %%p                 Partition\n"
+                "  %%o                 Message offset\n"
+                "  \\n \\r \\t           Newlines, tab\n"
+                "  \\xXX \\xNNN         Any ASCII character\n"
+                " Example:\n"
+                "  -f 'Topic %%t [%%p] at offset %%o: key %%k: %%s\\n'\n"
+                "\n"
+                "\n"
+                "Consumer mode (writes messages to stdout):\n"
+                "  kafkacat -b <broker> -t <topic> -p <partition>\n"
+                " or:\n"
+                "  kafkacat -C -b ...\n"
+                "\n"
+#if ENABLE_KAFKACONSUMER
+                "High-level KafkaConsumer mode:\n"
+                "  kafkacat -b <broker> -G <group-id> topic1 top2 ^aregex\\d+\n"
+                "\n"
+#endif
+                "Producer mode (reads messages from stdin):\n"
+                "  ... | kafkacat -b <broker> -t <topic> -p <partition>\n"
+                " or:\n"
+                "  kafkacat -P -b ...\n"
+                "\n"
+                "Metadata listing:\n"
+                "  kafkacat -L -b <broker> [-t <topic>]\n"
+                "\n",
+                conf.null_str
                 );
         exit(exitcode);
 }
@@ -768,6 +940,21 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
  */
 static void term (int sig) {
         conf.run = 0;
+}
+
+
+/**
+ * librdkafka error callback
+ */
+static void error_cb (rd_kafka_t *rk, int err,
+                      const char *reason, void *opaque) {
+
+        if (err == RD_KAFKA_RESP_ERR__ALL_BROKERS_DOWN)
+                FATAL("%s: %s: terminating", rd_kafka_err2str(err),
+                      reason ? reason : "");
+
+        INFO(1, "ERROR: %s: %s\n", rd_kafka_err2str(err),
+             reason ? reason : "");
 }
 
 
@@ -799,7 +986,7 @@ static void argparse (int argc, char **argv) {
         char tmp_fmt[64];
 
         while ((opt = getopt(argc, argv,
-                             "PCLt:p:b:z:o:eD:K:Od:qvX:c:Tuf:Z"
+                             "PCG:Lt:p:b:z:o:eD:K:Od:qvX:c:Tuf:ZlV"
 #if ENABLE_JSON
                              "J"
 #endif
@@ -810,6 +997,16 @@ static void argparse (int argc, char **argv) {
                 case 'L':
                         conf.mode = opt;
                         break;
+#if ENABLE_KAFKACONSUMER
+                case 'G':
+                        conf.mode = opt;
+                        conf.group = optarg;
+                        if (rd_kafka_conf_set(conf.rk_conf, "group.id", optarg,
+                                              errstr, sizeof(errstr)) !=
+                            RD_KAFKA_CONF_OK)
+                                FATAL("%s", errstr);
+                        break;
+#endif
                 case 't':
                         conf.topic = optarg;
                         break;
@@ -856,6 +1053,9 @@ static void argparse (int argc, char **argv) {
                 case 'K':
                         key_delim = optarg;
                         conf.flags |= CONF_F_KEY_DELIM;
+                        break;
+                case 'l':
+                        conf.flags |= CONF_F_LINE;
                         break;
                 case 'O':
                         conf.flags |= CONF_F_OFFSET;
@@ -926,24 +1126,37 @@ static void argparse (int argc, char **argv) {
                                                               errstr,
                                                               sizeof(errstr));
 
-                        if (res == RD_KAFKA_CONF_UNKNOWN)
+                        if (res == RD_KAFKA_CONF_UNKNOWN) {
                                 res = rd_kafka_conf_set(conf.rk_conf, name, val,
                                                         errstr, sizeof(errstr));
+                        }
 
                         if (res != RD_KAFKA_CONF_OK)
                                 FATAL("%s", errstr);
+
+                        /* Interception */
+#if RD_KAFKA_VERSION >= 0x00090000
+                        if (!strcmp(name, "quota.support.enable"))
+                                rd_kafka_conf_set_throttle_cb(conf.rk_conf,
+                                                              throttle_cb);
+#endif
+
                 }
                 break;
 
+                case 'V':
+                        usage(argv[0], 0, NULL, 1);
+                        break;
+
                 default:
-                        usage(argv[0], 1, "unknown argument");
+                        usage(argv[0], 1, "unknown argument", 0);
                         break;
                 }
         }
 
 
         if (!conf.brokers)
-                usage(argv[0], 1, "-b <broker,..> missing");
+                usage(argv[0], 1, "-b <broker,..> missing", 0);
 
         /* Decide mode if not specified */
         if (!conf.mode) {
@@ -956,18 +1169,20 @@ static void argparse (int argc, char **argv) {
         }
 
 
-        if (conf.mode != 'L' && !conf.topic)
-                usage(argv[0], 1, "-t <topic> missing");
+        if (!strchr("GL", conf.mode) && !conf.topic)
+                usage(argv[0], 1, "-t <topic> missing", 0);
 
         if (rd_kafka_conf_set(conf.rk_conf, "metadata.broker.list",
                               conf.brokers, errstr, sizeof(errstr)) !=
             RD_KAFKA_CONF_OK)
-                usage(argv[0], 1, errstr);
+                usage(argv[0], 1, errstr, 0);
+
+        rd_kafka_conf_set_error_cb(conf.rk_conf, error_cb);
 
         fmt_init();
 
 
-        if (conf.mode == 'C') {
+        if (strchr("GC", conf.mode)) {
                 if (!fmt) {
                         if ((conf.flags & CONF_F_FMT_JSON)) {
                                 /* For JSON the format string is simply the
@@ -1027,6 +1242,7 @@ static void conf_dump (void) {
 
 int main (int argc, char **argv) {
         char tmp[16];
+        FILE *in = stdin;
 
         signal(SIGINT, term);
         signal(SIGTERM, term);
@@ -1044,6 +1260,9 @@ int main (int argc, char **argv) {
         rd_kafka_conf_set(conf.rk_conf, "internal.termination.signal",
                           tmp, NULL, 0);
 
+        /* Log callback */
+        rd_kafka_conf_set_log_cb(conf.rk_conf, rd_kafka_log_print);
+
         /* Parse command line arguments */
         argparse(argc, argv);
 
@@ -1053,8 +1272,20 @@ int main (int argc, char **argv) {
                 exit(0);
         }
 
-        if (optind < argc && conf.mode != 'P')
-                usage(argv[0], 1, "file list only allowed in produce mode");
+        if (optind < argc) {
+                if (!strchr("PG", conf.mode))
+                        usage(argv[0], 1,
+                              "file/topic list only allowed in "
+                              "producer(-P)/kafkaconsumer(-G) mode", 0);
+                else if ((conf.flags & CONF_F_LINE) && argc - optind > 1)
+                        FATAL("Only one file allowed for line mode (-l)");
+                else if (conf.flags & CONF_F_LINE) {
+                        in = fopen(argv[optind], "r");
+                        if (in == NULL)
+                                FATAL("Cannot open %s: %s", argv[optind],
+                                      strerror(errno));
+                }
+        }
 
         /* Run according to mode */
         switch (conf.mode)
@@ -1063,8 +1294,14 @@ int main (int argc, char **argv) {
                 consumer_run(stdout);
                 break;
 
+#if ENABLE_KAFKACONSUMER
+        case 'G':
+                kafkaconsumer_run(stdout, &argv[optind], argc-optind);
+                break;
+#endif
+
         case 'P':
-                producer_run(stdin, &argv[optind], argc-optind);
+                producer_run(in, &argv[optind], argc-optind);
                 break;
 
         case 'L':
@@ -1072,9 +1309,12 @@ int main (int argc, char **argv) {
                 break;
 
         default:
-                usage(argv[0], 0, NULL);
+                usage(argv[0], 0, NULL, 0);
                 break;
         }
+
+        if (in != stdin)
+                fclose(in);
 
         rd_kafka_wait_destroyed(5000);
 
