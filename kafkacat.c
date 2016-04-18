@@ -759,6 +759,7 @@ struct totals_t {
         int64_t stored;
         int64_t highwm;
         int64_t lag;
+        int     empty;
 };
 
 static void metadata_print_consumergroup(const rd_kafka_metadata_t *metadata, rd_kafka_t *rk);
@@ -807,7 +808,7 @@ static void periodically_print_consumergroup_offset_totals(const struct conf* co
         int totals_end = 0;
         int totals_i = 0;
 
-        printf("   lowwm     v(s)   stored     v(s)   highwm     v(s)      lag     v(s)\n");
+        printf("   lowwm     v(s)   stored     v(s)   highwm     v(s)      lag     v(s) empty  v(s)\n");
         int prev_totals_i = -1;
         while (conf->run) {
                 // allocate 1 totals_t within ringbuffer
@@ -834,7 +835,10 @@ static void periodically_print_consumergroup_offset_totals(const struct conf* co
                                                 - totalsring[prev_totals_i].highwm);
                                 delta.stored = (totalsring[totals_i].stored
                                                 - totalsring[prev_totals_i].stored);
-                                printf("%8"PRId64" %8.1f %8"PRId64" %8.1f %8"PRId64" %8.1f %8"PRId64" %8.1f\n",
+                                delta.empty = (totalsring[totals_i].empty
+                                                - totalsring[prev_totals_i].empty);
+                                printf(
+                                                "%8"PRId64" %8.1f %8"PRId64" %8.1f %8"PRId64" %8.1f %8"PRId64" %8.1f %5i %5.1f\n",
                                                 totalsring[totals_i].lowwm,
                                                 (double) delta.lowwm / (double) delta.time_s,
                                                 totalsring[totals_i].stored,
@@ -842,20 +846,22 @@ static void periodically_print_consumergroup_offset_totals(const struct conf* co
                                                 totalsring[totals_i].highwm,
                                                 (double) delta.highwm / (double) delta.time_s,
                                                 totalsring[totals_i].lag,
-                                                (double) delta.lag / (double) delta.time_s);
+                                                (double) delta.lag / (double) delta.time_s,
+                                                totalsring[totals_i].empty,
+                                                (double) delta.empty / (double) delta.time_s);
                         } else {
-                                printf("%8"PRId64"          %8"PRId64"          %8"PRId64"          %8"PRId64"         \n",
-                                                totalsring[totals_i].lowwm,
-                                                totalsring[totals_i].stored,
-                                                totalsring[totals_i].highwm,
-                                                totalsring[totals_i].lag);
+                                printf(
+                                                "%8"PRId64"          %8"PRId64"          %8"PRId64"          %8"PRId64"          %5i      \n",
+                                                totalsring[totals_i].lowwm, totalsring[totals_i].stored,
+                                                totalsring[totals_i].highwm, totalsring[totals_i].lag,
+                                                totalsring[totals_i].empty);
                         }
                 } else {
-                        printf("%8"PRId64"          %8"PRId64"          %8"PRId64"          %8"PRId64"         \n",
-                                        totalsring[totals_i].lowwm,
-                                        totalsring[totals_i].stored,
-                                        totalsring[totals_i].highwm,
-                                        totalsring[totals_i].lag);
+                        printf(
+                                        "%8"PRId64"          %8"PRId64"          %8"PRId64"          %8"PRId64"          %5i      \n",
+                                        totalsring[totals_i].lowwm, totalsring[totals_i].stored,
+                                        totalsring[totals_i].highwm, totalsring[totals_i].lag,
+                                        totalsring[totals_i].empty);
                 }
                 sleep(conf->metadata_interval_seconds);
                 prev_totals_i = totals_i;
@@ -893,6 +899,7 @@ static void get_consumergroup_offset_totals(const rd_kafka_metadata_t *metadata,
         totals->stored = 0;
         totals->highwm = 0;
         totals->lag = 0;
+        totals->empty = 0;
 
         for (i = 0; i < metadata->topic_cnt && conf.run; i++) {
                 const rd_kafka_metadata_topic_t *t = &metadata->topics[i];
@@ -923,6 +930,8 @@ static void get_consumergroup_offset_totals(const rd_kafka_metadata_t *metadata,
                                 }
                                 if (lag > 0)
                                         totals->lag += lag;
+                                if (lag == 0)
+                                        totals->empty++;
                         }
 
                         if (low >= 0)
