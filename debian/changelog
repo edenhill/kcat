@@ -1,4 +1,4 @@
-kafkacat (1.3.0-1) UNRELEASED; urgency=medium
+kafkacat (1.3.0-1) unstable; urgency=medium
 
   * New upstream release.
   * d/control: ensure librdkafka can handle consumer mode.
@@ -6,7 +6,7 @@ kafkacat (1.3.0-1) UNRELEASED; urgency=medium
   * d/control: build-depends on pkg-config and libyajl-dev.
   * d/patches: removve disable-silent-rules-support.patch.
 
- -- Vincent Bernat <bernat@debian.org>  Mon, 18 Apr 2016 11:53:44 +0200
+ -- Vincent Bernat <bernat@debian.org>  Tue, 07 Jun 2016 20:26:24 +0200
 
 kafkacat (1.2.0-2) unstable; urgency=medium
 
