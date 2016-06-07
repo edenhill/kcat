@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <signal.h>
+#include <sys/time.h>
 #include <syslog.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -1243,10 +1244,15 @@ static void conf_dump (void) {
 int main (int argc, char **argv) {
         char tmp[16];
         FILE *in = stdin;
+	struct timeval tv;
 
         signal(SIGINT, term);
         signal(SIGTERM, term);
         signal(SIGPIPE, term);
+
+	/* Seed rng for random partitioner, jitter, etc. */
+	gettimeofday(&tv, NULL);
+	srand(tv.tv_usec);
 
         /* Create config containers */
         conf.rk_conf  = rd_kafka_conf_new();
