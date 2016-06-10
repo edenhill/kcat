@@ -1,10 +1,10 @@
 kafkacat
 ========
-Copyright (c) 2014-2015 Magnus Edenhill
+Copyright (c) 2014-2016 Magnus Edenhill
 
 [https://github.com/edenhill/kafkacat](https://github.com/edenhill/kafkacat)
 
-**kafkacat** is a generic non-JVM producer and consumer for Apache Kafka 0.8,
+**kafkacat** is a generic non-JVM producer and consumer for Apache Kafka >=0.8,
 think of it as a netcat for Kafka.
 
 In **producer** mode kafkacat reads messages from stdin, delimited with a
@@ -13,6 +13,9 @@ provided Kafka cluster (-b), topic (-t) and partition (-p).
 
 In **consumer** mode kafkacat reads messages from a topic and partition and
 prints them to stdout using the configured message delimiter.
+
+There's also support for the Kafka >=0.9 high-level balanced consumer, use
+the `-G <group>` switch and provide a list of topics to join the group.
 
 kafkacat also features a Metadata list (-L) mode to display the current
 state of the Kafka cluster and its topics and partitions.
@@ -64,7 +67,7 @@ dependencies.
 # Examples
 
 High-level balanced KafkaConsumer: subscribe to topic1 and topic2
-(requires broker >=0.9.0 and librdkafka version >=0.9.0)
+(requires broker >=0.9.0 and librdkafka version >=0.9.1)
 
     $ kafkacat -b mybroker -G mygroup topic1 topic2
 
