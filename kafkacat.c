@@ -903,6 +903,9 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                 "                     as a binary big endian 32-bit signed integer\n"
                 "  %%k                 Message key\n"
                 "  %%K                 Message key length (or -1 for NULL)\n"
+#ifdef RD_KAFKA_TIMESTAMP_CREATE_TIME
+		"  %%T                 Message timestamp (milliseconds since epoch)\n"
+#endif
                 "  %%t                 Topic\n"
                 "  %%p                 Partition\n"
                 "  %%o                 Message offset\n"
