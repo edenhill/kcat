@@ -155,6 +155,22 @@ function mkl_env_append {
 
 }
 
+# Prepend to environment variable
+# Arguments:
+#  varname
+#  varvalue
+#  [ separator (" ") ]
+function mkl_env_prepend {
+    local sep=" "
+    if [[ -z ${!1} ]]; then
+        mkl_env_set "$1" "$2"
+    else
+        [ ! -z ${3} ] && sep="$3"
+        mkl_var0_set "$1" "$2${sep}${!1}"
+    fi
+
+}
+
 
 
 
@@ -183,6 +199,18 @@ function mkl_mkvar_append {
     fi
 }
 
+
+# Prepends to a make variable (Makefile.config)
+# Arguments:
+#  config name
+#  variable name
+#  value
+function mkl_mkvar_append {
+    if [[ ! -z $2 ]]; then
+        mkl_env_prepend "$2" "$3"
+        mkl_in_list "$MKL_MKVARS" "$2"|| mkl_env_append MKL_MKVARS $2
+    fi
+}
 
 # Return mkvar variable value
 # Arguments:
@@ -1015,6 +1043,7 @@ function mkl_lib_check_static {
 function mkl_lib_check {
 
     local staticopt=
+    local is_static=0
     if [[ $1 == --static* ]]; then
         staticopt=$1
         shift
@@ -1029,13 +1058,18 @@ function mkl_lib_check {
     local libs="$5"
     if [[ $WITH_STATIC_LINKING == y && ! -z $staticopt ]]; then
 	libs=$(mkl_lib_check_static "${staticopt#*=}" "$libs")
+	is_static=1
     fi
 
     if ! mkl_compile_check "$1" "$2" "$3" "$4" "$libs" "$6"; then
         return 1
     fi
 
-    mkl_mkvar_append "$1" LIBS "$libs"
+    if [[ $is_static == 1 ]]; then
+	mkl_mkvar_prepend "$1" LIBS "$libs"
+    else
+	mkl_mkvar_append "$1" LIBS "$libs"
+    fi
 
     return 0
 }
