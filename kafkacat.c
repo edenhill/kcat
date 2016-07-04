@@ -323,7 +323,7 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                         }
 
                         /* Enforce -c <cnt> */
-                        if (stats.tx == conf.msg_cnt)
+                        if (stats.tx == (uint64_t)conf.msg_cnt)
                                 conf.run = 0;
                 }
 
@@ -416,7 +416,7 @@ static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
                                       rkmessage->offset);
         }
 
-        if (++stats.rx == conf.msg_cnt)
+        if (++stats.rx == (uint64_t)conf.msg_cnt)
                 conf.run = 0;
 }
 
@@ -1233,7 +1233,7 @@ static void conf_dump (void) {
                         arr = rd_kafka_topic_conf_dump(conf.rkt_conf, &cnt);
                 }
 
-                for (i = 0 ; i < cnt ; i += 2)
+                for (i = 0 ; i < (int)cnt ; i += 2)
                         printf("%s = %s\n",
                                arr[i], arr[i+1]);
 

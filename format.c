@@ -203,7 +203,7 @@ static void fmt_msg_output_str (FILE *fp,
                 case KC_FMT_KEY_LEN:
                         r = fprintf(fp, "%zd",
                                     /* Use -1 to indicate NULL keys */
-                                    rkmessage->key ? rkmessage->key_len : -1);
+                                    rkmessage->key ? (ssize_t)rkmessage->key_len : -1);
                         break;
 
                 case KC_FMT_PAYLOAD:
@@ -218,12 +218,13 @@ static void fmt_msg_output_str (FILE *fp,
                 case KC_FMT_PAYLOAD_LEN:
                         r = fprintf(fp, "%zd",
                                     /* Use -1 to indicate NULL messages */
-                                    rkmessage->payload ? rkmessage->len : -1);
+                                    rkmessage->payload ? (ssize_t)rkmessage->len : -1);
                         break;
 
                 case KC_FMT_PAYLOAD_LEN_BINARY:
                         /* Use -1 to indicate NULL messages */
-                        belen = htonl((uint32_t)(rkmessage->payload ? rkmessage->len : -1));
+                        belen = htonl((uint32_t)(rkmessage->payload ?
+						 (ssize_t)rkmessage->len : -1));
                         r = fwrite(&belen, sizeof(uint32_t), 1, fp);
                         break;
 
