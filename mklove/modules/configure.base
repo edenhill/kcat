@@ -166,7 +166,7 @@ function mkl_env_prepend {
         mkl_env_set "$1" "$2"
     else
         [ ! -z ${3} ] && sep="$3"
-        mkl_var0_set "$1" "$2${sep}${!1}"
+        mkl_var0_set "$1" "${2}${sep}${!1}"
     fi
 
 }
@@ -205,7 +205,7 @@ function mkl_mkvar_append {
 #  config name
 #  variable name
 #  value
-function mkl_mkvar_append {
+function mkl_mkvar_prepend {
     if [[ ! -z $2 ]]; then
         mkl_env_prepend "$2" "$3"
         mkl_in_list "$MKL_MKVARS" "$2"|| mkl_env_append MKL_MKVARS $2
@@ -1117,9 +1117,10 @@ $cflags"
 
     if [[ $WITH_STATIC_LINKING == y && ! -z $staticopt ]]; then
 	libs=$(mkl_lib_check_static "${staticopt#*=}" "$libs")
+	mkl_mkvar_prepend "$1" LIBS "$libs"
+    else
+	mkl_mkvar_append "$1" LIBS "$libs"
     fi
-
-    mkl_mkvar_append "$1" LIBS "$libs"
 
     mkl_check_done "$1" "$2" "$3" "ok"
 
