@@ -48,3 +48,15 @@ mkl_option "Configure tool" "mk:PROGRAM_PREFIX" "--program-prefix=PFX" "Program 
 mkl_option "Compatibility" "mk:DISABL_DEP_TRACK" "--disable-dependency-tracking" "Disable dependency tracking (no-op)"
 mkl_option "Compatibility" "mk:DISABL_SILENT_RULES" "--disable-silent-rules" "Verbose build output (no-op)"
 
+
+function checks {
+
+    if [[ ! -z $libdir ]]; then
+	mkl_mkvar_append "libdir" LDFLAGS "-L${libdir}"
+    fi
+
+    if [[ ! -z $includedir ]]; then
+	mkl_mkvar_append "includedir" CPPFLAGS "-I${includedir}"
+    fi
+
+}
