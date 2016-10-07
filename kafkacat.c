@@ -345,7 +345,7 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
         if (sbuf)
                 free(sbuf);
 
-        if (stats.tx_err_q || stats.tx_err_dr)
+        if (stats.tx_err_dr)
                 conf.exitcode = 1;
 }
 
