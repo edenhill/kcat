@@ -675,6 +675,7 @@ static void consumer_run (FILE *fp) {
         while (conf.run && rd_kafka_outq_len(conf.rk) > 0)
                 rd_kafka_poll(conf.rk, 50);
 
+        rd_kafka_metadata_destroy(metadata);
         rd_kafka_topic_destroy(conf.rkt);
         rd_kafka_destroy(conf.rk);
 }
