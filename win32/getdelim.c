@@ -38,21 +38,16 @@ PORTABILITY
 No supporting OS subroutines are directly required.
 */
 
-#include <_ansi.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
-#include "local.h"
+#include "../rdport.h"
 
 #define MIN_LINE_SIZE 4
 #define DEFAULT_LINE_SIZE 128
 
-ssize_t
-_DEFUN(__getdelim, (bufptr, n, delim, fp),
-       char **bufptr _AND
-       size_t *n     _AND
-       int delim     _AND 
-       FILE *fp)
+ssize_t getdelim (char **bufptr, size_t *n,
+				  int delim, FILE *fp)
 {
   char *buf;
   char *ptr;
@@ -79,11 +74,6 @@ _DEFUN(__getdelim, (bufptr, n, delim, fp),
       *n = DEFAULT_LINE_SIZE;
     }
 
-  CHECK_INIT (_REENT, fp);
-
-  __sfp_lock_acquire ();
-  _flockfile (fp);
-
   numbytes = *n;
   ptr = buf;
 
@@ -94,7 +84,7 @@ _DEFUN(__getdelim, (bufptr, n, delim, fp),
       /* fill buffer - leaving room for nul-terminator */
       while (--numbytes > 0)
         {
-          if ((ch = getc_unlocked (fp)) == EOF)
+          if ((ch = getc (fp)) == EOF)
             {
 	      cont = 0;
               break;
@@ -129,9 +119,6 @@ _DEFUN(__getdelim, (bufptr, n, delim, fp),
           numbytes = newsize - pos;
         }
     }
-
-  _funlockfile (fp);
-  __sfp_lock_release ();
 
   /* if no input data, return failure */
   if (ptr == buf)
