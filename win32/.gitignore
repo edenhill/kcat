@@ -3,3 +3,5 @@
 *.filters
 *.user
 packages
+x64
+x86
