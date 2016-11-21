@@ -1,0 +1,5 @@
+*.opendb
+*.db
+*.filters
+*.user
+packages
