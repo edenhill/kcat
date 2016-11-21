@@ -26,17 +26,24 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef _MSC_VER
 #include <unistd.h>
+#include <syslog.h>
+#include <sys/time.h>
+#include <sys/mman.h>
+#else
+#pragma comment(lib, "ws2_32.lib")
+#include "win32/wingetopt.h"
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <signal.h>
-#include <sys/time.h>
-#include <syslog.h>
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <sys/mman.h>
+
 
 
 #include "kafkacat.h"
@@ -72,8 +79,8 @@ int part_eof_thres = 0;
 /**
  * Fatal error: print error and exit
  */
-void __attribute__((noreturn)) fatal0 (const char *func, int line,
-                                       const char *fmt, ...) {
+void RD_NORETURN fatal0 (const char *func, int line,
+						 const char *fmt, ...) {
         va_list ap;
         char buf[1024];
 
@@ -163,6 +170,8 @@ static ssize_t produce_file (const char *path) {
         int fd;
         void *ptr;
         struct stat st;
+		ssize_t sz;
+		int msgflags = 0;
 
         if ((fd = open(path, O_RDONLY)) == -1) {
                 INFO(1, "Failed to open %s: %s\n", path, strerror(errno));
@@ -181,19 +190,48 @@ static ssize_t produce_file (const char *path) {
                 return 0;
         }
 
+#ifndef _MSC_VER
         ptr = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
         if (ptr == MAP_FAILED) {
                 INFO(1, "Failed to mmap %s: %s\n", path, strerror(errno));
                 close(fd);
                 return -1;
         }
+		sz = st.st_size;
+		msgflags = RD_KAFKA_MSG_F_COPY;
+#else
+		ptr = malloc(st.st_size);
+		if (!ptr) {
+			INFO(1, "Failed to allocate message for %s: %s\n",
+				 path, strerror(errno));
+			close(fd);
+			return -1;
+		}
+
+		sz = _read(fd, ptr, st.st_size);
+		if (sz < st.st_size) {
+			INFO(1, "Read failed for %s (%zd/%zd): %s\n",
+				 path, sz, (size_t)st.st_size, sz == -1 ? strerror(errno) :
+				 "incomplete read");
+			free(ptr);
+			close(fd);
+			return -1;
+		}
+		msgflags = RD_KAFKA_MSG_F_FREE;
+#endif
 
         INFO(4, "Producing file %s (%"PRIdMAX" bytes)\n",
              path, (intmax_t)st.st_size);
-        produce(ptr, st.st_size, NULL, 0, RD_KAFKA_MSG_F_COPY);
+		produce(ptr, sz, NULL, 0, msgflags);
 
-        munmap(ptr, st.st_size);
-        return st.st_size;
+		if (!(msgflags & RD_KAFKA_MSG_F_FREE)) {
+#ifndef _MSC_VER
+			munmap(ptr, st.st_size);
+#else
+			free(ptr);
+#endif
+		}
+		return sz;
 }
 
 
@@ -215,9 +253,7 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                                      errstr, sizeof(errstr))))
                 FATAL("Failed to create producer: %s", errstr);
 
-        if (conf.debug)
-                rd_kafka_set_log_level(conf.rk, LOG_DEBUG);
-        else if (conf.verbosity == 0)
+		if (!conf.debug && conf.verbosity == 0)
                 rd_kafka_set_log_level(conf.rk, 0);
 
         /* Create topic */
@@ -555,9 +591,7 @@ static void consumer_run (FILE *fp) {
                                      errstr, sizeof(errstr))))
                 FATAL("Failed to create producer: %s", errstr);
 
-        if (conf.debug)
-                rd_kafka_set_log_level(conf.rk, LOG_DEBUG);
-        else if (conf.verbosity == 0)
+        if (!conf.debug && conf.verbosity == 0)
                 rd_kafka_set_log_level(conf.rk, 0);
 
         /* The callback-based consumer API's offset store granularity is
@@ -688,7 +722,7 @@ static void metadata_print (const rd_kafka_metadata_t *metadata) {
         int i, j, k;
 
         printf("Metadata for %s (from broker %"PRId32": %s):\n",
-               conf.topic ? : "all topics",
+               conf.topic ? conf.topic : "all topics",
                metadata->orig_broker_id, metadata->orig_broker_name);
 
         /* Iterate brokers */
@@ -753,9 +787,7 @@ static void metadata_list (void) {
                                      errstr, sizeof(errstr))))
                 FATAL("Failed to create producer: %s", errstr);
 
-        if (conf.debug)
-                rd_kafka_set_log_level(conf.rk, LOG_DEBUG);
-        else if (conf.verbosity == 0)
+		if (!conf.debug && conf.verbosity == 0)
                 rd_kafka_set_log_level(conf.rk, 0);
 
         /* Create topic, if specified */
@@ -794,9 +826,9 @@ static void metadata_list (void) {
 /**
  * Print usage and exit.
  */
-static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
-                                             const char *reason,
-                                             int version_only) {
+static void RD_NORETURN usage (const char *argv0, int exitcode,
+							   const char *reason,
+							   int version_only) {
 
         FILE *out = stdout;
         if (reason) {
@@ -1170,7 +1202,7 @@ static void argparse (int argc, char **argv) {
 
         /* Decide mode if not specified */
         if (!conf.mode) {
-                if (isatty(STDIN_FILENO))
+                if (_COMPAT(isatty)(STDIN_FILENO))
                         conf.mode = 'C';
                 else
                         conf.mode = 'P';
@@ -1257,10 +1289,12 @@ int main (int argc, char **argv) {
 
         signal(SIGINT, term);
         signal(SIGTERM, term);
+#ifdef SIGPIPE
         signal(SIGPIPE, term);
+#endif
 
 	/* Seed rng for random partitioner, jitter, etc. */
-	gettimeofday(&tv, NULL);
+	rd_gettimeofday(&tv, NULL);
 	srand(tv.tv_usec);
 
         /* Create config containers */
@@ -1270,10 +1304,12 @@ int main (int argc, char **argv) {
         /*
          * Default config
          */
+#ifdef SIGIO
         /* Enable quick termination of librdkafka */
         snprintf(tmp, sizeof(tmp), "%i", SIGIO);
         rd_kafka_conf_set(conf.rk_conf, "internal.termination.signal",
                           tmp, NULL, 0);
+#endif
 
         /* Log callback */
         rd_kafka_conf_set_log_cb(conf.rk_conf, rd_kafka_log_print);

@@ -34,7 +34,14 @@
 
 #include <librdkafka/rdkafka.h>
 
+#include "rdport.h"
+
+#ifdef _MSC_VER
+#pragma comment(lib, "librdkafka.lib")
+#include "win32/win32_config.h"
+#else
 #include "config.h"
+#endif
 
 
 typedef enum {
@@ -97,15 +104,15 @@ struct conf {
 extern struct conf conf;
 
 
-void __attribute__((noreturn)) fatal0 (const char *func, int line,
+void RD_NORETURN fatal0 (const char *func, int line,
                                        const char *fmt, ...);
 
-#define FATAL(fmt...)  fatal0(__FUNCTION__, __LINE__, fmt)
+#define FATAL(.../*fmt*/)  fatal0(__FUNCTION__, __LINE__, __VA_ARGS__)
 
 /* Info printout */
-#define INFO(VERBLVL,FMT...) do {                    \
+#define INFO(VERBLVL,.../*fmt*/) do {                    \
                 if (conf.verbosity >= (VERBLVL))     \
-                        fprintf(stderr, "%% " FMT);  \
+                        fprintf(stderr, "%% " __VA_ARGS__);  \
         } while (0)
 
 
