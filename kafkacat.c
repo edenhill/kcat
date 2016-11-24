@@ -34,6 +34,7 @@
 #else
 #pragma comment(lib, "ws2_32.lib")
 #include "win32/wingetopt.h"
+#include <io.h>
 #endif
 #include <stdio.h>
 #include <stdlib.h>
@@ -173,20 +174,20 @@ static ssize_t produce_file (const char *path) {
 		ssize_t sz;
 		int msgflags = 0;
 
-        if ((fd = open(path, O_RDONLY)) == -1) {
+        if ((fd = _COMPAT(open)(path, O_RDONLY)) == -1) {
                 INFO(1, "Failed to open %s: %s\n", path, strerror(errno));
                 return -1;
         }
 
         if (fstat(fd, &st) == -1) {
                 INFO(1, "Failed to stat %s: %s\n", path, strerror(errno));
-                close(fd);
+                _COMPAT(close)(fd);
                 return -1;
         }
 
         if (st.st_size == 0) {
                 INFO(3, "Skipping empty file %s\n", path);
-                close(fd);
+                _COMPAT(close)(fd);
                 return 0;
         }
 
@@ -194,7 +195,7 @@ static ssize_t produce_file (const char *path) {
         ptr = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
         if (ptr == MAP_FAILED) {
                 INFO(1, "Failed to mmap %s: %s\n", path, strerror(errno));
-                close(fd);
+                _COMPAT(close)(fd);
                 return -1;
         }
 		sz = st.st_size;
@@ -204,7 +205,7 @@ static ssize_t produce_file (const char *path) {
 		if (!ptr) {
 			INFO(1, "Failed to allocate message for %s: %s\n",
 				 path, strerror(errno));
-			close(fd);
+			_COMPAT(close)(fd);
 			return -1;
 		}
 
@@ -223,6 +224,8 @@ static ssize_t produce_file (const char *path) {
         INFO(4, "Producing file %s (%"PRIdMAX" bytes)\n",
              path, (intmax_t)st.st_size);
 		produce(ptr, sz, NULL, 0, msgflags);
+
+		_COMPAT(close)(fd);
 
 		if (!(msgflags & RD_KAFKA_MSG_F_FREE)) {
 #ifndef _MSC_VER
@@ -1283,7 +1286,9 @@ static void conf_dump (void) {
 
 
 int main (int argc, char **argv) {
-        char tmp[16];
+#ifdef SIGIO
+	char tmp[16];
+#endif
         FILE *in = stdin;
 	struct timeval tv;
 

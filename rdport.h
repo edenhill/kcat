@@ -16,7 +16,7 @@
 /* MSVC loves prefixing POSIX functions with underscore */
 #define _COMPAT(FUNC)  _ ## FUNC
 
-#define STDIN_FILENO stdin
+#define STDIN_FILENO 0
 
 typedef SSIZE_T ssize_t;
 
