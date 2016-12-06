@@ -132,9 +132,9 @@ void fmt_parse (const char *fmt) {
                         case 'p':
                                 fmt_add(KC_FMT_PARTITION, NULL, 0);
                                 break;
-			case 'T':
-				fmt_add(KC_FMT_TIMESTAMP, NULL, 0);
-				break;
+                        case 'T':
+                                fmt_add(KC_FMT_TIMESTAMP, NULL, 0);
+                                break;
                         case '%':
                                 fmt_add(KC_FMT_STR, s, 1);
                                 break;
@@ -241,19 +241,19 @@ static void fmt_msg_output_str (FILE *fp,
                         r = fprintf(fp, "%"PRId32, rkmessage->partition);
                         break;
 
-		case KC_FMT_TIMESTAMP:
-		{
-#ifdef RD_KAFKA_TIMESTAMP_CREATE_TIME
-			rd_kafka_timestamp_type_t tstype;
-			r = fprintf(fp, "%"PRId64,
-				    rd_kafka_message_timestamp(rkmessage,
-							       &tstype));
+#if RD_KAFKA_VERSION >= 0x000902ff
+                case KC_FMT_TIMESTAMP:
+                {
+                        rd_kafka_timestamp_type_t tstype;
+                        r = fprintf(fp, "%"PRId64,
+                                    rd_kafka_message_timestamp(rkmessage,
+                                                               &tstype));
 #else
-			r = fprintf(fp, "-1");
+                        r = fprintf(fp, "-1");
 #endif
-			break;
-		}
-		}
+                        break;
+                }
+                }
 
 
                 if (r < 1)
