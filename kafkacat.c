@@ -863,7 +863,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
 
         fprintf(out, "\n"
                 "General options:\n"
-                "  -C | -P | -L       Mode: Consume, Produce or metadata List\n"
+                "  -C | -P | -L | -Q  Mode: Consume, Produce, Metadata List, Query mode\n"
 #if ENABLE_KAFKACONSUMER
                 "  -G <group-id>      Mode: High-level KafkaConsumer (Kafka 0.9 balanced consumer groups)\n"
                 "                     Expects a list of topics to subscribe to\n"
@@ -929,9 +929,17 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "(instead of empty)\n"
                 "  -u                 Unbuffered output\n"
                 "\n"
-                "Metadata options:\n"
+                "Metadata options (-L):\n"
                 "  -t <topic>         Topic to query (optional)\n"
                 "\n"
+                "Query options (-Q):\n"
+                "  -t <t>:<p>:<ts>    Get offset for topic <t>,\n"
+                "                     partition <p>, timestamp <ts>.\n"
+                "                     Timestamp is the number of milliseconds\n"
+                "                     since epoch UTC.\n"
+                "                     Requires broker >= 0.10.0.0 and librdkafka >= 0.9.3.\n"
+                "                     Multiple -t .. are allowed but a partition\n"
+                "                     must only occur once.\n"
                 "\n"
                 "Format string tokens:\n"
                 "  %%s                 Message payload\n"
@@ -969,6 +977,9 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "\n"
                 "Metadata listing:\n"
                 "  kafkacat -L -b <broker> [-t <topic>]\n"
+                "\n"
+                "Query offset by timestamp:\n"
+                "  kafkacat -Q -b broker -t <topic>:<partition>:<timestamp>\n"
                 "\n",
                 conf.null_str
                 );
@@ -1016,9 +1027,44 @@ static int parse_delim (const char *str) {
 }
 
 /**
+ * @brief Add topic+partition+offset to list, from :-separated string.
+ *
+ * "<t>:<p>:<o>"
+ *
+ * @remark Will modify \p str
+ */
+static void add_topparoff (const char *what,
+                           rd_kafka_topic_partition_list_t *rktparlist,
+                           char *str) {
+        char *s, *t, *e;
+        char *topic;
+        int partition;
+        int64_t offset;
+
+        if (!(s = strchr(str, ':')) ||
+            !(t = strchr(s+1, ':')))
+                FATAL("%s: expected \"topic:partition:offset_or_timestamp\"", what);
+
+        topic = str;
+        *s = '\0';
+
+        partition = strtoul(s+1, &e, 0);
+        if (e == s+1)
+                FATAL("%s: expected \"topic:partition:offset_or_timestamp\"", what);
+
+        offset = strtoll(t+1, &e, 0);
+        if (e == t+1)
+                FATAL("%s: expected \"topic:partition:offset_or_timestamp\"", what);
+
+        rd_kafka_topic_partition_list_add(rktparlist, topic, partition)->offset = offset;
+}
+
+
+/**
  * Parse command line arguments
  */
-static void argparse (int argc, char **argv) {
+static void argparse (int argc, char **argv,
+                      rd_kafka_topic_partition_list_t **rktparlistp) {
         char errstr[512];
         int opt;
         const char *fmt = NULL;
@@ -1026,8 +1072,9 @@ static void argparse (int argc, char **argv) {
         const char *key_delim = NULL;
         char tmp_fmt[64];
 
+
         while ((opt = getopt(argc, argv,
-                             "PCG:Lt:p:b:z:o:eD:K:Od:qvX:c:Tuf:ZlVh"
+                             "PCG:LQt:p:b:z:o:eD:K:Od:qvX:c:Tuf:ZlVh"
 #if ENABLE_JSON
                              "J"
 #endif
@@ -1036,6 +1083,7 @@ static void argparse (int argc, char **argv) {
                 case 'P':
                 case 'C':
                 case 'L':
+                case 'Q':
                         conf.mode = opt;
                         break;
 #if ENABLE_KAFKACONSUMER
@@ -1049,7 +1097,14 @@ static void argparse (int argc, char **argv) {
                         break;
 #endif
                 case 't':
-                        conf.topic = optarg;
+                        if (conf.mode == 'Q') {
+                                if (!*rktparlistp)
+                                        *rktparlistp = rd_kafka_topic_partition_list_new(1);
+                                add_topparoff("-t", *rktparlistp, optarg);
+
+                        } else
+                                conf.topic = optarg;
+
                         break;
                 case 'p':
                         conf.partition = atoi(optarg);
@@ -1219,8 +1274,10 @@ static void argparse (int argc, char **argv) {
         }
 
 
-        if (!strchr("GL", conf.mode) && !conf.topic)
+        if (!strchr("GLQ", conf.mode) && !conf.topic)
                 usage(argv[0], 1, "-t <topic> missing", 0);
+        else if (conf.mode == 'Q' && !*rktparlistp)
+                usage(argv[0], 1, "-t <topic>:<partition>:<offset_or_timestamp> missing", 0);
 
         if (rd_kafka_conf_set(conf.rk_conf, "metadata.broker.list",
                               conf.brokers, errstr, sizeof(errstr)) !=
@@ -1305,6 +1362,7 @@ int main (int argc, char **argv) {
 #endif
         FILE *in = stdin;
 	struct timeval tv;
+        rd_kafka_topic_partition_list_t *rktparlist = NULL;
 
         signal(SIGINT, term);
         signal(SIGTERM, term);
@@ -1334,7 +1392,7 @@ int main (int argc, char **argv) {
         rd_kafka_conf_set_log_cb(conf.rk_conf, rd_kafka_log_print);
 
         /* Parse command line arguments */
-        argparse(argc, argv);
+        argparse(argc, argv, &rktparlist);
 
         /* Dump configuration and exit, if so desired. */
         if (conf.conf_dump) {
@@ -1376,6 +1434,17 @@ int main (int argc, char **argv) {
 
         case 'L':
                 metadata_list();
+                break;
+
+        case 'Q':
+                if (!rktparlist)
+                        usage(argv[0], 1,
+                              "-Q requires one or more "
+                              "-t <topic>:<partition>:<timestamp>", 0);
+
+                query_offsets_by_time(rktparlist);
+
+                rd_kafka_topic_partition_list_destroy(rktparlist);
                 break;
 
         default:

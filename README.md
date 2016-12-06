@@ -140,3 +140,8 @@ JSON metadata listing
 Pretty-printed JSON metadata listing
 
     $ kafkacat -b mybroker -L -J | jq .
+
+
+Query offset(s) by timestamp(s)
+
+    $ kafkacat -b mybroker -Q -t mytopic:3:2389238523  mytopic2:0:18921841

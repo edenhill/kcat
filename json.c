@@ -205,6 +205,74 @@ void metadata_print_json (const struct rd_kafka_metadata *metadata) {
 }
 
 
+/**
+ * @brief Generate (if json_gen is a valid yajl_gen), or print (if json_gen is NULL)
+ *        a map of topic+partitions+offsets[+errors]
+ *
+ * { "<topic>": { "topic": "<topic>",
+ *                "<partition>": { "partition": <partition>, "offset": <o>,
+ *                                  ["error": "..."]},
+ *                 .. },
+ *  .. }
+ */
+void partition_list_print_json (const rd_kafka_topic_partition_list_t *parts,
+                                void *json_gen) {
+        yajl_gen g = (yajl_gen)json_gen;
+        int i;
+        const char *last_topic = "";
+
+        if (!g)
+                g = yajl_gen_alloc(NULL);
+
+        yajl_gen_map_open(g);
+        for (i = 0 ; i < parts->cnt ; i++) {
+                const rd_kafka_topic_partition_t *p = &parts->elems[i];
+                char partstr[16];
+
+                if (strcmp(last_topic, p->topic)) {
+                        if (*last_topic)
+                                yajl_gen_map_close(g); /* topic */
+
+                        JS_STR(g, p->topic);
+                        yajl_gen_map_open(g); /* topic */
+                        JS_STR(g, "topic");
+                        JS_STR(g, p->topic);
+                        last_topic = p->topic;
+                }
+
+                snprintf(partstr, sizeof(partstr), "%"PRId32, p->partition);
+
+                JS_STR(g, partstr);
+                yajl_gen_map_open(g);
+                JS_STR(g, "partition");
+                yajl_gen_integer(g, p->partition);
+                JS_STR(g, "offset");
+                yajl_gen_integer(g, p->offset);
+                if (p->err) {
+                        JS_STR(g, "error");
+                        JS_STR(g, rd_kafka_err2str(p->err));
+                }
+                yajl_gen_map_close(g);
+
+        }
+
+        if (*last_topic)
+                yajl_gen_map_close(g); /* topic */
+
+        yajl_gen_map_close(g);
+
+
+        if (!json_gen) {
+                const unsigned char *buf;
+                size_t len;
+
+                yajl_gen_get_buf(g, &buf, &len);
+                (void)fwrite(buf, len, 1, stdout);
+                yajl_gen_free(g);
+        }
+}
+
+
 
 void fmt_init_json (void) {
 }
