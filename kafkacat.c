@@ -490,7 +490,7 @@ static void kafkaconsumer_run (FILE *fp, char *const *topics, int topic_cnt) {
         /* Create consumer */
         if (!(conf.rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf.rk_conf,
                                      errstr, sizeof(errstr))))
-                FATAL("Failed to create producer: %s", errstr);
+                FATAL("Failed to create consumer: %s", errstr);
         conf.rk_conf  = NULL;
 
         /* Forward main event queue to consumer queue so we can
