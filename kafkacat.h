@@ -78,6 +78,7 @@ struct conf {
         char   *topic;
         int32_t partition;
         char   *group;
+        int    metadata_interval_seconds;
         int64_t offset;
         int     exit_eof;
         int64_t msg_cnt;

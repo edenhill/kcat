@@ -352,7 +352,8 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
 
 static void handle_partition_eof (rd_kafka_message_t *rkmessage) {
 
-        if (conf.mode == 'C') {
+        if (conf.mode == 'C' && !conf.group) {
+
                 /* Store EOF offset.
                  * If partition is empty and at offset 0,
                  * store future first message (0). */
@@ -372,7 +373,7 @@ static void handle_partition_eof (rd_kafka_message_t *rkmessage) {
                         }
                 }
 
-        } else if (conf.mode == 'G') {
+        } else if (conf.mode == 'C' && conf.group) {
                 /* FIXME: Not currently handled */
 
         }
@@ -738,8 +739,321 @@ static void metadata_print (const rd_kafka_metadata_t *metadata) {
                 }
         }
 }
+#if ENABLE_KAFKACONSUMER
+
+#include <inttypes.h>
+#include <math.h>
+#include <stdio.h>
+#include <time.h>
 
 
+int64_t get_current_time_in_s()
+{
+        int secs, msecs;
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        return (int64_t) tv.tv_sec;
+}
+
+struct totals_t {
+        int64_t time_s;
+        int64_t lowwm;
+        int64_t stored;
+        int64_t highwm;
+        int64_t lag;
+        int     empty;
+};
+
+static void metadata_print_consumergroup(const rd_kafka_metadata_t *metadata, rd_kafka_t *rk);
+static void get_consumergroup_offset_totals(const rd_kafka_metadata_t *metadata, rd_kafka_t *rk,struct totals_t *totals);
+static void periodically_print_consumergroup_offset_totals(const struct conf* conf, const rd_kafka_metadata_t* metadata);
+
+static void list_metadata_for_consumergroup() {
+        char errstr[512];
+        rd_kafka_resp_err_t err;
+
+        const rd_kafka_metadata_t *metadata;
+        /* Create consumer */
+        if (!(conf.rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf.rk_conf, errstr, sizeof(errstr))))
+                FATAL("Failed to create producer: %s", errstr);
+        conf.rk_conf = NULL;
+
+        /* Create topic, if specified */
+        if (conf.topic && !(conf.rkt = rd_kafka_topic_new(conf.rk, conf.topic, conf.rkt_conf)))
+                FATAL("Failed to create topic %s: %s", conf.topic,
+                                rd_kafka_err2str(rd_kafka_errno2err(errno)));
+
+        /* Fetch metadata */
+        err = rd_kafka_metadata(conf.rk, conf.rkt ? 0 : 1, conf.rkt, &metadata, 5000);
+        if (err != RD_KAFKA_RESP_ERR_NO_ERROR)
+                FATAL("Failed to acquire metadata: %s", rd_kafka_err2str(err));
+
+        if (conf.metadata_interval_seconds == 0) {
+                metadata_print_consumergroup(metadata, conf.rk);
+        } else {
+                periodically_print_consumergroup_offset_totals(&conf, metadata);
+        }
+
+        rd_kafka_metadata_destroy(metadata);
+
+        exit(0);
+//	rd_kafka_destroy(conf.rk);
+}
+
+static void periodically_print_consumergroup_offset_totals(const struct conf* conf,
+                const rd_kafka_metadata_t* metadata) {
+        const int MAXDATAPOINTS = 2; // good enough for 1st degree derivative
+        struct totals_t totalsring[MAXDATAPOINTS];
+        memset(totalsring, 0x0, sizeof(totalsring));
+        int totals_filled = 0;
+        int totals_begin = 0;
+        int totals_end = 0;
+        int totals_i = 0;
+
+        printf("   lowwm     v(s)   stored     v(s)   highwm     v(s)      lag     v(s) empty  v(s)\n");
+        int prev_totals_i = -1;
+        while (conf->run) {
+                // allocate 1 totals_t within ringbuffer
+                if (totals_end + 1 == MAXDATAPOINTS) {
+                        totals_filled = 1;
+                }
+                totals_end = (totals_end + 1) % MAXDATAPOINTS;
+                if (totals_filled) {
+                        totals_begin = (totals_begin + 1) % MAXDATAPOINTS;
+                }
+                get_consumergroup_offset_totals(metadata, conf->rk, &totalsring[totals_i]);
+                if (prev_totals_i >= 0) {
+                        struct totals_t delta;
+                        delta.time_s = (totalsring[totals_i].time_s - totalsring[prev_totals_i].time_s);
+                        if (delta.time_s < 0) {
+                                delta.time_s = totalsring[totals_i].time_s + (24 * 60 * 60)
+                                                - totalsring[prev_totals_i].time_s;
+                        }
+                        if (delta.time_s > 0) {
+                                delta.lag = (totalsring[totals_i].lag - totalsring[prev_totals_i].lag);
+                                delta.lowwm = (totalsring[totals_i].lowwm
+                                                - totalsring[prev_totals_i].lowwm);
+                                delta.highwm = (totalsring[totals_i].highwm
+                                                - totalsring[prev_totals_i].highwm);
+                                delta.stored = (totalsring[totals_i].stored
+                                                - totalsring[prev_totals_i].stored);
+                                delta.empty = (totalsring[totals_i].empty
+                                                - totalsring[prev_totals_i].empty);
+                                printf(
+                                                "%8"PRId64" %8.1f %8"PRId64" %8.1f %8"PRId64" %8.1f %8"PRId64" %8.1f %5i %5.1f\n",
+                                                totalsring[totals_i].lowwm,
+                                                (double) delta.lowwm / (double) delta.time_s,
+                                                totalsring[totals_i].stored,
+                                                (double) delta.stored / (double) delta.time_s,
+                                                totalsring[totals_i].highwm,
+                                                (double) delta.highwm / (double) delta.time_s,
+                                                totalsring[totals_i].lag,
+                                                (double) delta.lag / (double) delta.time_s,
+                                                totalsring[totals_i].empty,
+                                                (double) delta.empty / (double) delta.time_s);
+                        } else {
+                                printf(
+                                                "%8"PRId64"          %8"PRId64"          %8"PRId64"          %8"PRId64"          %5i      \n",
+                                                totalsring[totals_i].lowwm, totalsring[totals_i].stored,
+                                                totalsring[totals_i].highwm, totalsring[totals_i].lag,
+                                                totalsring[totals_i].empty);
+                        }
+                } else {
+                        printf(
+                                        "%8"PRId64"          %8"PRId64"          %8"PRId64"          %8"PRId64"          %5i      \n",
+                                        totalsring[totals_i].lowwm, totalsring[totals_i].stored,
+                                        totalsring[totals_i].highwm, totalsring[totals_i].lag,
+                                        totalsring[totals_i].empty);
+                }
+                sleep(conf->metadata_interval_seconds);
+                prev_totals_i = totals_i;
+                totals_i = (totals_i + 1) % MAXDATAPOINTS;
+        }
+}
+
+static void get_consumergroup_offset_totals(const rd_kafka_metadata_t *metadata, rd_kafka_t *rk,
+                struct totals_t *totals) {
+        int i, j;
+        int32_t topar_cnt = 0;
+        for (i = 0; i < metadata->topic_cnt; i++) {
+                topar_cnt += metadata->topics[i].partition_cnt;
+        }
+
+        rd_kafka_topic_partition_list_t *topars = rd_kafka_topic_partition_list_new(topar_cnt);
+        if (topar_cnt) {
+                int32_t runner = 0;
+                for (i = 0; i < metadata->topic_cnt; i++) {
+                        for (j = 0; j < metadata->topics[i].partition_cnt; j++) {
+                                const rd_kafka_metadata_partition_t *p;
+                                p = &metadata->topics[i].partitions[j];
+                                rd_kafka_topic_partition_list_add(topars, metadata->topics[i].topic,
+                                                p->id);
+                        }
+                        runner += metadata->topics[i].partition_cnt;
+                }
+                rd_kafka_committed(rk, topars, 5000);
+        }
+
+        int32_t runner = 0;
+
+        totals->time_s = 0;
+        totals->lowwm = 0;
+        totals->stored = 0;
+        totals->highwm = 0;
+        totals->lag = 0;
+        totals->empty = 0;
+
+        for (i = 0; i < metadata->topic_cnt && conf.run; i++) {
+                const rd_kafka_metadata_topic_t *t = &metadata->topics[i];
+                if (t->err) {
+                        printf(" %s", rd_kafka_err2str(t->err));
+                        if (t->err == RD_KAFKA_RESP_ERR_LEADER_NOT_AVAILABLE)
+                                printf(" (try again)");
+                }
+                /* Iterate topic's partitions */
+                for (j = 0; j < t->partition_cnt && conf.run; j++) {
+                        const rd_kafka_metadata_partition_t *p;
+                        p = &t->partitions[j];
+
+                        int64_t low = -1, high = -1;
+                        rd_kafka_resp_err_t err = rd_kafka_query_watermark_offsets(rk, t->topic, p->id,
+                                        &low, &high, 5000);
+                        if (err != RD_KAFKA_RESP_ERR_NO_ERROR)
+                                FATAL("Failed to acquire watermark: %s", rd_kafka_err2str(err));
+                        if (topars->elems[runner].err != RD_KAFKA_RESP_ERR_NO_ERROR)
+                                FATAL("Failed to acquire stored offset: %s",
+                                                rd_kafka_err2str(topars->elems[runner].err));
+                        if (high >= 0) {
+                                int64_t lag = 0;
+                                if (topars->elems[runner].offset < 0) {
+                                        lag = high;
+                                } else {
+                                        lag = high - topars->elems[runner].offset;
+                                }
+                                if (lag > 0)
+                                        totals->lag += lag;
+                                if (lag == 0)
+                                        totals->empty++;
+                        }
+
+                        if (low >= 0)
+                                totals->lowwm += low;
+                        if (high >= 0)
+                                totals->highwm += high;
+                        if (topars->elems[runner].offset >= 0)
+                                totals->stored += topars->elems[runner].offset;
+                        runner++;
+                }
+        }
+        rd_kafka_topic_partition_list_destroy(topars);
+
+        totals->time_s = get_current_time_in_s();
+}
+
+
+static void metadata_print_consumergroup(const rd_kafka_metadata_t *metadata, rd_kafka_t *rk) {
+        int i, j, jj;
+
+        printf("Metadata for %s (from broker %"PRId32": %s):\n", conf.topic ? : "all topics",
+                        metadata->orig_broker_id, metadata->orig_broker_name);
+
+        /* Iterate brokers */
+        printf(" %i brokers:\n", metadata->broker_cnt);
+        for (i = 0; i < metadata->broker_cnt; i++)
+                printf("  broker %"PRId32" at %s:%i\n", metadata->brokers[i].id,
+                                metadata->brokers[i].host, metadata->brokers[i].port);
+
+        int32_t topar_cnt = 0;
+        for (i = 0; i < metadata->topic_cnt; i++) {
+                topar_cnt += metadata->topics[i].partition_cnt;
+        }
+        int32_t* reordered = malloc(topar_cnt * sizeof(int32_t));
+        memset(reordered, 0x0, topar_cnt * sizeof(int32_t));
+        rd_kafka_topic_partition_list_t *topars = rd_kafka_topic_partition_list_new(topar_cnt);
+        if (topar_cnt) {
+                int32_t runner = 0;
+                for (i = 0; i < metadata->topic_cnt; i++) {
+                        for (j = 0; j < metadata->topics[i].partition_cnt; j++) {
+                                const rd_kafka_metadata_partition_t *p;
+                                p = &metadata->topics[i].partitions[j];
+                                reordered[runner + p->id] = j;
+                                rd_kafka_topic_partition_list_add(topars, metadata->topics[i].topic,
+                                                p->id);
+                        }
+                        runner += metadata->topics[i].partition_cnt;
+                }
+                rd_kafka_committed(rk, topars, 5000);
+        }
+
+        int32_t runner = 0;
+        struct totals_t totals;
+        totals.time_s = 0;
+        totals.lowwm = 0;
+        totals.stored = 0;
+        totals.highwm = 0;
+        totals.lag = 0;
+
+        /* Iterate topics */
+        printf(" %i topics:\n", metadata->topic_cnt);
+        printf("  topic               partition    lowwm   stored   highwm      lag leader #replicas  #isrs\n");
+        //printf("                      partition  #replicas lowwatermark highwatermark\n");
+        for (i = 0; i < metadata->topic_cnt && conf.run; i++) {
+                const rd_kafka_metadata_topic_t *t = &metadata->topics[i];
+                if (t->err) {
+                        printf(" %s", rd_kafka_err2str(t->err));
+                        if (t->err == RD_KAFKA_RESP_ERR_LEADER_NOT_AVAILABLE)
+                                printf(" (try again)");
+                }
+                /* Iterate topic's partitions */
+                for (jj = 0; jj < t->partition_cnt && conf.run; jj++) {
+                        j = reordered[runner + jj];
+                        const rd_kafka_metadata_partition_t *p;
+                        p = &t->partitions[j];
+
+                        int64_t low = -1, high = -1;
+                        rd_kafka_resp_err_t err = rd_kafka_query_watermark_offsets(rk, t->topic, p->id,
+                                        &low, &high, 5000);
+                        if (err != RD_KAFKA_RESP_ERR_NO_ERROR)
+                                FATAL("Failed to acquire watermark: %s", rd_kafka_err2str(err));
+                        if (topars->elems[runner + j].err != RD_KAFKA_RESP_ERR_NO_ERROR)
+                                FATAL("Failed to acquire stored offset: %s",
+                                                rd_kafka_err2str(topars->elems[runner + j].err));
+                        if (high >= 0 && topars->elems[runner + j].offset >= 0) {
+                                int64_t lag = high;
+                                if (topars->elems[runner + j].offset >  0)
+                                        lag -= topars->elems[runner + j].offset;
+                                if (lag < 0)
+                                        lag = 0;
+                                printf(
+                                                "  %-25s %3d %8ld %8ld %8ld %8ld %2d %2d %2d", //
+                                                t->topic, p->id, low, topars->elems[runner + j].offset,
+                                                high, lag, p->leader, p->replica_cnt, p->isr_cnt);
+                                totals.lag += lag;
+                        } else {
+                                printf(
+                                                "  %-25s %3d %8ld %8ld %8ld       -1 %2d %2d %2d", //
+                                                t->topic, p->id, low, topars->elems[runner + j].offset,
+                                                high, p->leader, p->replica_cnt, p->isr_cnt);
+                        }
+                        if (low >= 0)
+                                totals.lowwm += low;
+                        if (high >= 0)
+                                totals.highwm += high;
+                        if (topars->elems[runner + j].offset >= 0)
+                                totals.stored += topars->elems[runner + j].offset;
+                        if (p->err)
+                                printf(", %s\n", rd_kafka_err2str(p->err));
+                        else
+                                printf("\n");
+                }
+                runner += t->partition_cnt;
+        }
+        printf("                        totals: %8ld %8ld %8ld %8ld\n" , totals.lowwm, totals.stored, totals.highwm, totals.lag);
+        rd_kafka_topic_partition_list_destroy(topars);
+        free((void*) reordered);
+        totals.time_s = get_current_time_in_s();
+}
+#endif
 /**
  * Lists metadata
  */
@@ -830,8 +1144,11 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                 "General options:\n"
                 "  -C | -P | -L       Mode: Consume, Produce or metadata List\n"
 #if ENABLE_KAFKACONSUMER
-                "  -G <group-id>      Mode: High-level KafkaConsumer (Kafka 0.9 balanced consumer groups)\n"
-                "                     Expects a list of topics to subscribe to\n"
+                "  -g <group-id>      Use high-level KafkaConsumer (Kafka 0.9 balanced consumer groups)\n"
+                "                     When in consumermode: Expects a list of topics to subscribe to.\n"
+                "                     When in metadate listmode: Prints stored offsets for this group and watermarks.\n"
+                "  -i <interval(sec)> To be used with -L -g, periodically queries the server and prints\n"
+                "                     the offsets and their speed of change in seconds.\n"
 #endif
                 "  -t <topic>         Topic to consume from, produce to, "
                 "or list\n"
@@ -989,9 +1306,10 @@ static void argparse (int argc, char **argv) {
         const char *delim = "\n";
         const char *key_delim = NULL;
         char tmp_fmt[64];
-
+        conf.group = 0;
+        conf.metadata_interval_seconds = 0;
         while ((opt = getopt(argc, argv,
-                             "PCG:Lt:p:b:z:o:eD:K:Od:qvX:c:Tuf:ZlV"
+                             "PCg:Li:t:p:b:z:o:eD:K:Od:qvX:c:Tuf:ZlV"
 #if ENABLE_JSON
                              "J"
 #endif
@@ -1003,13 +1321,15 @@ static void argparse (int argc, char **argv) {
                         conf.mode = opt;
                         break;
 #if ENABLE_KAFKACONSUMER
-                case 'G':
-                        conf.mode = opt;
+                case 'g':
                         conf.group = optarg;
                         if (rd_kafka_conf_set(conf.rk_conf, "group.id", optarg,
                                               errstr, sizeof(errstr)) !=
                             RD_KAFKA_CONF_OK)
                                 FATAL("%s", errstr);
+                        break;
+                case 'i':
+                        conf.metadata_interval_seconds = atoi(optarg);
                         break;
 #endif
                 case 't':
@@ -1301,20 +1621,25 @@ int main (int argc, char **argv) {
         switch (conf.mode)
         {
         case 'C':
+#if ENABLE_KAFKACONSUMER
+                if (conf.group) {
+                        kafkaconsumer_run(stdout, &argv[optind], argc - optind);
+                        break;
+                }
+#endif
                 consumer_run(stdout);
                 break;
-
-#if ENABLE_KAFKACONSUMER
-        case 'G':
-                kafkaconsumer_run(stdout, &argv[optind], argc-optind);
-                break;
-#endif
-
         case 'P':
                 producer_run(in, &argv[optind], argc-optind);
                 break;
 
         case 'L':
+#if ENABLE_KAFKACONSUMER
+                if (conf.group) {
+                        list_metadata_for_consumergroup();
+                        break;
+                }
+#endif
                 metadata_list();
                 break;
 
