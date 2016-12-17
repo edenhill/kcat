@@ -6,6 +6,7 @@
       "builddeps": [
         "build-essential",
         "python",
+        "curl"
       ],
       "buildcmd": [
           "./bootstrap.sh"
@@ -18,6 +19,7 @@
       "builddeps": [
         "build-essential",
         "python",
+        "curl"
       ],
       "buildcmd": [
           "./bootstrap.sh"

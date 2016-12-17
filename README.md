@@ -60,7 +60,7 @@ providing a quick and easy means of building kafkacat.
 Internet connectivity and wget/curl is required by this script.
 The resulting kafkacat binary will be linked statically to avoid runtime
 dependencies.
-**NOTE**: Requires `cmake` to be installed (for yajl).
+**NOTE**: Requires `curl` and `cmake` (for yajl) to be installed.
 
     ./bootstrap.sh
 
