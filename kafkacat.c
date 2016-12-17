@@ -853,6 +853,7 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                 "  -q                 Be quiet (verbosity set to 0)\n"
                 "  -v                 Increase verbosity\n"
                 "  -V                 Print version\n"
+                "  -h                 Print usage help\n"
                 "\n"
                 "Producer options:\n"
                 "  -z snappy|gzip     Message compression. Default: none\n"
@@ -991,7 +992,7 @@ static void argparse (int argc, char **argv) {
         char tmp_fmt[64];
 
         while ((opt = getopt(argc, argv,
-                             "PCG:Lt:p:b:z:o:eD:K:Od:qvX:c:Tuf:ZlV"
+                             "PCG:Lt:p:b:z:o:eD:K:Od:qvX:c:Tuf:ZlVh"
 #if ENABLE_JSON
                              "J"
 #endif
@@ -1151,6 +1152,10 @@ static void argparse (int argc, char **argv) {
 
                 case 'V':
                         usage(argv[0], 0, NULL, 1);
+                        break;
+
+                case 'h':
+                        usage(argv[0], 0, NULL, 0);
                         break;
 
                 default:
