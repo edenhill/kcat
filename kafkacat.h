@@ -71,6 +71,8 @@ struct conf {
 #define CONF_F_TEE        0x8 /* Tee output when producing */
 #define CONF_F_NULL       0x10 /* Send empty messages as NULL */
 #define CONF_F_LINE	  0x20 /* Read files in line mode when producing */
+#define CONF_F_APIVERREQ  0x40 /* Enable api.version.request=true */
+#define CONF_F_APIVERREQ_USER 0x80 /* User set api.version.request */
         int     delim;
         int     key_delim;
 

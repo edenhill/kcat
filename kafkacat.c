@@ -1182,6 +1182,11 @@ static void argparse (int argc, char **argv) {
                                                               throttle_cb);
 #endif
 
+                        if (!strcmp(name, "api.version.request"))
+                                conf.flags |= CONF_F_APIVERREQ_USER;
+
+
+
                 }
                 break;
 
@@ -1251,6 +1256,15 @@ static void argparse (int argc, char **argv) {
                 conf.delim = parse_delim(delim);
 		if (conf.flags & CONF_F_KEY_DELIM)
 			conf.key_delim = parse_delim(key_delim);
+        }
+
+        /* Automatically enable API version requests if needed and
+         * user hasn't explicitly configured it (in any way). */
+        if ((conf.flags & (CONF_F_APIVERREQ | CONF_F_APIVERREQ_USER)) ==
+            CONF_F_APIVERREQ) {
+                INFO(2, "Automatically enabling api.version.request=true\n");
+                rd_kafka_conf_set(conf.rk_conf, "api.version.request", "true",
+                                  NULL, 0);
         }
 }
 

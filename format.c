@@ -136,6 +136,7 @@ void fmt_parse (const char *fmt) {
                                 break;
                         case 'T':
                                 fmt_add(KC_FMT_TIMESTAMP, NULL, 0);
+                                conf.flags |= CONF_F_APIVERREQ;
                                 break;
                         case '%':
                                 fmt_add(KC_FMT_STR, s, 1);
