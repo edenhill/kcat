@@ -834,6 +834,10 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
 							   int version_only) {
 
         FILE *out = stdout;
+        char features[256];
+        size_t flen;
+        rd_kafka_conf_t *tmpconf;
+
         if (reason) {
                 out = stderr;
                 fprintf(out, "Error: %s\n\n", reason);
@@ -843,11 +847,19 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 fprintf(out, "Usage: %s <options> [file1 file2 .. | topic1 topic2 ..]]\n",
                         argv0);
 
+        /* Create a temporary config object to extract builtin.features */
+        tmpconf = rd_kafka_conf_new();
+        flen = sizeof(features);
+        if (rd_kafka_conf_get(tmpconf, "builtin.features",
+                              features, &flen) != RD_KAFKA_CONF_OK)
+                strncpy(features, "n/a", sizeof(features));
+        rd_kafka_conf_destroy(tmpconf);
+
         fprintf(out,
                 "kafkacat - Apache Kafka producer and consumer tool\n"
                 "https://github.com/edenhill/kafkacat\n"
                 "Copyright (c) 2014-2015, Magnus Edenhill\n"
-                "Version %s%s (librdkafka %s)\n"
+                "Version %s%s (librdkafka %s builtin.features=%s)\n"
                 "\n",
                 KAFKACAT_VERSION,
 #if ENABLE_JSON
@@ -855,7 +867,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
 #else
                 "",
 #endif
-                rd_kafka_version_str()
+                rd_kafka_version_str(), features
                 );
 
         if (version_only)
