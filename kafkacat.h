@@ -137,8 +137,15 @@ void fmt_term (void);
  */
 void fmt_msg_output_json (FILE *fp, const rd_kafka_message_t *rkmessage);
 void metadata_print_json (const struct rd_kafka_metadata *metadata);
-
+void partition_list_print_json (const rd_kafka_topic_partition_list_t *parts,
+                                void *json_gen);
 void fmt_init_json (void);
 void fmt_term_json (void);
 
 #endif
+
+
+/*
+ * tools.c
+ */
+int query_offsets_by_time (rd_kafka_topic_partition_list_t *offsets);
