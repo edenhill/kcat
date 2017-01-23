@@ -1083,7 +1083,7 @@ static void argparse (int argc, char **argv,
         const char *delim = "\n";
         const char *key_delim = NULL;
         char tmp_fmt[64];
-
+        int conf_brokers_seen = 0;
 
         while ((opt = getopt(argc, argv,
                              "PCG:LQt:p:b:z:o:eD:K:Od:qvX:c:Tuf:ZlVh"
@@ -1123,6 +1123,7 @@ static void argparse (int argc, char **argv,
                         break;
                 case 'b':
                         conf.brokers = optarg;
+                        conf_brokers_seen++;
                         break;
                 case 'z':
                         if (rd_kafka_conf_set(conf.rk_conf,
@@ -1222,6 +1223,10 @@ static void argparse (int argc, char **argv,
                         *val = '\0';
                         val++;
 
+                        if (!strcmp(name, "metadata.broker.list") ||
+                            !strcmp(name, "bootstrap.servers"))
+                                conf_brokers_seen++;
+
                         res = RD_KAFKA_CONF_UNKNOWN;
                         /* Try "topic." prefixed properties on topic
                          * conf first, and then fall through to global if
@@ -1272,7 +1277,7 @@ static void argparse (int argc, char **argv,
         }
 
 
-        if (!conf.brokers)
+        if (!conf_brokers_seen)
                 usage(argv[0], 1, "-b <broker,..> missing", 0);
 
         /* Decide mode if not specified */
@@ -1291,7 +1296,8 @@ static void argparse (int argc, char **argv,
         else if (conf.mode == 'Q' && !*rktparlistp)
                 usage(argv[0], 1, "-t <topic>:<partition>:<offset_or_timestamp> missing", 0);
 
-        if (rd_kafka_conf_set(conf.rk_conf, "metadata.broker.list",
+        if (conf.brokers &&
+            rd_kafka_conf_set(conf.rk_conf, "metadata.broker.list",
                               conf.brokers, errstr, sizeof(errstr)) !=
             RD_KAFKA_CONF_OK)
                 usage(argv[0], 1, errstr, 0);
