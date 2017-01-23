@@ -1071,6 +1071,35 @@ static void add_topparoff (const char *what,
         rd_kafka_topic_partition_list_add(rktparlist, topic, partition)->offset = offset;
 }
 
+/**
+ * Dump current rdkafka configuration to stdout.
+ */
+static void conf_dump (void) {
+        const char **arr;
+        size_t cnt;
+        int pass;
+
+        for (pass = 0 ; pass < 2 ; pass++) {
+                int i;
+
+                if (pass == 0) {
+                        arr = rd_kafka_conf_dump(conf.rk_conf, &cnt);
+                        printf("# Global config\n");
+                } else {
+                        printf("# Topic config\n");
+                        arr = rd_kafka_topic_conf_dump(conf.rkt_conf, &cnt);
+                }
+
+                for (i = 0 ; i < (int)cnt ; i += 2)
+                        printf("%s = %s\n",
+                               arr[i], arr[i+1]);
+
+                printf("\n");
+
+                rd_kafka_conf_dump_free(arr, cnt);
+        }
+}
+
 
 /**
  * Parse command line arguments
@@ -1084,6 +1113,7 @@ static void argparse (int argc, char **argv,
         const char *key_delim = NULL;
         char tmp_fmt[64];
         int conf_brokers_seen = 0;
+        int do_conf_dump = 0;
 
         while ((opt = getopt(argc, argv,
                              "PCG:LQt:p:b:z:o:eD:K:Od:qvX:c:Tuf:ZlVh"
@@ -1207,7 +1237,7 @@ static void argparse (int argc, char **argv,
                         }
 
                         if (!strcmp(optarg, "dump")) {
-                                conf.conf_dump = 1;
+                                do_conf_dump = 1;
                                 continue;
                         }
 
@@ -1276,6 +1306,11 @@ static void argparse (int argc, char **argv,
                 }
         }
 
+        /* Dump configuration and exit, if so desired. */
+        if (do_conf_dump) {
+                conf_dump();
+                exit(0);
+        }
 
         if (!conf_brokers_seen)
                 usage(argv[0], 1, "-b <broker,..> missing", 0);
@@ -1344,34 +1379,6 @@ static void argparse (int argc, char **argv,
 }
 
 
-/**
- * Dump current rdkafka configuration to stdout.
- */
-static void conf_dump (void) {
-        const char **arr;
-        size_t cnt;
-        int pass;
-
-        for (pass = 0 ; pass < 2 ; pass++) {
-                int i;
-
-                if (pass == 0) {
-                        arr = rd_kafka_conf_dump(conf.rk_conf, &cnt);
-                        printf("# Global config\n");
-                } else {
-                        printf("# Topic config\n");
-                        arr = rd_kafka_topic_conf_dump(conf.rkt_conf, &cnt);
-                }
-
-                for (i = 0 ; i < (int)cnt ; i += 2)
-                        printf("%s = %s\n",
-                               arr[i], arr[i+1]);
-
-                printf("\n");
-
-                rd_kafka_conf_dump_free(arr, cnt);
-        }
-}
 
 
 int main (int argc, char **argv) {
@@ -1411,12 +1418,6 @@ int main (int argc, char **argv) {
 
         /* Parse command line arguments */
         argparse(argc, argv, &rktparlist);
-
-        /* Dump configuration and exit, if so desired. */
-        if (conf.conf_dump) {
-                conf_dump();
-                exit(0);
-        }
 
         if (optind < argc) {
                 if (!strchr("PG", conf.mode))

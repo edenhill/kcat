@@ -100,7 +100,6 @@ struct conf {
         rd_kafka_topic_t      *rkt;
 
         char   *debug;
-        int     conf_dump;
 };
 
 extern struct conf conf;
