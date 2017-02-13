@@ -399,21 +399,18 @@ static void handle_partition_eof (rd_kafka_message_t *rkmessage) {
                                       rkmessage->partition,
                                       rkmessage->offset == 0 ?
                                       0 : rkmessage->offset-1);
-                if (conf.exit_eof) {
-                        if (!part_eof[rkmessage->partition]) {
+        }
+
+        if (conf.exit_eof) {
+                if (set_partition_eof(rd_kafka_topic_name(rkmessage->
+                                                          rkt),
+                                              rkmessage->partition, 1)) {
+                        if (conf.mode == 'C') {
                                 /* Stop consuming this partition */
                                 rd_kafka_consume_stop(rkmessage->rkt,
                                                       rkmessage->partition);
-                                part_eof[rkmessage->partition] = 1;
-                                part_eof_cnt++;
-                                if (part_eof_cnt >= part_eof_thres)
-                                        conf.run = 0;
                         }
                 }
-
-        } else if (conf.mode == 'G') {
-                /* FIXME: Not currently handled */
-
         }
 
         INFO(1, "Reached end of topic %s [%"PRId32"] "
@@ -422,6 +419,97 @@ static void handle_partition_eof (rd_kafka_message_t *rkmessage) {
              rkmessage->partition,
              rkmessage->offset,
              !conf.run ? ": exiting" : "");
+}
+
+/**
+ * @brief Setup exit-on-eof from partition list
+ */
+static void
+setup_exit_eof (const rd_kafka_topic_partition_list_t *orig_parts) {
+        int i;
+        rd_kafka_topic_partition_list_t *parts =
+                rd_kafka_topic_partition_list_copy(orig_parts);
+
+        for (i = 0 ; i < parts->cnt ; i++)
+                parts->elems[i].offset = RD_KAFKA_OFFSET_INVALID;
+}
+
+
+/**
+ * @brief Setup exit-on-eof based on metadata for one topic.
+ */
+static void
+setup_exit_eof_from_metadata (const rd_kafka_metadata_topic_t *mdt) {
+        int i;
+        rd_kafka_topic_partition_list_t *parts;
+
+        parts = rd_kafka_topic_partition_list_new(mdt->partition_cnt);
+
+        for (i = 0 ; i < mdt->partition_cnt ; i++) {
+                if (conf.partition != RD_KAFKA_PARTITION_UA &&
+                    conf.partition != i)
+                        continue;
+
+                rd_kafka_topic_partition_list_add(parts, mdt->topic, i)->
+                        offset = RD_KAFKA_OFFSET_INVALID;
+        }
+
+        eof_partitions = parts;
+}
+
+/**
+ * @returns the number of partitions at EOF
+ */
+static int count_eof (const rd_kafka_topic_partition_list_t *parts) {
+        int i;
+        int cnt;
+
+        for (i = 0 ; i < parts->cnt ; i++)
+                cnt += parts->elems[i].offset == RD_KAFKA_OFFSET_END;
+
+        return cnt;
+}
+
+
+/**
+ * @brief All partitions now at eof
+ */
+static void at_eof (void) {
+        conf.run = 0;
+}
+
+/**
+ * @brief Mark partition as EOF, or not EOF.
+ *
+ * @returns 1 if state EOF state was changed, else 0.
+ */
+static __inline void set_partition_eof (const char *topic, int32_t partition,
+                                        int yes) {
+        int i;
+        int64_t set_offset = yes ? RD_KAFKA_OFFSET_END
+                : RD_KAFKA_OFFSET_INVALID;
+
+        /* Find partition */
+        for (i = 0 ; i < eof_partitions->cnt ; i++) {
+                rd_kafka_topic_partition_t *rktpar = &eof_partitions->elems[i];
+
+                if (!strcmp(topic, rktpar->topic) &&
+                    rktpar->partition == partition) {
+                        if (rktpar->offset == set_offset)
+                                return 0;
+
+                        rktpar->offset = set_offset;
+                        if (!yes)
+                                eof_cnt--;
+
+                        else if (++eof_cnt == eof_partitions->cnt)
+                                at_eof();
+
+                        return 1;
+                }
+        }
+
+        return 0;
 }
 
 
@@ -635,15 +723,8 @@ static void consumer_run (FILE *fp) {
 
         /* If Exit-at-EOF is enabled, set up array to track EOF
          * state for each partition. */
-        if (conf.exit_eof) {
-                part_eof = calloc(sizeof(*part_eof),
-                                  metadata->topics[0].partition_cnt);
-
-                if (conf.partition != RD_KAFKA_PARTITION_UA)
-                        part_eof_thres = 1;
-                else
-                        part_eof_thres = metadata->topics[0].partition_cnt;
-        }
+        if (conf.exit_eof)
+                setup_exit_eof_from_metadata(&metadata->topics[0]);
 
         /* Create a shared queue that combines messages from
          * all wanted partitions. */
