@@ -602,6 +602,37 @@ static void rebalance_cb (rd_kafka_t *rk, rd_kafka_resp_err_t err,
 }
 
 /**
+ * @brief Offset commit callback that prints the result of auto offset commits
+ */
+static void offset_commit_cb (rd_kafka_t *rk, rd_kafka_resp_err_t err,
+                              rd_kafka_topic_partition_list_t *offsets,
+                              void *opaque) {
+        int i;
+
+        if (err == RD_KAFKA_RESP_ERR__NO_OFFSET)
+                return;
+
+        if (err)
+                INFO(2, "Offset commit failed: %s: ", rd_kafka_err2str(err));
+        else
+                INFO(2, "Offsets committed: ");
+
+        if (offsets) {
+                for (i = 0 ; i < offsets->cnt ; i++) {
+                        INFO(2, "%s%s[%"PRId32"]@%"PRIu64,
+                             i == 0 ? "" : ", "
+                             offsets->elems[i].topic,
+                             offsets->elems[i].partition,
+                             offsets->elems[i].offset);
+                        if (offsets->elems[i].err)
+                                INFO(2, ": %s",
+                                     rd_kafka_err2str(err));
+                }
+        }
+        INFO(2, "\n");
+}
+
+/**
  * Run high-level KafkaConsumer, write messages to 'fp'
  */
 static void kafkaconsumer_run (FILE *fp, char *const *topics, int topic_cnt) {
@@ -613,6 +644,10 @@ static void kafkaconsumer_run (FILE *fp, char *const *topics, int topic_cnt) {
         rd_kafka_conf_set_rebalance_cb(conf.rk_conf, rebalance_cb);
         rd_kafka_conf_set_default_topic_conf(conf.rk_conf, conf.rkt_conf);
         conf.rkt_conf = NULL;
+
+        if (conf.verbosity >= 2)
+                rd_kafka_conf_set_offset_commit_cb(conf.rk_conf,
+                                                   offset_commit_cb);
 
         /* Create consumer */
         if (!(conf.rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf.rk_conf,
@@ -677,6 +712,10 @@ static void consumer_run (FILE *fp) {
         int i;
         rd_kafka_queue_t *rkqu;
 
+        if (conf.verbosity >= 2)
+                rd_kafka_conf_set_offset_commit_cb(conf.rk_conf,
+                                                   offset_commit_cb);
+
         /* Create consumer */
         if (!(conf.rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf.rk_conf,
                                      errstr, sizeof(errstr))))
@@ -692,6 +731,7 @@ static void consumer_run (FILE *fp) {
                                     "auto.commit.enable", "false",
                                     errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK)
                 FATAL("%s", errstr);
+
 
         /* Create topic */
         if (!(conf.rkt = rd_kafka_topic_new(conf.rk, conf.topic,
