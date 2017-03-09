@@ -1035,12 +1035,13 @@ static void term (int sig) {
 static void error_cb (rd_kafka_t *rk, int err,
                       const char *reason, void *opaque) {
 
-        if (err == RD_KAFKA_RESP_ERR__ALL_BROKERS_DOWN)
-                FATAL("%s: %s: terminating", rd_kafka_err2str(err),
+        if (err == RD_KAFKA_RESP_ERR__ALL_BROKERS_DOWN) {
+                ERROR("%s: %s", rd_kafka_err2str(err),
                       reason ? reason : "");
-
-        INFO(1, "ERROR: %s: %s\n", rd_kafka_err2str(err),
-             reason ? reason : "");
+        } else {
+                INFO(1, "ERROR: %s: %s\n", rd_kafka_err2str(err),
+                      reason ? reason : "");
+        }
 }
 
 
