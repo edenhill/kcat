@@ -53,6 +53,7 @@
 struct conf conf = {
         .run = 1,
         .verbosity = 1,
+        .exitonerror = 1,
         .partition = RD_KAFKA_PARTITION_UA,
         .msg_size = 1024*1024,
         .null_str = "NULL",
@@ -92,6 +93,26 @@ void RD_NORETURN fatal0 (const char *func, int line,
         INFO(2, "Fatal error at %s:%i:\n", func, line);
         fprintf(stderr, "%% ERROR: %s\n", buf);
         exit(1);
+}
+
+/**
+ * Print error and exit if needed
+ */
+void error0 (int exitonerror, const char *func, int line, const char *fmt, ...) {
+        va_list ap;
+        char buf[1024];
+
+        va_start(ap, fmt);
+        vsnprintf(buf, sizeof(buf), fmt, ap);
+        va_end(ap);
+
+        if (exitonerror)
+                INFO(2, "Error at %s:%i:\n", func, line);
+
+        fprintf(stderr, "%% ERROR: %s%s\n", buf, exitonerror ? " : terminating":"");
+
+        if (exitonerror)
+                exit(1);
 }
 
 
@@ -887,6 +908,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "  -D <delim>         Message delimiter character:\n"
                 "                     a-z.. | \\r | \\n | \\t | \\xNN\n"
                 "                     Default: \\n\n"
+                "  -E                 Do not exit on non fatal error\n"
                 "  -K <delim>         Key delimiter (same format as -D)\n"
                 "  -c <cnt>           Limit message count\n"
                 "  -X list            List available librdkafka configuration "
@@ -1013,12 +1035,13 @@ static void term (int sig) {
 static void error_cb (rd_kafka_t *rk, int err,
                       const char *reason, void *opaque) {
 
-        if (err == RD_KAFKA_RESP_ERR__ALL_BROKERS_DOWN)
-                FATAL("%s: %s: terminating", rd_kafka_err2str(err),
+        if (err == RD_KAFKA_RESP_ERR__ALL_BROKERS_DOWN) {
+                ERROR("%s: %s", rd_kafka_err2str(err),
                       reason ? reason : "");
-
-        INFO(1, "ERROR: %s: %s\n", rd_kafka_err2str(err),
-             reason ? reason : "");
+        } else {
+                INFO(1, "ERROR: %s: %s\n", rd_kafka_err2str(err),
+                      reason ? reason : "");
+        }
 }
 
 
@@ -1116,7 +1139,7 @@ static void argparse (int argc, char **argv,
         int do_conf_dump = 0;
 
         while ((opt = getopt(argc, argv,
-                             "PCG:LQt:p:b:z:o:eD:K:Od:qvX:c:Tuf:ZlVh"
+                             "PCG:LQt:p:b:z:o:eED:K:Od:qvX:c:Tuf:ZlVh"
 #if ENABLE_JSON
                              "J"
 #endif
@@ -1177,6 +1200,9 @@ static void argparse (int argc, char **argv,
                         break;
                 case 'e':
                         conf.exit_eof = 1;
+                        break;
+                case 'E':
+                        conf.exitonerror = 0;
                         break;
                 case 'f':
                         fmt = optarg;

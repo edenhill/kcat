@@ -63,6 +63,7 @@ struct conf {
         int     run;
         int     verbosity;
         int     exitcode;
+        int     exitonerror;
         char    mode;
         int     flags;
 #define CONF_F_FMT_JSON   0x1 /* JSON formatting */
@@ -108,7 +109,12 @@ extern struct conf conf;
 void RD_NORETURN fatal0 (const char *func, int line,
                                        const char *fmt, ...);
 
+void error0 (int erroronexit, const char *func, int line,
+                                       const char *fmt, ...);
+
 #define FATAL(.../*fmt*/)  fatal0(__FUNCTION__, __LINE__, __VA_ARGS__)
+
+#define ERROR(.../*fmt*/)  error0(conf.exitonerror, __FUNCTION__, __LINE__, __VA_ARGS__)
 
 /* Info printout */
 #define INFO(VERBLVL,.../*fmt*/) do {                    \
