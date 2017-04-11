@@ -57,6 +57,7 @@ struct conf conf = {
         .partition = RD_KAFKA_PARTITION_UA,
         .msg_size = 1024*1024,
         .null_str = "NULL",
+        .index_file = NULL,
 };
 
 static struct stats {
@@ -76,7 +77,71 @@ int part_eof_cnt = 0;
 /* Threshold level (partitions at EOF) before exiting */
 int part_eof_thres = 0;
 
+/* Handle last offset written for each partition of topic */
+int64_t *g_partions_offset = NULL;
 
+
+static void read_index_file( char const *index_file, uint32_t part_cnt )
+{
+    FILE *stream = fopen(index_file, "r");
+    if (NULL == stream)
+        FATAL("[read_index_file] cannot open index file %s: %s", index_file, strerror(errno));
+
+    size_t const po_bytes = sizeof(*g_partions_offset) * part_cnt;
+
+    g_partions_offset = malloc(po_bytes);
+
+    memset(g_partions_offset, -1, po_bytes);
+
+    char line[1024];
+    char *sep = NULL, *e;
+    uint32_t part = 0;
+    int64_t offset = 0;
+    uint32_t i;
+    while (fgets(line, 1024, stream))
+    {
+        sep = strchr(line, ':');
+        if (NULL == sep)
+            FATAL("Cannot find partition:offset separator");
+        *sep = '\0';
+        // parse
+        part = strtoul(line, &e, 0);
+        if (e == line)
+            FATAL("Failed to parse partion ID: %s", line);
+        if (part >= part_cnt)
+            FATAL("Wrong partion ID: %u part_cnt: %u", part, part_cnt);
+        offset = strtoll(sep + 1, &e, 0);
+        if (e == sep + 1)
+            FATAL("Failed to parse offset: %s for part id: %u", sep + 1, part);
+        g_partions_offset[part] = offset;
+    }
+
+    fclose(stream);
+
+    // check for all sets
+    for( i = 0; i < part_cnt; ++i ) {
+        if (g_partions_offset[i] < 0)
+            FATAL("Offset for partition ID: %u is not set!", i);
+    }
+
+    // exit only if all partitions handled eof
+    part_eof_thres = part_cnt;
+}
+
+static void write_index_file( char const *index_file, uint32_t part_cnt )
+{
+    FILE *stream = fopen(index_file, "w+");
+    if (NULL == stream)
+        FATAL("[write_index_file] cannot open index file %s: %s", index_file, strerror(errno));
+
+    uint32_t i;
+    for( i = 0; i < part_cnt; ++i ) {
+        INFO(3, "Written to offset index file: %u:%ld\n", i, g_partions_offset[i]);
+        fprintf(stream, "%u:%ld\n", i, g_partions_offset[i]);
+    }
+
+    fclose(stream);
+}
 
 /**
  * Fatal error: print error and exit
@@ -420,6 +485,11 @@ static void handle_partition_eof (rd_kafka_message_t *rkmessage) {
                                       rkmessage->partition,
                                       rkmessage->offset == 0 ?
                                       0 : rkmessage->offset-1);
+
+                if (NULL != g_partions_offset) {
+                    /* store partition last offset */
+                    g_partions_offset[rkmessage->partition] = rkmessage->offset;
+                }
                 if (conf.exit_eof) {
                         if (!part_eof[rkmessage->partition]) {
                                 /* Stop consuming this partition */
@@ -666,6 +736,9 @@ static void consumer_run (FILE *fp) {
                         part_eof_thres = metadata->topics[0].partition_cnt;
         }
 
+        if (NULL != conf.index_file)
+            read_index_file(conf.index_file, metadata->topics[0].partition_cnt);
+
         /* Create a shared queue that combines messages from
          * all wanted partitions. */
         rkqu = rd_kafka_queue_new(conf.rk);
@@ -679,9 +752,10 @@ static void consumer_run (FILE *fp) {
                     conf.partition != partition)
                         continue;
 
+                int64_t offset = NULL == g_partions_offset ? conf.offset : g_partions_offset[partition];
+
                 /* Start consumer for this partition */
-                if (rd_kafka_consume_start_queue(conf.rkt, partition,
-                                                 conf.offset, rkqu) == -1)
+                if (rd_kafka_consume_start_queue(conf.rkt, partition, offset, rkqu) == -1)
                         FATAL("Failed to start consuming "
                               "topic %s [%"PRId32"]: %s",
                               conf.topic, partition,
@@ -732,6 +806,13 @@ static void consumer_run (FILE *fp) {
         conf.run = 1;
         while (conf.run && rd_kafka_outq_len(conf.rk) > 0)
                 rd_kafka_poll(conf.rk, 50);
+
+        /* flush offsets if enabled */
+        if (NULL != g_partions_offset) {
+            write_index_file(conf.index_file, metadata->topics[0].partition_cnt);
+            free(g_partions_offset);
+            g_partions_offset = NULL;
+        }
 
         rd_kafka_metadata_destroy(metadata);
         rd_kafka_topic_destroy(conf.rkt);
@@ -950,6 +1031,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "received\n"
                 "  -f <fmt..>         Output formatting string, see below.\n"
                 "                     Takes precedence over -D and -K.\n"
+                "  -I <file>          Use file with offsets for each partition.\n"
 #if ENABLE_JSON
                 "  -J                 Output with JSON envelope\n"
 #endif
@@ -1139,12 +1221,15 @@ static void argparse (int argc, char **argv,
         int do_conf_dump = 0;
 
         while ((opt = getopt(argc, argv,
-                             "PCG:LQt:p:b:z:o:eED:K:Od:qvX:c:Tuf:ZlVh"
+                             "PCG:LQt:p:b:z:o:eED:K:Od:qvX:c:Tuf:ZlVhI:"
 #if ENABLE_JSON
                              "J"
 #endif
                         )) != -1) {
                 switch (opt) {
+                case 'I':
+                        conf.index_file = optarg;
+                        break;
                 case 'P':
                 case 'C':
                 case 'L':

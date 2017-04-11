@@ -145,3 +145,9 @@ Pretty-printed JSON metadata listing
 Query offset(s) by timestamp(s)
 
     $ kafkacat -b mybroker -Q -t mytopic:3:2389238523  mytopic2:0:18921841
+
+Use special partition index file in consumer mode
+
+    $ kafkacat -C -b mybroker -t syslog -I offsets.file ...
+
+Index file format is partition_id:offset for each partition
