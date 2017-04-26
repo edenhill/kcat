@@ -146,8 +146,15 @@ function checks {
         # LDFLAGS_STATIC is the LDFLAGS needed to enable static linking
         # of sub-sequent libraries, while
         # LDFLAGS_DYNAMIC is the LDFLAGS needed to enable dynamic linking.
-        mkl_mkvar_set staticlinking LDFLAGS_STATIC  "-Wl,-Bstatic"
-        mkl_mkvar_set staticlinking LDFLAGS_DYNAMIC "-Wl,-Bdynamic"
+        if [[ $MKL_DISTRO != "osx" ]]; then
+            mkl_mkvar_set staticlinking LDFLAGS_STATIC  "-Wl,-Bstatic"
+            mkl_mkvar_set staticlinking LDFLAGS_DYNAMIC "-Wl,-Bdynamic"
+            mkl_mkvar_set staticlinking HAS_LDFLAGS_STATIC y
+        else
+            # OSX linker can't enable/disable static linking so we'll
+            # need to find the .a through STATIC_LIB_libname env var
+            mkl_mkvar_set staticlinking HAS_LDFLAGS_STATIC n
+        fi
     fi
 }
 

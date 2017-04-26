@@ -27,11 +27,13 @@ endif
 
 _UNAME_S := $(shell uname -s)
 ifeq ($(_UNAME_S),Darwin)
-	LIBFILENAME=$(LIBNAME).$(LIBVER).dylib
-	LIBFILENAMELINK=$(LIBNAME).dylib
+        SOLIB_EXT?=.dylib
+	LIBFILENAME=$(LIBNAME).$(LIBVER)$(SOLIB_EXT)
+	LIBFILENAMELINK=$(LIBNAME)$(SOLIB_EXT)
 else
-	LIBFILENAME=$(LIBNAME).so.$(LIBVER)
-	LIBFILENAMELINK=$(LIBNAME).so
+        SOLIB_EXT?=.so
+	LIBFILENAME=$(LIBNAME)$(SOLIB_EXT).$(LIBVER)
+	LIBFILENAMELINK=$(LIBNAME)$(SOLIB_EXT)
 endif
 
 INSTALL?=		install
@@ -82,6 +84,8 @@ mklove-check:
 
 lib: $(LIBFILENAME) $(LIBNAME).a $(LIBFILENAMELINK) lib-gen-pkg-config
 
+$(LIBNAME).lds: #overridable
+
 $(LIBFILENAME): $(OBJS) $(LIBNAME).lds
 	@printf "$(MKL_YELLOW)Creating shared library $@$(MKL_CLR_RESET)\n"
 	$(CC) $(LDFLAGS) $(LIB_LDFLAGS) $(OBJS) -o $@ $(LIBS)
@@ -112,7 +116,7 @@ endef
 
 export _PKG_CONFIG_DEF
 
-$(LIBNAME0).pc: ../Makefile.config
+$(LIBNAME0).pc: $(TOPDIR)/Makefile.config
 	@printf "$(MKL_YELLOW)Generating pkg-config file $@$(MKL_CLR_RESET)\n"
 	@echo "$$_PKG_CONFIG_DEF" > $@
 

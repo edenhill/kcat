@@ -120,8 +120,8 @@ while [[ ! -z $@ ]]; do
 
     case $name in
         re|reconfigure)
-            oldcmd=$(grep '^# configure exec: ' config.log | \
-                sed -e 's/^\# configure exec: [^ ]*configure\( \|$\)//')
+            oldcmd=$(head -1 config.log | grep '^# configure exec: ' | \
+                sed -e 's/^\# configure exec: [^ ]*configure//')
             echo "Reconfiguring: $0 $oldcmd"
             exec $0 $oldcmd
             ;;
