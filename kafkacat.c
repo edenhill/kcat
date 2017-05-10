@@ -461,10 +461,15 @@ static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
                         return;
                 }
 
-                FATAL("Topic %s [%"PRId32"] error: %s",
-                      rd_kafka_topic_name(rkmessage->rkt),
-                      rkmessage->partition,
-                      rd_kafka_message_errstr(rkmessage));
+                if (rkmessage->rkt)
+                        FATAL("Topic %s [%"PRId32"] error: %s",
+                              rd_kafka_topic_name(rkmessage->rkt),
+                              rkmessage->partition,
+                              rd_kafka_message_errstr(rkmessage));
+                else
+                        FATAL("Consumer error: %s",
+                              rd_kafka_message_errstr(rkmessage));
+
         }
 
         /* Print message */
