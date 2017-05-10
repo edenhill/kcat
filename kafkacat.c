@@ -476,8 +476,10 @@ static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
                                       rkmessage->offset);
         }
 
-        if (++stats.rx == (uint64_t)conf.msg_cnt)
+        if (++stats.rx == (uint64_t)conf.msg_cnt) {
                 conf.run = 0;
+                rd_kafka_yield(conf.rk);
+        }
 }
 
 
