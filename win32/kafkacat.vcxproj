@@ -118,6 +118,7 @@
     <ClInclude Include="wingetopt.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\tools.c" />
     <ClCompile Include="..\format.c" />
     <ClCompile Include="..\kafkacat.c" />
     <ClCompile Include="getdelim.c" />
