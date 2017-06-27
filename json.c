@@ -69,7 +69,7 @@ void fmt_msg_output_json (FILE *fp, const rd_kafka_message_t *rkmessage) {
         if (fwrite(buf, len, 1, fp) != 1 ||
             (conf.fmt[0].str_len > 0 &&
              fwrite(conf.fmt[0].str, conf.fmt[0].str_len, 1, fp) != 1))
-                FATAL("Output write error: %s", strerror(errno));
+                KC_FATAL("Output write error: %s", strerror(errno));
 
         yajl_gen_free(g);
 }
@@ -199,7 +199,7 @@ void metadata_print_json (const struct rd_kafka_metadata *metadata) {
         yajl_gen_get_buf(g, &buf, &len);
 
         if (fwrite(buf, len, 1, stdout) != 1)
-                FATAL("Output write error: %s", strerror(errno));
+                KC_FATAL("Output write error: %s", strerror(errno));
 
         yajl_gen_free(g);
 }
