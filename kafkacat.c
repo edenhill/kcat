@@ -165,7 +165,7 @@ static void produce (void *buf, size_t len,
                         break;
                 }
 
-                err = rd_kafka_errno2err(errno);
+                err = rd_kafka_last_error();
 
                 if (err != RD_KAFKA_RESP_ERR__QUEUE_FULL)
                         KC_FATAL("Failed to produce message (%zd bytes): %s",
@@ -284,7 +284,7 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
         if (!(conf.rkt = rd_kafka_topic_new(conf.rk, conf.topic,
                                             conf.rkt_conf)))
                 KC_FATAL("Failed to create topic %s: %s", conf.topic,
-                      rd_kafka_err2str(rd_kafka_errno2err(errno)));
+                         rd_kafka_err2str(rd_kafka_last_error()));
 
         conf.rk_conf  = NULL;
         conf.rkt_conf = NULL;
@@ -637,7 +637,7 @@ static void consumer_run (FILE *fp) {
         if (!(conf.rkt = rd_kafka_topic_new(conf.rk, conf.topic,
                                             conf.rkt_conf)))
                 KC_FATAL("Failed to create topic %s: %s", conf.topic,
-                      rd_kafka_err2str(rd_kafka_errno2err(errno)));
+                         rd_kafka_err2str(rd_kafka_last_error()));
 
         conf.rk_conf  = NULL;
         conf.rkt_conf = NULL;
@@ -690,9 +690,9 @@ static void consumer_run (FILE *fp) {
                 if (rd_kafka_consume_start_queue(conf.rkt, partition,
                                                  conf.offset, rkqu) == -1)
                         KC_FATAL("Failed to start consuming "
-                              "topic %s [%"PRId32"]: %s",
-                              conf.topic, partition,
-                              rd_kafka_err2str(rd_kafka_errno2err(errno)));
+                                 "topic %s [%"PRId32"]: %s",
+                                 conf.topic, partition,
+                                 rd_kafka_err2str(rd_kafka_last_error()));
 
                 if (conf.partition != RD_KAFKA_PARTITION_UA)
                         break;
@@ -826,7 +826,7 @@ static void metadata_list (void) {
             !(conf.rkt = rd_kafka_topic_new(conf.rk, conf.topic,
                                             conf.rkt_conf)))
                 KC_FATAL("Failed to create topic %s: %s", conf.topic,
-                      rd_kafka_err2str(rd_kafka_errno2err(errno)));
+                         rd_kafka_err2str(rd_kafka_last_error()));
 
         conf.rk_conf  = NULL;
         conf.rkt_conf = NULL;
