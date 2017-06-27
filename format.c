@@ -34,7 +34,7 @@
 
 static void fmt_add (fmt_type_t type, const char *str, int len) {
         if (conf.fmt_cnt == KC_FMT_MAX_SIZE)
-                FATAL("Too many formatters & strings (KC_FMT_MAX_SIZE=%i)",
+                KC_FATAL("Too many formatters & strings (KC_FMT_MAX_SIZE=%i)",
                       KC_FMT_MAX_SIZE);
 
         conf.fmt[conf.fmt_cnt].type = type;
@@ -142,10 +142,10 @@ void fmt_parse (const char *fmt) {
                                 fmt_add(KC_FMT_STR, s, 1);
                                 break;
                         case '\0':
-                                FATAL("Empty formatter");
+                                KC_FATAL("Empty formatter");
                                 break;
                         default:
-                                FATAL("Unsupported formatter: %%%c", *s);
+                                KC_FATAL("Unsupported formatter: %%%c", *s);
                                 break;
                         }
                         s++;
@@ -260,7 +260,7 @@ static void fmt_msg_output_str (FILE *fp,
 
 
                 if (r < 1)
-                        FATAL("Write error for message "
+                        KC_FATAL("Write error for message "
                               "of %zd bytes at offset %"PRId64"): %s",
                               rkmessage->len, rkmessage->offset,
                               strerror(errno));

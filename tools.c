@@ -59,18 +59,18 @@ int query_offsets_by_time (rd_kafka_topic_partition_list_t *offsets) {
 
         if (rd_kafka_conf_set(conf.rk_conf, "api.version.request", "true",
                               errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK)
-                FATAL("Failed to enable api.version.request: %s", errstr);
+                KC_FATAL("Failed to enable api.version.request: %s", errstr);
 
         if (!(conf.rk = rd_kafka_new(RD_KAFKA_PRODUCER, conf.rk_conf,
                                      errstr, sizeof(errstr))))
-                FATAL("Failed to create producer: %s", errstr);
+                KC_FATAL("Failed to create producer: %s", errstr);
 
         err = rd_kafka_offsets_for_times(conf.rk, offsets, 10*1000);
 #else
         err = RD_KAFKA_RESP_ERR__NOT_IMPLEMENTED;
 #endif
         if (err)
-                FATAL("offsets_for_times failed: %s", rd_kafka_err2str(err));
+                KC_FATAL("offsets_for_times failed: %s", rd_kafka_err2str(err));
 
         partition_list_print(offsets, NULL);
 

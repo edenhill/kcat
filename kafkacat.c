@@ -90,8 +90,8 @@ void RD_NORETURN fatal0 (const char *func, int line,
         vsnprintf(buf, sizeof(buf), fmt, ap);
         va_end(ap);
 
-        INFO(2, "Fatal error at %s:%i:\n", func, line);
-        fprintf(stderr, "%% ERROR: %s\n", buf);
+        KC_INFO(2, "Fatal error at %s:%i:\n", func, line);
+        fprintf(stderr, "%% KC_ERROR: %s\n", buf);
         exit(1);
 }
 
@@ -107,9 +107,9 @@ void error0 (int exitonerror, const char *func, int line, const char *fmt, ...) 
         va_end(ap);
 
         if (exitonerror)
-                INFO(2, "Error at %s:%i:\n", func, line);
+                KC_INFO(2, "Error at %s:%i:\n", func, line);
 
-        fprintf(stderr, "%% ERROR: %s%s\n", buf, exitonerror ? " : terminating":"");
+        fprintf(stderr, "%% KC_ERROR: %s%s\n", buf, exitonerror ? " : terminating":"");
 
         if (exitonerror)
                 exit(1);
@@ -126,17 +126,17 @@ static void dr_msg_cb (rd_kafka_t *rk, const rd_kafka_message_t *rkmessage,
         static int say_once = 1;
 
         if (rkmessage->err) {
-                INFO(1, "Delivery failed for message: %s\n",
+                KC_INFO(1, "Delivery failed for message: %s\n",
                      rd_kafka_err2str(rkmessage->err));
                 stats.tx_err_dr++;
                 return;
         }
 
-        INFO(3, "Message delivered to partition %"PRId32" (offset %"PRId64")\n",
+        KC_INFO(3, "Message delivered to partition %"PRId32" (offset %"PRId64")\n",
              rkmessage->partition, rkmessage->offset);
 
         if (rkmessage->offset == 0 && say_once) {
-                INFO(3, "Enable message offset reporting "
+                KC_INFO(3, "Enable message offset reporting "
                      "with '-X topic.produce.offset.report=true'\n");
                 say_once = 0;
         }
@@ -156,7 +156,7 @@ static void produce (void *buf, size_t len,
                 rd_kafka_resp_err_t err;
 
                 if (!conf.run)
-                        FATAL("Program terminated while "
+                        KC_FATAL("Program terminated while "
                               "producing message of %zd bytes", len);
 
                 if (rd_kafka_produce(conf.rkt, conf.partition, msgflags,
@@ -168,7 +168,7 @@ static void produce (void *buf, size_t len,
                 err = rd_kafka_errno2err(errno);
 
                 if (err != RD_KAFKA_RESP_ERR__QUEUE_FULL)
-                        FATAL("Failed to produce message (%zd bytes): %s",
+                        KC_FATAL("Failed to produce message (%zd bytes): %s",
                               len, rd_kafka_err2str(err));
 
                 stats.tx_err_q++;
@@ -196,18 +196,18 @@ static ssize_t produce_file (const char *path) {
 		int msgflags = 0;
 
         if ((fd = _COMPAT(open)(path, O_RDONLY)) == -1) {
-                INFO(1, "Failed to open %s: %s\n", path, strerror(errno));
+                KC_INFO(1, "Failed to open %s: %s\n", path, strerror(errno));
                 return -1;
         }
 
         if (fstat(fd, &st) == -1) {
-                INFO(1, "Failed to stat %s: %s\n", path, strerror(errno));
+                KC_INFO(1, "Failed to stat %s: %s\n", path, strerror(errno));
                 _COMPAT(close)(fd);
                 return -1;
         }
 
         if (st.st_size == 0) {
-                INFO(3, "Skipping empty file %s\n", path);
+                KC_INFO(3, "Skipping empty file %s\n", path);
                 _COMPAT(close)(fd);
                 return 0;
         }
@@ -215,7 +215,7 @@ static ssize_t produce_file (const char *path) {
 #ifndef _MSC_VER
         ptr = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
         if (ptr == MAP_FAILED) {
-                INFO(1, "Failed to mmap %s: %s\n", path, strerror(errno));
+                KC_INFO(1, "Failed to mmap %s: %s\n", path, strerror(errno));
                 _COMPAT(close)(fd);
                 return -1;
         }
@@ -224,7 +224,7 @@ static ssize_t produce_file (const char *path) {
 #else
 		ptr = malloc(st.st_size);
 		if (!ptr) {
-			INFO(1, "Failed to allocate message for %s: %s\n",
+			KC_INFO(1, "Failed to allocate message for %s: %s\n",
 				 path, strerror(errno));
 			_COMPAT(close)(fd);
 			return -1;
@@ -232,7 +232,7 @@ static ssize_t produce_file (const char *path) {
 
 		sz = _read(fd, ptr, st.st_size);
 		if (sz < st.st_size) {
-			INFO(1, "Read failed for %s (%zd/%zd): %s\n",
+			KC_INFO(1, "Read failed for %s (%zd/%zd): %s\n",
 				 path, sz, (size_t)st.st_size, sz == -1 ? strerror(errno) :
 				 "incomplete read");
 			free(ptr);
@@ -242,7 +242,7 @@ static ssize_t produce_file (const char *path) {
 		msgflags = RD_KAFKA_MSG_F_FREE;
 #endif
 
-        INFO(4, "Producing file %s (%"PRIdMAX" bytes)\n",
+        KC_INFO(4, "Producing file %s (%"PRIdMAX" bytes)\n",
              path, (intmax_t)st.st_size);
 		produce(ptr, sz, NULL, 0, msgflags);
 
@@ -275,7 +275,7 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
         /* Create producer */
         if (!(conf.rk = rd_kafka_new(RD_KAFKA_PRODUCER, conf.rk_conf,
                                      errstr, sizeof(errstr))))
-                FATAL("Failed to create producer: %s", errstr);
+                KC_FATAL("Failed to create producer: %s", errstr);
 
 		if (!conf.debug && conf.verbosity == 0)
                 rd_kafka_set_log_level(conf.rk, 0);
@@ -283,7 +283,7 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
         /* Create topic */
         if (!(conf.rkt = rd_kafka_topic_new(conf.rk, conf.topic,
                                             conf.rkt_conf)))
-                FATAL("Failed to create topic %s: %s", conf.topic,
+                KC_FATAL("Failed to create topic %s: %s", conf.topic,
                       rd_kafka_err2str(rd_kafka_errno2err(errno)));
 
         conf.rk_conf  = NULL;
@@ -302,7 +302,7 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                 if (!good)
                         conf.exitcode = 1;
                 else if (good < pathcnt)
-                        INFO(1, "Failed to produce from %i/%i files\n",
+                        KC_INFO(1, "Failed to produce from %i/%i files\n",
                              pathcnt - good, pathcnt);
 
         } else {
@@ -372,7 +372,7 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
 
                         if (conf.flags & CONF_F_TEE &&
                             fwrite(sbuf, orig_len, 1, stdout) != 1)
-                                FATAL("Tee write error for message of %zd bytes: %s",
+                                KC_FATAL("Tee write error for message of %zd bytes: %s",
                                       orig_len, strerror(errno));
 
                         if (msgflags & RD_KAFKA_MSG_F_FREE) {
@@ -389,7 +389,7 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
 
                 if (conf.run) {
                         if (!feof(fp))
-                                FATAL("Unable to read message: %s",
+                                KC_FATAL("Unable to read message: %s",
                                       strerror(errno));
                 }
         }
@@ -437,7 +437,7 @@ static void handle_partition_eof (rd_kafka_message_t *rkmessage) {
 
         }
 
-        INFO(1, "Reached end of topic %s [%"PRId32"] "
+        KC_INFO(1, "Reached end of topic %s [%"PRId32"] "
              "at offset %"PRId64"%s\n",
              rd_kafka_topic_name(rkmessage->rkt),
              rkmessage->partition,
@@ -462,12 +462,12 @@ static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
                 }
 
                 if (rkmessage->rkt)
-                        FATAL("Topic %s [%"PRId32"] error: %s",
+                        KC_FATAL("Topic %s [%"PRId32"] error: %s",
                               rd_kafka_topic_name(rkmessage->rkt),
                               rkmessage->partition,
                               rd_kafka_message_errstr(rkmessage));
                 else
-                        FATAL("Consumer error: %s",
+                        KC_FATAL("Consumer error: %s",
                               rd_kafka_message_errstr(rkmessage));
 
         }
@@ -491,7 +491,7 @@ static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
 #if RD_KAFKA_VERSION >= 0x00090000
 static void throttle_cb (rd_kafka_t *rk, const char *broker_name,
                          int32_t broker_id, int throttle_time_ms, void *opaque){
-        INFO(1, "Broker %s (%"PRId32") throttled request for %dms\n",
+        KC_INFO(1, "Broker %s (%"PRId32") throttled request for %dms\n",
              broker_name, broker_id, throttle_time_ms);
 }
 #endif
@@ -514,7 +514,7 @@ static void rebalance_cb (rd_kafka_t *rk, rd_kafka_resp_err_t err,
                           rd_kafka_topic_partition_list_t *partitions,
                           void *opaque) {
 
-        INFO(1, "Group %s rebalanced (memberid %s): ",
+        KC_INFO(1, "Group %s rebalanced (memberid %s): ",
              conf.group, rd_kafka_memberid(rk));
 
 	switch (err)
@@ -536,7 +536,7 @@ static void rebalance_cb (rd_kafka_t *rk, rd_kafka_resp_err_t err,
 		break;
 
 	default:
-                INFO(0, "failed: %s\n", rd_kafka_err2str(err));
+                KC_INFO(0, "failed: %s\n", rd_kafka_err2str(err));
 		break;
 	}
 }
@@ -557,7 +557,7 @@ static void kafkaconsumer_run (FILE *fp, char *const *topics, int topic_cnt) {
         /* Create consumer */
         if (!(conf.rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf.rk_conf,
                                      errstr, sizeof(errstr))))
-                FATAL("Failed to create consumer: %s", errstr);
+                KC_FATAL("Failed to create consumer: %s", errstr);
         conf.rk_conf  = NULL;
 
         /* Forward main event queue to consumer queue so we can
@@ -576,7 +576,7 @@ static void kafkaconsumer_run (FILE *fp, char *const *topics, int topic_cnt) {
 
         /* Subscribe */
         if ((err = rd_kafka_subscribe(conf.rk, topiclist)))
-                FATAL("Failed to subscribe to %d topics: %s\n",
+                KC_FATAL("Failed to subscribe to %d topics: %s\n",
                       topiclist->cnt, rd_kafka_err2str(err));
 
         rd_kafka_topic_partition_list_destroy(topiclist);
@@ -595,7 +595,7 @@ static void kafkaconsumer_run (FILE *fp, char *const *topics, int topic_cnt) {
         }
 
         if ((err = rd_kafka_consumer_close(conf.rk)))
-                FATAL("Failed to close consumer: %s\n", rd_kafka_err2str(err));
+                KC_FATAL("Failed to close consumer: %s\n", rd_kafka_err2str(err));
 
         /* Wait for outstanding requests to finish. */
         conf.run = 1;
@@ -620,7 +620,7 @@ static void consumer_run (FILE *fp) {
         /* Create consumer */
         if (!(conf.rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf.rk_conf,
                                      errstr, sizeof(errstr))))
-                FATAL("Failed to create producer: %s", errstr);
+                KC_FATAL("Failed to create producer: %s", errstr);
 
         if (!conf.debug && conf.verbosity == 0)
                 rd_kafka_set_log_level(conf.rk, 0);
@@ -631,12 +631,12 @@ static void consumer_run (FILE *fp) {
         if (rd_kafka_topic_conf_set(conf.rkt_conf,
                                     "auto.commit.enable", "false",
                                     errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK)
-                FATAL("%s", errstr);
+                KC_FATAL("%s", errstr);
 
         /* Create topic */
         if (!(conf.rkt = rd_kafka_topic_new(conf.rk, conf.topic,
                                             conf.rkt_conf)))
-                FATAL("Failed to create topic %s: %s", conf.topic,
+                KC_FATAL("Failed to create topic %s: %s", conf.topic,
                       rd_kafka_err2str(rd_kafka_errno2err(errno)));
 
         conf.rk_conf  = NULL;
@@ -645,20 +645,20 @@ static void consumer_run (FILE *fp) {
 
         /* Query broker for topic + partition information. */
         if ((err = rd_kafka_metadata(conf.rk, 0, conf.rkt, &metadata, 5000)))
-                FATAL("Failed to query metadata for topic %s: %s",
+                KC_FATAL("Failed to query metadata for topic %s: %s",
                       rd_kafka_topic_name(conf.rkt), rd_kafka_err2str(err));
 
         /* Error handling */
         if (metadata->topic_cnt == 0)
-                FATAL("No such topic in cluster: %s",
+                KC_FATAL("No such topic in cluster: %s",
                       rd_kafka_topic_name(conf.rkt));
 
         if ((err = metadata->topics[0].err))
-                FATAL("Topic %s error: %s",
+                KC_FATAL("Topic %s error: %s",
                       rd_kafka_topic_name(conf.rkt), rd_kafka_err2str(err));
 
         if (metadata->topics[0].partition_cnt == 0)
-                FATAL("Topic %s has no partitions",
+                KC_FATAL("Topic %s has no partitions",
                       rd_kafka_topic_name(conf.rkt));
 
         /* If Exit-at-EOF is enabled, set up array to track EOF
@@ -689,7 +689,7 @@ static void consumer_run (FILE *fp) {
                 /* Start consumer for this partition */
                 if (rd_kafka_consume_start_queue(conf.rkt, partition,
                                                  conf.offset, rkqu) == -1)
-                        FATAL("Failed to start consuming "
+                        KC_FATAL("Failed to start consuming "
                               "topic %s [%"PRId32"]: %s",
                               conf.topic, partition,
                               rd_kafka_err2str(rd_kafka_errno2err(errno)));
@@ -700,7 +700,7 @@ static void consumer_run (FILE *fp) {
 
         if (conf.partition != RD_KAFKA_PARTITION_UA &&
             i == metadata->topics[0].partition_cnt)
-                FATAL("Topic %s (with partitions 0..%i): "
+                KC_FATAL("Topic %s (with partitions 0..%i): "
                       "partition %i does not exist",
                       rd_kafka_topic_name(conf.rkt),
                       metadata->topics[0].partition_cnt-1,
@@ -816,7 +816,7 @@ static void metadata_list (void) {
         /* Create handle */
         if (!(conf.rk = rd_kafka_new(RD_KAFKA_PRODUCER, conf.rk_conf,
                                      errstr, sizeof(errstr))))
-                FATAL("Failed to create producer: %s", errstr);
+                KC_FATAL("Failed to create producer: %s", errstr);
 
 		if (!conf.debug && conf.verbosity == 0)
                 rd_kafka_set_log_level(conf.rk, 0);
@@ -825,7 +825,7 @@ static void metadata_list (void) {
         if (conf.topic &&
             !(conf.rkt = rd_kafka_topic_new(conf.rk, conf.topic,
                                             conf.rkt_conf)))
-                FATAL("Failed to create topic %s: %s", conf.topic,
+                KC_FATAL("Failed to create topic %s: %s", conf.topic,
                       rd_kafka_err2str(rd_kafka_errno2err(errno)));
 
         conf.rk_conf  = NULL;
@@ -836,7 +836,7 @@ static void metadata_list (void) {
         err = rd_kafka_metadata(conf.rk, conf.rkt ? 0 : 1, conf.rkt,
                                 &metadata, 5000);
         if (err != RD_KAFKA_RESP_ERR_NO_ERROR)
-                FATAL("Failed to acquire metadata: %s", rd_kafka_err2str(err));
+                KC_FATAL("Failed to acquire metadata: %s", rd_kafka_err2str(err));
 
         /* Print metadata */
 #if ENABLE_JSON
@@ -1043,10 +1043,10 @@ static void error_cb (rd_kafka_t *rk, int err,
                       const char *reason, void *opaque) {
 
         if (err == RD_KAFKA_RESP_ERR__ALL_BROKERS_DOWN) {
-                ERROR("%s: %s", rd_kafka_err2str(err),
+                KC_ERROR("%s: %s", rd_kafka_err2str(err),
                       reason ? reason : "");
         } else {
-                INFO(1, "ERROR: %s: %s\n", rd_kafka_err2str(err),
+                KC_INFO(1, "KC_ERROR: %s: %s\n", rd_kafka_err2str(err),
                       reason ? reason : "");
         }
 }
@@ -1085,18 +1085,18 @@ static void add_topparoff (const char *what,
 
         if (!(s = strchr(str, ':')) ||
             !(t = strchr(s+1, ':')))
-                FATAL("%s: expected \"topic:partition:offset_or_timestamp\"", what);
+                KC_FATAL("%s: expected \"topic:partition:offset_or_timestamp\"", what);
 
         topic = str;
         *s = '\0';
 
         partition = strtoul(s+1, &e, 0);
         if (e == s+1)
-                FATAL("%s: expected \"topic:partition:offset_or_timestamp\"", what);
+                KC_FATAL("%s: expected \"topic:partition:offset_or_timestamp\"", what);
 
         offset = strtoll(t+1, &e, 0);
         if (e == t+1)
-                FATAL("%s: expected \"topic:partition:offset_or_timestamp\"", what);
+                KC_FATAL("%s: expected \"topic:partition:offset_or_timestamp\"", what);
 
         rd_kafka_topic_partition_list_add(rktparlist, topic, partition)->offset = offset;
 }
@@ -1165,7 +1165,7 @@ static void argparse (int argc, char **argv,
                         if (rd_kafka_conf_set(conf.rk_conf, "group.id", optarg,
                                               errstr, sizeof(errstr)) !=
                             RD_KAFKA_CONF_OK)
-                                FATAL("%s", errstr);
+                                KC_FATAL("%s", errstr);
                         break;
 #endif
                 case 't':
@@ -1190,7 +1190,7 @@ static void argparse (int argc, char **argv,
                                               "compression.codec", optarg,
                                               errstr, sizeof(errstr)) !=
                             RD_KAFKA_CONF_OK)
-                                FATAL("%s", errstr);
+                                KC_FATAL("%s", errstr);
                         break;
                 case 'o':
                         if (!strcmp(optarg, "end"))
@@ -1244,7 +1244,7 @@ static void argparse (int argc, char **argv,
                         if (rd_kafka_conf_set(conf.rk_conf, "debug", conf.debug,
                                               errstr, sizeof(errstr)) !=
                             RD_KAFKA_CONF_OK)
-                                FATAL("%s", errstr);
+                                KC_FATAL("%s", errstr);
                         break;
                 case 'q':
                         conf.verbosity = 0;
@@ -1308,7 +1308,7 @@ static void argparse (int argc, char **argv,
                         }
 
                         if (res != RD_KAFKA_CONF_OK)
-                                FATAL("%s", errstr);
+                                KC_FATAL("%s", errstr);
 
                         /* Interception */
 #if RD_KAFKA_VERSION >= 0x00090000
@@ -1354,7 +1354,7 @@ static void argparse (int argc, char **argv,
                         conf.mode = 'C';
                 else
                         conf.mode = 'P';
-                INFO(1, "Auto-selecting %s mode (use -P or -C to override)\n",
+                KC_INFO(1, "Auto-selecting %s mode (use -P or -C to override)\n",
                      conf.mode == 'C' ? "Consumer":"Producer");
         }
 
@@ -1405,7 +1405,7 @@ static void argparse (int argc, char **argv,
          * user hasn't explicitly configured it (in any way). */
         if ((conf.flags & (CONF_F_APIVERREQ | CONF_F_APIVERREQ_USER)) ==
             CONF_F_APIVERREQ) {
-                INFO(2, "Automatically enabling api.version.request=true\n");
+                KC_INFO(2, "Automatically enabling api.version.request=true\n");
                 rd_kafka_conf_set(conf.rk_conf, "api.version.request", "true",
                                   NULL, 0);
         }
@@ -1458,11 +1458,11 @@ int main (int argc, char **argv) {
                               "file/topic list only allowed in "
                               "producer(-P)/kafkaconsumer(-G) mode", 0);
                 else if ((conf.flags & CONF_F_LINE) && argc - optind > 1)
-                        FATAL("Only one file allowed for line mode (-l)");
+                        KC_FATAL("Only one file allowed for line mode (-l)");
                 else if (conf.flags & CONF_F_LINE) {
                         in = fopen(argv[optind], "r");
                         if (in == NULL)
-                                FATAL("Cannot open %s: %s", argv[optind],
+                                KC_FATAL("Cannot open %s: %s", argv[optind],
                                       strerror(errno));
                 }
         }

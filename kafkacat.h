@@ -112,12 +112,12 @@ void RD_NORETURN fatal0 (const char *func, int line,
 void error0 (int erroronexit, const char *func, int line,
                                        const char *fmt, ...);
 
-#define FATAL(.../*fmt*/)  fatal0(__FUNCTION__, __LINE__, __VA_ARGS__)
+#define KC_FATAL(.../*fmt*/)  fatal0(__FUNCTION__, __LINE__, __VA_ARGS__)
 
-#define ERROR(.../*fmt*/)  error0(conf.exitonerror, __FUNCTION__, __LINE__, __VA_ARGS__)
+#define KC_ERROR(.../*fmt*/)  error0(conf.exitonerror, __FUNCTION__, __LINE__, __VA_ARGS__)
 
 /* Info printout */
-#define INFO(VERBLVL,.../*fmt*/) do {                    \
+#define KC_INFO(VERBLVL,.../*fmt*/) do {                    \
                 if (conf.verbosity >= (VERBLVL))     \
                         fprintf(stderr, "%% " __VA_ARGS__);  \
         } while (0)
