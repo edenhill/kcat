@@ -8,7 +8,7 @@ Copyright (c) 2014-2016 Magnus Edenhill
 think of it as a netcat for Kafka.
 
 In **producer** mode kafkacat reads messages from stdin, delimited with a
-configurable delimeter (-D, defaults to newline), and produces them to the
+configurable delimiter (-D, defaults to newline), and produces them to the
 provided Kafka cluster (-b), topic (-t) and partition (-p).
 
 In **consumer** mode kafkacat reads messages from a topic and partition and
