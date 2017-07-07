@@ -152,6 +152,7 @@ There is no official image build yet but you may run `docker build -t kafkacat .
 
 Example:
 ```bash
+docker run --rm kafkacat --help
 echo 1 > example.log
 docker run --name test-producer -d -v $(pwd)/example.log:/logs/example.log --entrypoint /bin/bash --net=host kafkacat \
   -c 'tail -f /logs/example.log | kafkacat -b mybroker -t logs -P'
