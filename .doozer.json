@@ -1,0 +1,29 @@
+{
+  "targets": {
+    "xenial-amd64": {
+
+      "buildenv": "xenial-amd64",
+      "builddeps": [
+        "build-essential",
+        "python",
+        "curl"
+      ],
+      "buildcmd": [
+          "./bootstrap.sh"
+      ]
+    },
+
+    "xenial-i386": {
+
+      "buildenv": "xenial-i386",
+      "builddeps": [
+        "build-essential",
+        "python",
+        "curl"
+      ],
+      "buildcmd": [
+          "./bootstrap.sh"
+      ]
+    }
+  }
+}

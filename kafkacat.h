@@ -34,7 +34,14 @@
 
 #include <librdkafka/rdkafka.h>
 
+#include "rdport.h"
+
+#ifdef _MSC_VER
+#pragma comment(lib, "librdkafka.lib")
+#include "win32/win32_config.h"
+#else
 #include "config.h"
+#endif
 
 
 typedef enum {
@@ -47,6 +54,7 @@ typedef enum {
         KC_FMT_PAYLOAD_LEN_BINARY,
         KC_FMT_TOPIC,
         KC_FMT_PARTITION,
+	KC_FMT_TIMESTAMP
 } fmt_type_t;
 
 #define KC_FMT_MAX_SIZE  128
@@ -55,6 +63,7 @@ struct conf {
         int     run;
         int     verbosity;
         int     exitcode;
+        int     exitonerror;
         char    mode;
         int     flags;
 #define CONF_F_FMT_JSON   0x1 /* JSON formatting */
@@ -63,6 +72,8 @@ struct conf {
 #define CONF_F_TEE        0x8 /* Tee output when producing */
 #define CONF_F_NULL       0x10 /* Send empty messages as NULL */
 #define CONF_F_LINE	  0x20 /* Read files in line mode when producing */
+#define CONF_F_APIVERREQ  0x40 /* Enable api.version.request=true */
+#define CONF_F_APIVERREQ_USER 0x80 /* User set api.version.request */
         int     delim;
         int     key_delim;
 
@@ -90,21 +101,25 @@ struct conf {
         rd_kafka_topic_t      *rkt;
 
         char   *debug;
-        int     conf_dump;
 };
 
 extern struct conf conf;
 
 
-void __attribute__((noreturn)) fatal0 (const char *func, int line,
+void RD_NORETURN fatal0 (const char *func, int line,
                                        const char *fmt, ...);
 
-#define FATAL(fmt...)  fatal0(__FUNCTION__, __LINE__, fmt)
+void error0 (int erroronexit, const char *func, int line,
+                                       const char *fmt, ...);
+
+#define FATAL(.../*fmt*/)  fatal0(__FUNCTION__, __LINE__, __VA_ARGS__)
+
+#define ERROR(.../*fmt*/)  error0(conf.exitonerror, __FUNCTION__, __LINE__, __VA_ARGS__)
 
 /* Info printout */
-#define INFO(VERBLVL,FMT...) do {                    \
+#define INFO(VERBLVL,.../*fmt*/) do {                    \
                 if (conf.verbosity >= (VERBLVL))     \
-                        fprintf(stderr, "%% " FMT);  \
+                        fprintf(stderr, "%% " __VA_ARGS__);  \
         } while (0)
 
 
@@ -127,8 +142,15 @@ void fmt_term (void);
  */
 void fmt_msg_output_json (FILE *fp, const rd_kafka_message_t *rkmessage);
 void metadata_print_json (const struct rd_kafka_metadata *metadata);
-
+void partition_list_print_json (const rd_kafka_topic_partition_list_t *parts,
+                                void *json_gen);
 void fmt_init_json (void);
 void fmt_term_json (void);
 
 #endif
+
+
+/*
+ * tools.c
+ */
+int query_offsets_by_time (rd_kafka_topic_partition_list_t *offsets);

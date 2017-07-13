@@ -1,0 +1,10 @@
+*.opendb
+*.db
+*.filters
+*.user
+packages
+x64
+x86
+?ebug
+?elease
+

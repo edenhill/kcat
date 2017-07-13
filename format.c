@@ -28,8 +28,9 @@
 
 #include "kafkacat.h"
 
-#include <arpa/inet.h>
-
+#ifndef _MSC_VER
+#include <arpa/inet.h>  /* for htonl() */
+#endif
 
 static void fmt_add (fmt_type_t type, const char *str, int len) {
         if (conf.fmt_cnt == KC_FMT_MAX_SIZE)
@@ -67,15 +68,16 @@ static void fmt_add (fmt_type_t type, const char *str, int len) {
                                         s++;
                                         base = 16;
                                         /* FALLTHRU */
-                                case '0'...'9':
-                                        *d = (char)strtoul(s, (char **)&next,
-                                                           base);
-                                        if (next > s)
-                                                s = next-1;
-                                        break;
                                 default:
-                                        *d = *s;
-                                        break;
+									if (*s >= '0' && *s <= '9') {
+										*d = (char)strtoul(s, (char **)&next,
+														   base);
+										if (next > s)
+											s = next - 1;
+									} else {
+										*d = *s;
+									}
+									break;
                                 }
                         } else {
                                 *d = *s;
@@ -131,6 +133,10 @@ void fmt_parse (const char *fmt) {
                                 break;
                         case 'p':
                                 fmt_add(KC_FMT_PARTITION, NULL, 0);
+                                break;
+                        case 'T':
+                                fmt_add(KC_FMT_TIMESTAMP, NULL, 0);
+                                conf.flags |= CONF_F_APIVERREQ;
                                 break;
                         case '%':
                                 fmt_add(KC_FMT_STR, s, 1);
@@ -200,7 +206,7 @@ static void fmt_msg_output_str (FILE *fp,
                 case KC_FMT_KEY_LEN:
                         r = fprintf(fp, "%zd",
                                     /* Use -1 to indicate NULL keys */
-                                    rkmessage->key ? rkmessage->key_len : -1);
+                                    rkmessage->key ? (ssize_t)rkmessage->key_len : -1);
                         break;
 
                 case KC_FMT_PAYLOAD:
@@ -215,12 +221,13 @@ static void fmt_msg_output_str (FILE *fp,
                 case KC_FMT_PAYLOAD_LEN:
                         r = fprintf(fp, "%zd",
                                     /* Use -1 to indicate NULL messages */
-                                    rkmessage->payload ? rkmessage->len : -1);
+                                    rkmessage->payload ? (ssize_t)rkmessage->len : -1);
                         break;
 
                 case KC_FMT_PAYLOAD_LEN_BINARY:
                         /* Use -1 to indicate NULL messages */
-                        belen = htonl((uint32_t)(rkmessage->payload ? rkmessage->len : -1));
+                        belen = htonl((uint32_t)(rkmessage->payload ?
+						 (ssize_t)rkmessage->len : -1));
                         r = fwrite(&belen, sizeof(uint32_t), 1, fp);
                         break;
 
@@ -237,7 +244,20 @@ static void fmt_msg_output_str (FILE *fp,
                         r = fprintf(fp, "%"PRId32, rkmessage->partition);
                         break;
 
+#if RD_KAFKA_VERSION >= 0x000902ff
+                case KC_FMT_TIMESTAMP:
+                {
+                        rd_kafka_timestamp_type_t tstype;
+                        r = fprintf(fp, "%"PRId64,
+                                    rd_kafka_message_timestamp(rkmessage,
+                                                               &tstype));
+#else
+                        r = fprintf(fp, "-1");
+#endif
+                        break;
                 }
+                }
+
 
                 if (r < 1)
                         FATAL("Write error for message "

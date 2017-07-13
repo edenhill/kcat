@@ -26,17 +26,25 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef _MSC_VER
 #include <unistd.h>
+#include <syslog.h>
+#include <sys/time.h>
+#include <sys/mman.h>
+#else
+#pragma comment(lib, "ws2_32.lib")
+#include "win32/wingetopt.h"
+#include <io.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <signal.h>
-#include <sys/time.h>
-#include <syslog.h>
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <sys/mman.h>
+
 
 
 #include "kafkacat.h"
@@ -45,6 +53,7 @@
 struct conf conf = {
         .run = 1,
         .verbosity = 1,
+        .exitonerror = 1,
         .partition = RD_KAFKA_PARTITION_UA,
         .msg_size = 1024*1024,
         .null_str = "NULL",
@@ -72,8 +81,8 @@ int part_eof_thres = 0;
 /**
  * Fatal error: print error and exit
  */
-void __attribute__((noreturn)) fatal0 (const char *func, int line,
-                                       const char *fmt, ...) {
+void RD_NORETURN fatal0 (const char *func, int line,
+						 const char *fmt, ...) {
         va_list ap;
         char buf[1024];
 
@@ -84,6 +93,26 @@ void __attribute__((noreturn)) fatal0 (const char *func, int line,
         INFO(2, "Fatal error at %s:%i:\n", func, line);
         fprintf(stderr, "%% ERROR: %s\n", buf);
         exit(1);
+}
+
+/**
+ * Print error and exit if needed
+ */
+void error0 (int exitonerror, const char *func, int line, const char *fmt, ...) {
+        va_list ap;
+        char buf[1024];
+
+        va_start(ap, fmt);
+        vsnprintf(buf, sizeof(buf), fmt, ap);
+        va_end(ap);
+
+        if (exitonerror)
+                INFO(2, "Error at %s:%i:\n", func, line);
+
+        fprintf(stderr, "%% ERROR: %s%s\n", buf, exitonerror ? " : terminating":"");
+
+        if (exitonerror)
+                exit(1);
 }
 
 
@@ -163,37 +192,70 @@ static ssize_t produce_file (const char *path) {
         int fd;
         void *ptr;
         struct stat st;
+		ssize_t sz;
+		int msgflags = 0;
 
-        if ((fd = open(path, O_RDONLY)) == -1) {
+        if ((fd = _COMPAT(open)(path, O_RDONLY)) == -1) {
                 INFO(1, "Failed to open %s: %s\n", path, strerror(errno));
                 return -1;
         }
 
         if (fstat(fd, &st) == -1) {
                 INFO(1, "Failed to stat %s: %s\n", path, strerror(errno));
-                close(fd);
+                _COMPAT(close)(fd);
                 return -1;
         }
 
         if (st.st_size == 0) {
                 INFO(3, "Skipping empty file %s\n", path);
-                close(fd);
+                _COMPAT(close)(fd);
                 return 0;
         }
 
+#ifndef _MSC_VER
         ptr = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
         if (ptr == MAP_FAILED) {
                 INFO(1, "Failed to mmap %s: %s\n", path, strerror(errno));
-                close(fd);
+                _COMPAT(close)(fd);
                 return -1;
         }
+		sz = st.st_size;
+		msgflags = RD_KAFKA_MSG_F_COPY;
+#else
+		ptr = malloc(st.st_size);
+		if (!ptr) {
+			INFO(1, "Failed to allocate message for %s: %s\n",
+				 path, strerror(errno));
+			_COMPAT(close)(fd);
+			return -1;
+		}
+
+		sz = _read(fd, ptr, st.st_size);
+		if (sz < st.st_size) {
+			INFO(1, "Read failed for %s (%zd/%zd): %s\n",
+				 path, sz, (size_t)st.st_size, sz == -1 ? strerror(errno) :
+				 "incomplete read");
+			free(ptr);
+			close(fd);
+			return -1;
+		}
+		msgflags = RD_KAFKA_MSG_F_FREE;
+#endif
 
         INFO(4, "Producing file %s (%"PRIdMAX" bytes)\n",
              path, (intmax_t)st.st_size);
-        produce(ptr, st.st_size, NULL, 0, RD_KAFKA_MSG_F_COPY);
+		produce(ptr, sz, NULL, 0, msgflags);
 
-        munmap(ptr, st.st_size);
-        return st.st_size;
+		_COMPAT(close)(fd);
+
+		if (!(msgflags & RD_KAFKA_MSG_F_FREE)) {
+#ifndef _MSC_VER
+			munmap(ptr, st.st_size);
+#else
+			free(ptr);
+#endif
+		}
+		return sz;
 }
 
 
@@ -215,9 +277,7 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                                      errstr, sizeof(errstr))))
                 FATAL("Failed to create producer: %s", errstr);
 
-        if (conf.debug)
-                rd_kafka_set_log_level(conf.rk, LOG_DEBUG);
-        else if (conf.verbosity == 0)
+		if (!conf.debug && conf.verbosity == 0)
                 rd_kafka_set_log_level(conf.rk, 0);
 
         /* Create topic */
@@ -323,7 +383,7 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                         }
 
                         /* Enforce -c <cnt> */
-                        if (stats.tx == conf.msg_cnt)
+                        if (stats.tx == (uint64_t)conf.msg_cnt)
                                 conf.run = 0;
                 }
 
@@ -345,7 +405,7 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
         if (sbuf)
                 free(sbuf);
 
-        if (stats.tx_err_q || stats.tx_err_dr)
+        if (stats.tx_err_dr)
                 conf.exitcode = 1;
 }
 
@@ -416,7 +476,7 @@ static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
                                       rkmessage->offset);
         }
 
-        if (++stats.rx == conf.msg_cnt)
+        if (++stats.rx == (uint64_t)conf.msg_cnt)
                 conf.run = 0;
 }
 
@@ -490,7 +550,7 @@ static void kafkaconsumer_run (FILE *fp, char *const *topics, int topic_cnt) {
         /* Create consumer */
         if (!(conf.rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf.rk_conf,
                                      errstr, sizeof(errstr))))
-                FATAL("Failed to create producer: %s", errstr);
+                FATAL("Failed to create consumer: %s", errstr);
         conf.rk_conf  = NULL;
 
         /* Forward main event queue to consumer queue so we can
@@ -555,9 +615,7 @@ static void consumer_run (FILE *fp) {
                                      errstr, sizeof(errstr))))
                 FATAL("Failed to create producer: %s", errstr);
 
-        if (conf.debug)
-                rd_kafka_set_log_level(conf.rk, LOG_DEBUG);
-        else if (conf.verbosity == 0)
+        if (!conf.debug && conf.verbosity == 0)
                 rd_kafka_set_log_level(conf.rk, 0);
 
         /* The callback-based consumer API's offset store granularity is
@@ -675,6 +733,7 @@ static void consumer_run (FILE *fp) {
         while (conf.run && rd_kafka_outq_len(conf.rk) > 0)
                 rd_kafka_poll(conf.rk, 50);
 
+        rd_kafka_metadata_destroy(metadata);
         rd_kafka_topic_destroy(conf.rkt);
         rd_kafka_destroy(conf.rk);
 }
@@ -687,7 +746,7 @@ static void metadata_print (const rd_kafka_metadata_t *metadata) {
         int i, j, k;
 
         printf("Metadata for %s (from broker %"PRId32": %s):\n",
-               conf.topic ? : "all topics",
+               conf.topic ? conf.topic : "all topics",
                metadata->orig_broker_id, metadata->orig_broker_name);
 
         /* Iterate brokers */
@@ -752,9 +811,7 @@ static void metadata_list (void) {
                                      errstr, sizeof(errstr))))
                 FATAL("Failed to create producer: %s", errstr);
 
-        if (conf.debug)
-                rd_kafka_set_log_level(conf.rk, LOG_DEBUG);
-        else if (conf.verbosity == 0)
+		if (!conf.debug && conf.verbosity == 0)
                 rd_kafka_set_log_level(conf.rk, 0);
 
         /* Create topic, if specified */
@@ -793,11 +850,15 @@ static void metadata_list (void) {
 /**
  * Print usage and exit.
  */
-static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
-                                             const char *reason,
-                                             int version_only) {
+static void RD_NORETURN usage (const char *argv0, int exitcode,
+							   const char *reason,
+							   int version_only) {
 
         FILE *out = stdout;
+        char features[256];
+        size_t flen;
+        rd_kafka_conf_t *tmpconf;
+
         if (reason) {
                 out = stderr;
                 fprintf(out, "Error: %s\n\n", reason);
@@ -807,11 +868,19 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                 fprintf(out, "Usage: %s <options> [file1 file2 .. | topic1 topic2 ..]]\n",
                         argv0);
 
+        /* Create a temporary config object to extract builtin.features */
+        tmpconf = rd_kafka_conf_new();
+        flen = sizeof(features);
+        if (rd_kafka_conf_get(tmpconf, "builtin.features",
+                              features, &flen) != RD_KAFKA_CONF_OK)
+                strncpy(features, "n/a", sizeof(features));
+        rd_kafka_conf_destroy(tmpconf);
+
         fprintf(out,
                 "kafkacat - Apache Kafka producer and consumer tool\n"
                 "https://github.com/edenhill/kafkacat\n"
                 "Copyright (c) 2014-2015, Magnus Edenhill\n"
-                "Version %s%s (librdkafka %s)\n"
+                "Version %s%s (librdkafka %s builtin.features=%s)\n"
                 "\n",
                 KAFKACAT_VERSION,
 #if ENABLE_JSON
@@ -819,7 +888,7 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
 #else
                 "",
 #endif
-                rd_kafka_version_str()
+                rd_kafka_version_str(), features
                 );
 
         if (version_only)
@@ -827,7 +896,7 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
 
         fprintf(out, "\n"
                 "General options:\n"
-                "  -C | -P | -L       Mode: Consume, Produce or metadata List\n"
+                "  -C | -P | -L | -Q  Mode: Consume, Produce, Metadata List, Query mode\n"
 #if ENABLE_KAFKACONSUMER
                 "  -G <group-id>      Mode: High-level KafkaConsumer (Kafka 0.9 balanced consumer groups)\n"
                 "                     Expects a list of topics to subscribe to\n"
@@ -839,6 +908,7 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                 "  -D <delim>         Message delimiter character:\n"
                 "                     a-z.. | \\r | \\n | \\t | \\xNN\n"
                 "                     Default: \\n\n"
+                "  -E                 Do not exit on non fatal error\n"
                 "  -K <delim>         Key delimiter (same format as -D)\n"
                 "  -c <cnt>           Limit message count\n"
                 "  -X list            List available librdkafka configuration "
@@ -852,6 +922,7 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                 "  -q                 Be quiet (verbosity set to 0)\n"
                 "  -v                 Increase verbosity\n"
                 "  -V                 Print version\n"
+                "  -h                 Print usage help\n"
                 "\n"
                 "Producer options:\n"
                 "  -z snappy|gzip     Message compression. Default: none\n"
@@ -892,9 +963,17 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                 "(instead of empty)\n"
                 "  -u                 Unbuffered output\n"
                 "\n"
-                "Metadata options:\n"
+                "Metadata options (-L):\n"
                 "  -t <topic>         Topic to query (optional)\n"
                 "\n"
+                "Query options (-Q):\n"
+                "  -t <t>:<p>:<ts>    Get offset for topic <t>,\n"
+                "                     partition <p>, timestamp <ts>.\n"
+                "                     Timestamp is the number of milliseconds\n"
+                "                     since epoch UTC.\n"
+                "                     Requires broker >= 0.10.0.0 and librdkafka >= 0.9.3.\n"
+                "                     Multiple -t .. are allowed but a partition\n"
+                "                     must only occur once.\n"
                 "\n"
                 "Format string tokens:\n"
                 "  %%s                 Message payload\n"
@@ -903,6 +982,9 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                 "                     as a binary big endian 32-bit signed integer\n"
                 "  %%k                 Message key\n"
                 "  %%K                 Message key length (or -1 for NULL)\n"
+#if RD_KAFKA_VERSION >= 0x000902ff
+                "  %%T                 Message timestamp (milliseconds since epoch UTC)\n"
+#endif
                 "  %%t                 Topic\n"
                 "  %%p                 Partition\n"
                 "  %%o                 Message offset\n"
@@ -929,6 +1011,9 @@ static void __attribute__((noreturn)) usage (const char *argv0, int exitcode,
                 "\n"
                 "Metadata listing:\n"
                 "  kafkacat -L -b <broker> [-t <topic>]\n"
+                "\n"
+                "Query offset by timestamp:\n"
+                "  kafkacat -Q -b broker -t <topic>:<partition>:<timestamp>\n"
                 "\n",
                 conf.null_str
                 );
@@ -950,12 +1035,13 @@ static void term (int sig) {
 static void error_cb (rd_kafka_t *rk, int err,
                       const char *reason, void *opaque) {
 
-        if (err == RD_KAFKA_RESP_ERR__ALL_BROKERS_DOWN)
-                FATAL("%s: %s: terminating", rd_kafka_err2str(err),
+        if (err == RD_KAFKA_RESP_ERR__ALL_BROKERS_DOWN) {
+                ERROR("%s: %s", rd_kafka_err2str(err),
                       reason ? reason : "");
-
-        INFO(1, "ERROR: %s: %s\n", rd_kafka_err2str(err),
-             reason ? reason : "");
+        } else {
+                INFO(1, "ERROR: %s: %s\n", rd_kafka_err2str(err),
+                      reason ? reason : "");
+        }
 }
 
 
@@ -976,18 +1062,84 @@ static int parse_delim (const char *str) {
 }
 
 /**
+ * @brief Add topic+partition+offset to list, from :-separated string.
+ *
+ * "<t>:<p>:<o>"
+ *
+ * @remark Will modify \p str
+ */
+static void add_topparoff (const char *what,
+                           rd_kafka_topic_partition_list_t *rktparlist,
+                           char *str) {
+        char *s, *t, *e;
+        char *topic;
+        int partition;
+        int64_t offset;
+
+        if (!(s = strchr(str, ':')) ||
+            !(t = strchr(s+1, ':')))
+                FATAL("%s: expected \"topic:partition:offset_or_timestamp\"", what);
+
+        topic = str;
+        *s = '\0';
+
+        partition = strtoul(s+1, &e, 0);
+        if (e == s+1)
+                FATAL("%s: expected \"topic:partition:offset_or_timestamp\"", what);
+
+        offset = strtoll(t+1, &e, 0);
+        if (e == t+1)
+                FATAL("%s: expected \"topic:partition:offset_or_timestamp\"", what);
+
+        rd_kafka_topic_partition_list_add(rktparlist, topic, partition)->offset = offset;
+}
+
+/**
+ * Dump current rdkafka configuration to stdout.
+ */
+static void conf_dump (void) {
+        const char **arr;
+        size_t cnt;
+        int pass;
+
+        for (pass = 0 ; pass < 2 ; pass++) {
+                int i;
+
+                if (pass == 0) {
+                        arr = rd_kafka_conf_dump(conf.rk_conf, &cnt);
+                        printf("# Global config\n");
+                } else {
+                        printf("# Topic config\n");
+                        arr = rd_kafka_topic_conf_dump(conf.rkt_conf, &cnt);
+                }
+
+                for (i = 0 ; i < (int)cnt ; i += 2)
+                        printf("%s = %s\n",
+                               arr[i], arr[i+1]);
+
+                printf("\n");
+
+                rd_kafka_conf_dump_free(arr, cnt);
+        }
+}
+
+
+/**
  * Parse command line arguments
  */
-static void argparse (int argc, char **argv) {
+static void argparse (int argc, char **argv,
+                      rd_kafka_topic_partition_list_t **rktparlistp) {
         char errstr[512];
         int opt;
         const char *fmt = NULL;
         const char *delim = "\n";
         const char *key_delim = NULL;
         char tmp_fmt[64];
+        int conf_brokers_seen = 0;
+        int do_conf_dump = 0;
 
         while ((opt = getopt(argc, argv,
-                             "PCG:Lt:p:b:z:o:eD:K:Od:qvX:c:Tuf:ZlV"
+                             "PCG:LQt:p:b:z:o:eED:K:Od:qvX:c:Tuf:ZlVh"
 #if ENABLE_JSON
                              "J"
 #endif
@@ -996,6 +1148,7 @@ static void argparse (int argc, char **argv) {
                 case 'P':
                 case 'C':
                 case 'L':
+                case 'Q':
                         conf.mode = opt;
                         break;
 #if ENABLE_KAFKACONSUMER
@@ -1009,13 +1162,21 @@ static void argparse (int argc, char **argv) {
                         break;
 #endif
                 case 't':
-                        conf.topic = optarg;
+                        if (conf.mode == 'Q') {
+                                if (!*rktparlistp)
+                                        *rktparlistp = rd_kafka_topic_partition_list_new(1);
+                                add_topparoff("-t", *rktparlistp, optarg);
+
+                        } else
+                                conf.topic = optarg;
+
                         break;
                 case 'p':
                         conf.partition = atoi(optarg);
                         break;
                 case 'b':
                         conf.brokers = optarg;
+                        conf_brokers_seen++;
                         break;
                 case 'z':
                         if (rd_kafka_conf_set(conf.rk_conf,
@@ -1039,6 +1200,9 @@ static void argparse (int argc, char **argv) {
                         break;
                 case 'e':
                         conf.exit_eof = 1;
+                        break;
+                case 'E':
+                        conf.exitonerror = 0;
                         break;
                 case 'f':
                         fmt = optarg;
@@ -1099,7 +1263,7 @@ static void argparse (int argc, char **argv) {
                         }
 
                         if (!strcmp(optarg, "dump")) {
-                                conf.conf_dump = 1;
+                                do_conf_dump = 1;
                                 continue;
                         }
 
@@ -1114,6 +1278,10 @@ static void argparse (int argc, char **argv) {
 
                         *val = '\0';
                         val++;
+
+                        if (!strcmp(name, "metadata.broker.list") ||
+                            !strcmp(name, "bootstrap.servers"))
+                                conf_brokers_seen++;
 
                         res = RD_KAFKA_CONF_UNKNOWN;
                         /* Try "topic." prefixed properties on topic
@@ -1142,11 +1310,20 @@ static void argparse (int argc, char **argv) {
                                                               throttle_cb);
 #endif
 
+                        if (!strcmp(name, "api.version.request"))
+                                conf.flags |= CONF_F_APIVERREQ_USER;
+
+
+
                 }
                 break;
 
                 case 'V':
                         usage(argv[0], 0, NULL, 1);
+                        break;
+
+                case 'h':
+                        usage(argv[0], 0, NULL, 0);
                         break;
 
                 default:
@@ -1155,13 +1332,18 @@ static void argparse (int argc, char **argv) {
                 }
         }
 
+        /* Dump configuration and exit, if so desired. */
+        if (do_conf_dump) {
+                conf_dump();
+                exit(0);
+        }
 
-        if (!conf.brokers)
+        if (!conf_brokers_seen)
                 usage(argv[0], 1, "-b <broker,..> missing", 0);
 
         /* Decide mode if not specified */
         if (!conf.mode) {
-                if (isatty(STDIN_FILENO))
+                if (_COMPAT(isatty)(STDIN_FILENO))
                         conf.mode = 'C';
                 else
                         conf.mode = 'P';
@@ -1170,10 +1352,13 @@ static void argparse (int argc, char **argv) {
         }
 
 
-        if (!strchr("GL", conf.mode) && !conf.topic)
+        if (!strchr("GLQ", conf.mode) && !conf.topic)
                 usage(argv[0], 1, "-t <topic> missing", 0);
+        else if (conf.mode == 'Q' && !*rktparlistp)
+                usage(argv[0], 1, "-t <topic>:<partition>:<offset_or_timestamp> missing", 0);
 
-        if (rd_kafka_conf_set(conf.rk_conf, "metadata.broker.list",
+        if (conf.brokers &&
+            rd_kafka_conf_set(conf.rk_conf, "metadata.broker.list",
                               conf.brokers, errstr, sizeof(errstr)) !=
             RD_KAFKA_CONF_OK)
                 usage(argv[0], 1, errstr, 0);
@@ -1208,50 +1393,36 @@ static void argparse (int argc, char **argv) {
 		if (conf.flags & CONF_F_KEY_DELIM)
 			conf.key_delim = parse_delim(key_delim);
         }
-}
 
-
-/**
- * Dump current rdkafka configuration to stdout.
- */
-static void conf_dump (void) {
-        const char **arr;
-        size_t cnt;
-        int pass;
-
-        for (pass = 0 ; pass < 2 ; pass++) {
-                int i;
-
-                if (pass == 0) {
-                        arr = rd_kafka_conf_dump(conf.rk_conf, &cnt);
-                        printf("# Global config\n");
-                } else {
-                        printf("# Topic config\n");
-                        arr = rd_kafka_topic_conf_dump(conf.rkt_conf, &cnt);
-                }
-
-                for (i = 0 ; i < cnt ; i += 2)
-                        printf("%s = %s\n",
-                               arr[i], arr[i+1]);
-
-                printf("\n");
-
-                rd_kafka_conf_dump_free(arr, cnt);
+        /* Automatically enable API version requests if needed and
+         * user hasn't explicitly configured it (in any way). */
+        if ((conf.flags & (CONF_F_APIVERREQ | CONF_F_APIVERREQ_USER)) ==
+            CONF_F_APIVERREQ) {
+                INFO(2, "Automatically enabling api.version.request=true\n");
+                rd_kafka_conf_set(conf.rk_conf, "api.version.request", "true",
+                                  NULL, 0);
         }
 }
 
 
+
+
 int main (int argc, char **argv) {
-        char tmp[16];
+#ifdef SIGIO
+	char tmp[16];
+#endif
         FILE *in = stdin;
 	struct timeval tv;
+        rd_kafka_topic_partition_list_t *rktparlist = NULL;
 
         signal(SIGINT, term);
         signal(SIGTERM, term);
+#ifdef SIGPIPE
         signal(SIGPIPE, term);
+#endif
 
 	/* Seed rng for random partitioner, jitter, etc. */
-	gettimeofday(&tv, NULL);
+	rd_gettimeofday(&tv, NULL);
 	srand(tv.tv_usec);
 
         /* Create config containers */
@@ -1261,22 +1432,18 @@ int main (int argc, char **argv) {
         /*
          * Default config
          */
+#ifdef SIGIO
         /* Enable quick termination of librdkafka */
         snprintf(tmp, sizeof(tmp), "%i", SIGIO);
         rd_kafka_conf_set(conf.rk_conf, "internal.termination.signal",
                           tmp, NULL, 0);
+#endif
 
         /* Log callback */
         rd_kafka_conf_set_log_cb(conf.rk_conf, rd_kafka_log_print);
 
         /* Parse command line arguments */
-        argparse(argc, argv);
-
-        /* Dump configuration and exit, if so desired. */
-        if (conf.conf_dump) {
-                conf_dump();
-                exit(0);
-        }
+        argparse(argc, argv, &rktparlist);
 
         if (optind < argc) {
                 if (!strchr("PG", conf.mode))
@@ -1312,6 +1479,17 @@ int main (int argc, char **argv) {
 
         case 'L':
                 metadata_list();
+                break;
+
+        case 'Q':
+                if (!rktparlist)
+                        usage(argv[0], 1,
+                              "-Q requires one or more "
+                              "-t <topic>:<partition>:<timestamp>", 0);
+
+                query_offsets_by_time(rktparlist);
+
+                rd_kafka_topic_partition_list_destroy(rktparlist);
                 break;
 
         default:
