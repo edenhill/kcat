@@ -80,7 +80,7 @@ function pkg_cfg_lib {
 mkdir -p tmp-bootstrap
 pushd tmp-bootstrap > /dev/null
 
-github_download "edenhill/librdkafka" "v0.11.0" "librdkafka"
+github_download "edenhill/librdkafka" "master" "librdkafka"
 github_download "lloyd/yajl" "master" "libyajl"
 
 build librdkafka "([ -f config.h ] || ./configure) && make && make DESTDIR=\"${PWD}/\" install" || (echo "Failed to build librdkafka: bootstrap failed" ; false)

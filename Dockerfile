@@ -1,4 +1,4 @@
-FROM debian:stable-20170620
+FROM debian:stretch
 
 COPY . /usr/src/kafkacat
 
