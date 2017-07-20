@@ -13,6 +13,7 @@ RUN runDeps=''; \
   mv ./kafkacat /usr/local/bin/; \
   \
   rm -rf /usr/src/kafkacat/tmp-bootstrap; \
-  apt-get purge -y --auto-remove $buildDeps
+  apt-get purge -y --auto-remove $buildDeps; \
+  rm /var/log/dpkg.log /var/log/alternatives.log /var/log/apt/*.log
 
 ENTRYPOINT ["kafkacat"]
