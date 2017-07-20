@@ -150,23 +150,21 @@ Query offset(s) by timestamp(s)
 
 There is no official image build yet. Build using `docker build -t kafkacat .`.
 
-Example:
+Examples:
 ```bash
-docker run --rm kafkacat --help
+# see info about your image
+docker run --rm kafkacat
+# produce stuff (Ctrl+C to exit)
+echo "msg 1" | docker run --rm --net=host -i kafkacat -b mybroker -t logs -P
+# consume stuff (Ctrl+C to exit)
+docker run --rm -t --net=host kafkacat -b mybroker -t logs -C
+# produce from file or command inside the container
 echo 1 > example.log
 docker run --name test-producer -d -v $(pwd)/example.log:/logs/example.log --entrypoint /bin/bash --net=host kafkacat \
   -c 'tail -f /logs/example.log | kafkacat -b mybroker -t logs -P'
 echo 2 >> example.log
-echo 3 >> example.log
-docker run --name test-consumer -d --net=host kafkacat -b mybroker -t logs -C
-docker logs test-consumer
-echo 4 >> example.log
-docker logs test-consumer
-# ... or follow (press Ctrl+C to exit)
-docker run --rm -t --net=host kafkacat -b mybroker -t logs -C
-# cleanup
-docker kill test-consumer test-producer
-docker rm test-consumer test-producer
+# the last example runs in background so clean up
+docker kill test-producer && docker rm test-producer
 ```
 
 Note that `--net=host` isn't required if your Kafka broker is resolvable through DNS. It just makes the example work with the same setup as when running locally.
