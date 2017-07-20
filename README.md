@@ -148,7 +148,7 @@ Query offset(s) by timestamp(s)
 
 # Running in docker
 
-There is no official image build yet but you may run `docker build -t kafkacat .` or use for example `solsson/kafkacat@sha256:3075a6ca2d8431910cf01af13acd2ef9542c8ed48547733eb5c4321364ef0b66`.
+There is no official image build yet. Build using `docker build -t kafkacat .`.
 
 Example:
 ```bash
