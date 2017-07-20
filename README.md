@@ -155,7 +155,7 @@ Examples:
 # see info about your image
 docker run --rm kafkacat
 # produce stuff (Ctrl+C to exit)
-echo "msg 1" | docker run --rm --net=host -i kafkacat -b mybroker -t logs -P
+echo "msg 1" | docker run -i --rm --net=host kafkacat -b mybroker -t logs -P
 # consume stuff (Ctrl+C to exit)
 docker run --rm -t --net=host kafkacat -b mybroker -t logs -C
 # produce from file or command inside the container
