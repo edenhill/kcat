@@ -1,7 +1,3 @@
-\#*
-*~
-*.o
-*.d
 kafkacat
 config.cache
 config.log*
@@ -9,3 +5,11 @@ config.h
 Makefile.config
 tmp-bootstrap
 *.offset
+format.d
+format.o
+json.d
+json.o
+kafkacat.d
+kafkacat.o
+tools.d
+tools.o
