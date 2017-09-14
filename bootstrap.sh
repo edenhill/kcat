@@ -62,11 +62,11 @@ function build {
 function pkg_cfg_lib {
     pkg=$1
 
-    local libs=$(PKG_CONFIG_PATH=tmp-bootstrap/usr/local/lib/pkgconfig pkg-config --libs --static $pkg)
+    local libs=$(PKG_CONFIG_PATH=$KAFKACAT_BUILD_DIR/usr/local/lib/pkgconfig pkg-config --libs --static $pkg)
 
     # If pkg-config isnt working try grabbing the library list manually.
     if [[ -z "$libs" ]]; then
-        libs=$(grep ^Libs.private tmp-bootstrap/usr/local/lib/pkgconfig/${pkg}.pc | sed -e s'/^Libs.private: //g')
+        libs=$(grep ^Libs.private $KAFKACAT_BUILD_DIR/usr/local/lib/pkgconfig/${pkg}.pc | sed -e s'/^Libs.private: //g')
     fi
 
     # Since we specify the exact .a files to link further down below
@@ -77,8 +77,9 @@ function pkg_cfg_lib {
     >&2 echo "Using $libs for $pkg"
 }
 
-mkdir -p tmp-bootstrap
-pushd tmp-bootstrap > /dev/null
+export KAFKACAT_BUILD_DIR="/app/tools/"
+mkdir -p $KAFKACAT_BUILD_DIR
+pushd $KAFKACAT_BUILD_DIR > /dev/null
 
 github_download "edenhill/librdkafka" "master" "librdkafka"
 github_download "lloyd/yajl" "master" "libyajl"
@@ -91,10 +92,10 @@ build libyajl "([ -f config.h ] || ./configure) && make && make DESTDIR=\"${PWD}
 popd > /dev/null
 
 echo "Building kafkacat"
-export CPPFLAGS="${CPPFLAGS:-} -Itmp-bootstrap/usr/local/include"
+export CPPFLAGS="${CPPFLAGS:-} -I$KAFKACAT_BUILD_DIR/usr/local/include"
 export LIBS="$(pkg_cfg_lib rdkafka) $(pkg_cfg_lib yajl)"
-export STATIC_LIB_rdkafka="tmp-bootstrap/usr/local/lib/librdkafka.a"
-export STATIC_LIB_yajl="tmp-bootstrap/usr/local/lib/libyajl_s.a"
+export STATIC_LIB_rdkafka="$KAFKACAT_BUILD_DIR/usr/local/lib/librdkafka.a"
+export STATIC_LIB_yajl="$KAFKACAT_BUILD_DIR/usr/local/lib/libyajl_s.a"
 ./configure --enable-static --enable-json
 make
 
