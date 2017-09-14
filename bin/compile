@@ -118,7 +118,8 @@ make
 
 echo ""
 echo "Success! kafkacat is now built"
-pwd
 echo ""
+
+cp kafkacat $KAFKACAT_BUILD_DIR/kafkacat
 
 ./kafkacat -h
