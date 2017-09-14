@@ -124,5 +124,3 @@ cp kafkacat $KAFKACAT_BUILD_DIR/kafkacat
 
 mkdir -p $BUILD_DIR/.profile.d
 cp $BP_DIR/.profile.d/* $BUILD_DIR/.profile.d/
-
-./kafkacat -h
