@@ -121,5 +121,6 @@ echo "Success! kafkacat is now built"
 echo ""
 
 cp kafkacat $KAFKACAT_BUILD_DIR/kafkacat
+PATH=$KAFKACAT_BUILD_DIR/kafkacat:$PATH
 
 ./kafkacat -h
