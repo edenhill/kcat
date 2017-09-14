@@ -1,0 +1,3 @@
+#!/bin/bash
+echo "kafkacat app detected"
+exit 0
