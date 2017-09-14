@@ -14,7 +14,7 @@ BUILD_DIR=$1
 CACHE_DIR=$2
 ENV_DIR=$3
 
-KAFKACAT_BUILD_DIR=${BUILD_DIR}/.heroku/vendor
+KAFKACAT_BUILD_DIR=${BUILD_DIR}/bin
 
 #!/bin/bash
 #
@@ -121,6 +121,5 @@ echo "Success! kafkacat is now built"
 echo ""
 
 cp kafkacat $KAFKACAT_BUILD_DIR/kafkacat
-cp $KAFKACAT_BUILD_DIR-* $BUILD_DIR/bin/
 
 ./kafkacat -h
