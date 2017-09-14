@@ -77,7 +77,7 @@ function pkg_cfg_lib {
     >&2 echo "Using $libs for $pkg"
 }
 
-export KAFKACAT_BUILD_DIR="/app/tools/"
+export KAFKACAT_BUILD_DIR="/app/tools"
 mkdir -p $KAFKACAT_BUILD_DIR
 pushd $KAFKACAT_BUILD_DIR > /dev/null
 
