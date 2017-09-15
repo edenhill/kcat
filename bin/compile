@@ -137,3 +137,7 @@ cp $BP_DIR/.profile.d/* $BUILD_DIR/.profile.d/
 
 mkdir -p $BUILD_DIR/bin
 cp $BP_DIR/bin/app/* $BUILD_DIR/bin/  
+
+echo ""
+topic "kafkacat built successfully!"
+echo ""
