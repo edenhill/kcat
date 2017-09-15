@@ -3,9 +3,15 @@ kafkacat-buildpack
 
 Heroku buildpack for [kafkacat](https://github.com/edenhill/kafkacat), a command line based Apache Kafka producer and consumer.
 
-# Requirements
+# Set Up
 
-A heroku app with the heroku kafka addon.
+This buildpack requires a heroku app with the heroku kafka addon.
+
+Add the buildpack to your app:
+
+```
+ heroku buildpacks:set https://github.com/trevorscott/kafkacat-buildpack -a your-app
+```
 
 # Default Config
 
