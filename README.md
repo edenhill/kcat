@@ -1,8 +1,9 @@
-kafkacat
+kafkacat-buildpack
 ========
-Copyright (c) 2014-2016 Magnus Edenhill
 
-[https://github.com/edenhill/kafkacat](https://github.com/edenhill/kafkacat)
+Heroku buildpack for [kafkacat](https://github.com/edenhill/kafkacat), a command line based Apache Kafka producer and consumer.
+
+# Intro
 
 **kafkacat** is a generic non-JVM producer and consumer for Apache Kafka >=0.8,
 think of it as a netcat for Kafka.
@@ -22,48 +23,25 @@ state of the Kafka cluster and its topics and partitions.
 
 kafkacat is fast and lightweight; statically linked it is no more than 150Kb.
 
-
-# Install
-
-On recent enough Debian systems:
-
-````
-apt-get install kafkacat
-````
-
-And on Mac OS X with homebrew installed:
-
-````
-brew install kafkacat
-````
-
-Otherwise follow directions below.
-
-
 # Requirements
 
- * librdkafka - https://github.com/edenhill/librdkafka
- * libyajl (for JSON support, optional)
+1. A heroku app with a kafka addon attached 
 
-On Ubuntu or Debian: `sudo apt-get install librdkafka-dev libyajl-dev`
+# Default Config
 
-# Build
+Your app's kafka addon creates three SSL config vars:
 
-    ./configure <usual-configure-options>
-    make
-    sudo make install
+ * KAFKA_TRUSTED_CERT
+ * KAFKA_CLIENT_CERT
+ * KAFKA_CLIENT_CERT_KEY
+    
+This buildpack configures kafkacat with these config vars automatically so it connects to your kafka cluster with SSL by default (See [here](/.profile.d/000-kafkacat.sh)). 
 
-# Quick build
+To connect to your kafka addon you must provide kafkacat with your broker's hostname and port:
 
-The bootstrap.sh build script will download and build the required dependencies,
-providing a quick and easy means of building kafkacat.
-Internet connectivity and wget/curl is required by this script.
-The resulting kafkacat binary will be linked statically to avoid runtime
-dependencies.
-**NOTE**: Requires `curl` and `cmake` (for yajl) to be installed.
-
-    ./bootstrap.sh
-
+```
+$ kafkacat -C -b ec2-host.region.compute.amazonaws.com:port -t your-kafka-topic -u
+```
 
 # Examples
 
