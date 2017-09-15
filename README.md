@@ -5,7 +5,7 @@ Heroku buildpack for [kafkacat](https://github.com/edenhill/kafkacat), a command
 
 # Requirements
 
-1. A heroku app with the kafka addon attached 
+A heroku app with the kafka addon attached 
 
 # Default Config
 
