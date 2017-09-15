@@ -33,9 +33,9 @@ kafkacat is fast and lightweight; statically linked it is no more than 150Kb.
 
 Your kafka addon creates three SSL config vars available on your app:
 
-    1. `KAFKA_TRUSTED_CERT`
-    1. `KAFKA_CLIENT_CERT`
-    1. `KAFKA_CLIENT_CERT_KEY`
+    * `KAFKA_TRUSTED_CERT`
+    * `KAFKA_CLIENT_CERT`
+    * `KAFKA_CLIENT_CERT_KEY`
     
 This buildpack configures kafkacat with these config vars automatically (See [here](/.profile.d/000-kafkacat.sh)). Simply provide kafkacat a kafka url to connect to your Kafka cluster:
 
