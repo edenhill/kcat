@@ -34,4 +34,4 @@ For example, to read messages from the topic `your-kafka-topic`:
 $ kafkacat -t your-kafka-topic
 ```
 
-See the [kafkacat README](https://github.com/edenhill/kafkacat) for more examples.
+See the [kafkacat README](https://github.com/edenhill/kafkacat/blob/master/README.md) for more examples.
