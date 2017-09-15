@@ -1,9 +1,7 @@
 kafkacat-buildpack
 ========
 
-Heroku buildpack for [kafkacat](https://github.com/edenhill/kafkacat).
-
-Kafkacat is a generic command line non-JVM Apache Kafka producer and consumer.
+Heroku buildpack for [kafkacat](https://github.com/edenhill/kafkacat), a command line based Apache Kafka producer and consumer.
 
 # Intro
 
@@ -31,13 +29,15 @@ kafkacat is fast and lightweight; statically linked it is no more than 150Kb.
 
 # Default Config
 
-Your kafka addon creates three SSL config vars available on your app:
+Your app's kafka addon creates three SSL config vars:
 
  * KAFKA_TRUSTED_CERT
  * KAFKA_CLIENT_CERT
  * KAFKA_CLIENT_CERT_KEY
     
-This buildpack configures kafkacat with these config vars automatically (See [here](/.profile.d/000-kafkacat.sh)). Simply provide kafkacat a kafka url to connect to your Kafka cluster:
+This buildpack configures kafkacat with these config vars automatically so it connects to your kafka cluster with SSL by default (See [here](/.profile.d/000-kafkacat.sh)). 
+
+To connect to your kafka addon you must provide kafkacat with your broker's hostname and port:
 
 ```
 $ kafkacat -C -b ec2-host.region.compute.amazonaws.com:port -t your-kafka-topic -u
