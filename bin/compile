@@ -9,25 +9,37 @@ set -u
 # Debug, echo every command
 #set -x
 
+set -o errexit -o nounset 
+
 # parse and derive params
 BUILD_DIR=$1
 CACHE_DIR=$2
 ENV_DIR=$3
+
 BP_DIR=`cd $(dirname $0); cd ..; pwd`
+
 KAFKACAT_BUILD_DIR=${BUILD_DIR}/kafkacat/bin
 
-#!/bin/bash
+function topic() {
+  echo "-----> $*"
+}
+
+function indent() {
+  c='s/^/       /'
+  case $(uname) in
+    Darwin) sed -l "$c";;
+    *)      sed -u "$c";;
+  esac
+}
+
+#
+# Based off of kafkakat's bootstrap.sh script
 #
 # This script provides a quick build alternative:
 # * Dependencies are downloaded and built automatically
 # * kafkacat is built automatically.
 # * kafkacat is linked statically to avoid runtime dependencies.
 #
-# While this might not be the preferred method of building kafkacat, it
-# is the easiest and quickest way.
-#
-
-set -o errexit -o nounset -o pipefail
 
 function github_download {
     repo=$1
@@ -37,11 +49,11 @@ function github_download {
     url=https://github.com/${repo}/archive/${version}.tar.gz
 
     if [[ -d $dir ]]; then
-        echo "Directory $dir already exists, not downloading $url"
+        echo "Directory $dir already exists, not downloading $url" | indent
         return 0
     fi
 
-    echo "Downloading $url to $dir"
+    echo "Downloading $url to $dir" | indent
     if which wget 2>&1 > /dev/null; then
         DL='wget -q -O-'
     else
@@ -68,9 +80,9 @@ function build {
     popd > /dev/null
 
     if [[ $ret == 0 ]]; then
-        echo "Build of $dir SUCCEEDED!"
-    else
-        echo "Build of $dir FAILED!"
+        echo "Build of $dir SUCCEEDED!" | indent
+    else 
+        echo "Build of $dir FAILED!" | indent
     fi
 
     return $ret
@@ -89,7 +101,7 @@ function pkg_cfg_lib {
     # Since we specify the exact .a files to link further down below
     # we need to remove the -l<libname> here.
     libs=$(echo $libs | sed -e "s/-l${pkg}//g")
-    echo " $libs"
+    # echo " $libs"
 
     >&2 echo "Using $libs for $pkg"
 }
@@ -97,6 +109,8 @@ function pkg_cfg_lib {
 
 mkdir -p $KAFKACAT_BUILD_DIR
 pushd $KAFKACAT_BUILD_DIR > /dev/null
+
+topic "Installing kafkacat dependencies..."
 
 github_download "edenhill/librdkafka" "master" "librdkafka"
 github_download "lloyd/yajl" "master" "libyajl"
@@ -108,7 +122,7 @@ build libyajl "([ -f config.h ] || ./configure) && make && make DESTDIR=\"${PWD}
 
 popd > /dev/null
 
-echo "Building kafkacat"
+topic "Building kafkacat..."
 export CPPFLAGS="${CPPFLAGS:-} -I$KAFKACAT_BUILD_DIR/usr/local/include"
 export LIBS="$(pkg_cfg_lib rdkafka) $(pkg_cfg_lib yajl)"
 export STATIC_LIB_rdkafka="$KAFKACAT_BUILD_DIR/usr/local/lib/librdkafka.a"
@@ -116,14 +130,14 @@ export STATIC_LIB_yajl="$KAFKACAT_BUILD_DIR/usr/local/lib/libyajl_s.a"
 ./configure --prefix=$KAFKACAT_BUILD_DIR --enable-static --enable-json 
 make
 
-echo ""
-echo "Success! kafkacat is now built"
-echo ""
-
 cp kafkacat $KAFKACAT_BUILD_DIR/kafkacat
 
 mkdir -p $BUILD_DIR/.profile.d
 cp $BP_DIR/.profile.d/* $BUILD_DIR/.profile.d/
 
 mkdir -p $BUILD_DIR/bin
-cp $BP_DIR/bin/app/* $BUILD_DIR/bin/
+cp $BP_DIR/bin/app/* $BUILD_DIR/bin/  
+
+echo "" | indent
+topic "Success. kafkacat is now built" | indent
+echo "" | indent
