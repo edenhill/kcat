@@ -5,7 +5,7 @@ Heroku buildpack for [kafkacat](https://github.com/edenhill/kafkacat), a command
 
 # Set Up
 
-This buildpack requires a heroku app with the heroku kafka addon.
+** This buildpack requires a heroku app with the heroku kafka addon.
 
 Add the buildpack to your app:
 
