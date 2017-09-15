@@ -3,35 +3,44 @@ kafkacat-buildpack
 
 Heroku buildpack for [kafkacat](https://github.com/edenhill/kafkacat), a command line based Apache Kafka producer and consumer.
 
+Makes an auto-configured `kafkacat` command available on the dyno.
+
 # Set Up
 
-**Your app must have the heroku kafka addon attached to use this buildpack.**
+**Your app must have the [Apache Kafka on Heroku add-on](https://elements.heroku.com/addons/heroku-kafka) attached to use this buildpack.**
 
-Add the buildpack to your app:
+Add this buildpack as the first one:
 
+```bash
+heroku buildpacks:add \
+  --app $APP_NAME \
+  --index 1 \
+  https://github.com/trevorscott/kafkacat-buildpack
 ```
- heroku buildpacks:set https://github.com/trevorscott/kafkacat-buildpack -a your-app
-```
+
+✏️ *Replace `$APP_NAME` with the name for your specific Heroku app.*
+
+If your app didn't already have a buildpack explicitly set, then it was relying on autodetect of an [officially supported buildpack](https://devcenter.heroku.com/articles/buildpacks#officially-supported-buildpacks). In that case, add the required language buildpack as the last one. Example: `heroku buildpacks:add heroku/nodejs`
 
 # Default Config
 
-Your heroku app's kafka addon creates four config vars:
+The [Kafka add-on](https://elements.heroku.com/addons/heroku-kafka) creates four config vars:
 
- * KAFKA_TRUSTED_CERT
- * KAFKA_CLIENT_CERT
- * KAFKA_CLIENT_CERT_KEY
- * KAFKA_URL
+ * `KAFKA_TRUSTED_CERT`
+ * `KAFKA_CLIENT_CERT`
+ * `KAFKA_CLIENT_CERT_KEY`
+ * `KAFKA_URL`
  
-This buildpack configures kafkacat with these config vars so it connects to a broker in your kafka cluster with SSL by default. We configure kafkacat with the first broker url provided in the `KAFKA_URL` config var. (See the [.profile.d script](/.profile.d/000-kafkacat.sh) and the configured [kafkacat binary](/bin/app/kafkacat) for more details)
+This buildpack automatically configures `kafkacat` with these config vars, so it connects to a broker in the Kafka cluster with SSL by default. The configuration uses the first broker URL of the `KAFKA_URL` config var. (See the [.profile.d script](/.profile.d/000-kafkacat.sh) and the configured [`kafkacat` command](/bin/app/kafkacat) for more details.)
 
 # Usage
 
-Since our version of kafkacat comes preconfigured, you can omit kafkacat SSL & broker configuration. 
+Since our version of `kafkacat` comes preconfigured, you should omit SSL & broker configuration. 
 
-For example, to read messages from the topic `your-kafka-topic`:
+For example, to read messages from the topic `your-topic`:
 
 ```
-$ kafkacat -t your-kafka-topic
+$ kafkacat -t your-topic
 ```
 
 See the [kafkacat README](https://github.com/edenhill/kafkacat/blob/master/README.md) for more examples.
