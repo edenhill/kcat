@@ -1,8 +1,11 @@
-kafkacat
+kafkacat-buildpack
 ========
-Copyright (c) 2014-2016 Magnus Edenhill
 
-[https://github.com/edenhill/kafkacat](https://github.com/edenhill/kafkacat)
+Heroku buildpack for [kafkacat](https://github.com/edenhill/kafkacat).
+
+Kafkacat is a generic command line non-JVM Apache Kafka producer and consumer.
+
+# Intro
 
 **kafkacat** is a generic non-JVM producer and consumer for Apache Kafka >=0.8,
 think of it as a netcat for Kafka.
@@ -22,48 +25,23 @@ state of the Kafka cluster and its topics and partitions.
 
 kafkacat is fast and lightweight; statically linked it is no more than 150Kb.
 
-
-# Install
-
-On recent enough Debian systems:
-
-````
-apt-get install kafkacat
-````
-
-And on Mac OS X with homebrew installed:
-
-````
-brew install kafkacat
-````
-
-Otherwise follow directions below.
-
-
 # Requirements
 
- * librdkafka - https://github.com/edenhill/librdkafka
- * libyajl (for JSON support, optional)
+1. A heroku app with a kafka addon attached 
 
-On Ubuntu or Debian: `sudo apt-get install librdkafka-dev libyajl-dev`
+# Default Config
 
-# Build
+Your kafka addon creates three SSL config vars available on your app:
 
-    ./configure <usual-configure-options>
-    make
-    sudo make install
+    1. `KAFKA_TRUSTED_CERT`
+    1. `KAFKA_CLIENT_CERT`
+    1. `KAFKA_CLIENT_CERT_KEY`
+    
+This buildpack configures kafkacat with these config vars automatically (See [here](/.profile.d/000-kafkacat.sh)). Simply provide kafkacat a kafka url to connect to your Kafka cluster:
 
-# Quick build
-
-The bootstrap.sh build script will download and build the required dependencies,
-providing a quick and easy means of building kafkacat.
-Internet connectivity and wget/curl is required by this script.
-The resulting kafkacat binary will be linked statically to avoid runtime
-dependencies.
-**NOTE**: Requires `curl` and `cmake` (for yajl) to be installed.
-
-    ./bootstrap.sh
-
+```
+kafkacat -C -b ec2-host.region.compute.amazonaws.com:port -t your-kafka-topic -u
+```
 
 # Examples
 
