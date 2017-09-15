@@ -3,44 +3,29 @@ kafkacat-buildpack
 
 Heroku buildpack for [kafkacat](https://github.com/edenhill/kafkacat), a command line based Apache Kafka producer and consumer.
 
-# Intro
-
-**kafkacat** is a generic non-JVM producer and consumer for Apache Kafka >=0.8,
-think of it as a netcat for Kafka.
-
-In **producer** mode kafkacat reads messages from stdin, delimited with a
-configurable delimiter (-D, defaults to newline), and produces them to the
-provided Kafka cluster (-b), topic (-t) and partition (-p).
-
-In **consumer** mode kafkacat reads messages from a topic and partition and
-prints them to stdout using the configured message delimiter.
-
-There's also support for the Kafka >=0.9 high-level balanced consumer, use
-the `-G <group>` switch and provide a list of topics to join the group.
-
-kafkacat also features a Metadata list (-L) mode to display the current
-state of the Kafka cluster and its topics and partitions.
-
-kafkacat is fast and lightweight; statically linked it is no more than 150Kb.
-
 # Requirements
 
-1. A heroku app with a kafka addon attached 
+1. A heroku app with the kafka addon attached 
 
 # Default Config
 
-Your app's kafka addon creates three SSL config vars:
+Your app's kafka addon creates four config vars:
 
  * KAFKA_TRUSTED_CERT
  * KAFKA_CLIENT_CERT
  * KAFKA_CLIENT_CERT_KEY
-    
-This buildpack configures kafkacat with these config vars automatically so it connects to your kafka cluster with SSL by default (See [here](/.profile.d/000-kafkacat.sh)). 
+ * KAFKA_URL
+ 
+This buildpack configures kafkacat with these config vars so it connects to a broker in your kafka cluster with SSL by default. We configure kafkacat with the first broker url provided in the `KAFKA_URL` config var. (See the [.profile.d script](/.profile.d/000-kafkacat.sh) and the configured [kafkacat binary](/bin/app/kafkacat) for more details)
 
-To connect to your kafka addon you must provide kafkacat with your broker's hostname and port:
+# Usage
+
+Since our version of kafkacat comes preconfigured, you can omit kafkacat SSL & broker configuration. 
+
+For example, to read messages from the topic `your-kafka-topic`:
 
 ```
-$ kafkacat -C -b ec2-host.region.compute.amazonaws.com:port -t your-kafka-topic -u
+$ kafkacat -t your-kafka-topic
 ```
 
 # Examples
