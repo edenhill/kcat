@@ -9,7 +9,7 @@ Heroku buildpack for [kafkacat](https://github.com/edenhill/kafkacat), a command
 
 # Default Config
 
-Your app's kafka addon creates four config vars:
+Your heroku app's kafka addon creates four config vars:
 
  * KAFKA_TRUSTED_CERT
  * KAFKA_CLIENT_CERT
