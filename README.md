@@ -40,7 +40,7 @@ Your kafka addon creates three SSL config vars available on your app:
 This buildpack configures kafkacat with these config vars automatically (See [here](/.profile.d/000-kafkacat.sh)). Simply provide kafkacat a kafka url to connect to your Kafka cluster:
 
 ```
-kafkacat -C -b ec2-host.region.compute.amazonaws.com:port -t your-kafka-topic -u
+$ kafkacat -C -b ec2-host.region.compute.amazonaws.com:port -t your-kafka-topic -u
 ```
 
 # Examples
