@@ -28,15 +28,10 @@ function indent() {
   esac
 }
 
-#!/bin/bash
 #
-# This script provides a quick build alternative:
-# * Dependencies are downloaded and built automatically
-# * kafkacat is built automatically.
-# * kafkacat is linked statically to avoid runtime dependencies.
+# This build is based off of the kafkacat bootstrap.sh script:
 #
-# While this might not be the preferred method of building kafkacat, it
-# is the easiest and quickest way.
+#   https://github.com/edenhill/kafkacat/blob/master/bootstrap.sh
 #
 
 set -o errexit -o nounset -o pipefail
