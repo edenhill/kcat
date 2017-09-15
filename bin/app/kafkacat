@@ -1,7 +1,7 @@
 #!/bin/bash
 
 $KAFKACAT_HOME/bin/kafkacat \
-  -C -b $KAFKA_URL_1
+  -C -b $KAFKA_URL_1 \
   -X security.protocol=SSL \
   -X ssl.ca.location=$KAFKACAT_HOME/env/KAFKA_TRUSTED_CERT \
   -X ssl.certificate.location=$KAFKACAT_HOME/env/KAFKA_CLIENT_CERT \
