@@ -64,6 +64,19 @@ dependencies.
 
     ./bootstrap.sh
 
+## Build within docker
+
+As an alternative, build a docker image with kafkacat.
+
+````
+docker build -t kafkacat .
+````
+
+Now it is possible to use kafkacat over the docker image.
+
+````
+docker run --rm -it kafkacat <options> [file1 file2 .. | topic1 topic2 ..]]
+````
 
 # Examples
 
