@@ -13,7 +13,7 @@ set -u
 BUILD_DIR=$1
 CACHE_DIR=$2
 ENV_DIR=$3
-KAFKACAT_BUILD_DIR=${BUILD_DIR}/kafkacat_dir/bin
+KAFKACAT_BUILD_DIR=${BUILD_DIR}/kafkacat
 
 function topic() {
   echo "-----> $*"
@@ -125,4 +125,5 @@ export LIBS="$(pkg_cfg_lib rdkafka) $(pkg_cfg_lib yajl)"
 export STATIC_LIB_rdkafka="$KAFKACAT_BUILD_DIR/usr/local/lib/librdkafka.a"
 export STATIC_LIB_yajl="$KAFKACAT_BUILD_DIR/usr/local/lib/libyajl_s.a"
 ./configure --prefix=$KAFKACAT_BUILD_DIR --enable-static --enable-json >> build.log
-make >> build.log
+make install >> build.log
+

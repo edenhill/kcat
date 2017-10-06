@@ -14,7 +14,7 @@ BUILD_DIR=$1
 CACHE_DIR=$2
 ENV_DIR=$3
 BP_DIR=`cd $(dirname $0); cd ..; pwd`
-KAFKACAT_BUILD_DIR=${BUILD_DIR}/kafkacat_dir/bin
+KAFKACAT_BUILD_DIR=${BUILD_DIR}/kafkacat
 
 function topic() {
   echo "-----> $*"
@@ -38,7 +38,7 @@ fi
 
 eval "$BP_DIR/bin/make-kafkacat $@"
 
-cp kafkacat $KAFKACAT_BUILD_DIR/kafkacat
+#cp $BP_DIR/kafkacat $KAFKACAT_BUILD_DIR/kafkacat
 
 mkdir -p $BUILD_DIR/.profile.d
 cp $BP_DIR/.profile.d/* $BUILD_DIR/.profile.d/
