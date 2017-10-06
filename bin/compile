@@ -16,6 +16,14 @@ ENV_DIR=$3
 BP_DIR=`cd $(dirname $0); cd ..; pwd`
 KAFKACAT_BUILD_DIR=${BUILD_DIR}/kafkacat/bin
 
+#
+# detect when building with inline buildpack
+#
+if [ ! -f $BP_DIR/kafkacat.c ] 
+then
+    BP_DIR=..
+fi
+
 eval "$BP_DIR/bin/make-kafkacat $@"
 
 cp kafkacat $KAFKACAT_BUILD_DIR/kafkacat
