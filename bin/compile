@@ -35,7 +35,6 @@ if [ -f $BP_DIR/kafkacat.c ]
 then
     topic "Building kafkacat binary"
 
-    BP_DIR=..
     eval "$BP_DIR/bin/make-kafkacat $@"
 
     mkdir -p $KAFKACAT_BUILD_DIR/bin
@@ -52,6 +51,7 @@ then
     topic "kafkacat built successfully!"
     echo ""
 else
+    BP_DIR=..
     topic "Downloading kafkacat binary"
     # dl from s3
     # curl ...
