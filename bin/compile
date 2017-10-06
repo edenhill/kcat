@@ -68,7 +68,6 @@ function build {
 
     echo ""
     topic "Building $dir..."
-    echo ""
 
     pushd $dir > /dev/null
     set +o errexit
@@ -78,12 +77,10 @@ function build {
     popd > /dev/null
 
     if [[ $ret == 0 ]]; then
-        echo ""
-        topic "Build of $dir SUCCEEDED!" 
+        echo "Build of $dir SUCCEEDED!" | indent
         echo ""
     else 
-        echo ""
-        topic "Build of $dir FAILED!" | indent
+        echo "Build of $dir FAILED!"| indent
         echo ""
     fi
 
@@ -119,14 +116,13 @@ github_download "lloyd/yajl" "master" "libyajl"
 
 build librdkafka "([ -f config.h ] || ./configure >> build.log) && make >> build.log && make DESTDIR=\"${PWD}/\" install >> build.log" || (echo "Failed to build librdkafka: bootstrap failed" ; false)
 
-build libyajl "([ -f config.h ] || ./configure >> build.log) && make >> build.log && make DESTDIR=\"${PWD}/\" install >> build.log" || (echo "Failed to build libyajl: JSON support will probably be disabled" ; true)
+build libyajl "([ -f config.h ] || ./configure >> build.log) && make >> build.log && make DESTDIR=\"${PWD}/\" install >> build.log" || (echo "Failed to build libyajl: JSON support will probably be disabled" | indent ; true)
 
 
 popd > /dev/null
 
 echo ""
 topic "Building kafkacat"
-echo ""
 
 export CPPFLAGS="${CPPFLAGS:-} -I$KAFKACAT_BUILD_DIR/usr/local/include"
 export LIBS="$(pkg_cfg_lib rdkafka) $(pkg_cfg_lib yajl)"
