@@ -38,7 +38,8 @@ fi
 
 eval "$BP_DIR/bin/make-kafkacat $@"
 
-cp $BP_DIR/kafkacat $KAFKACAT_BUILD_DIR/kafkacat
+mkdir -p $KAFKACAT_BUILD_DIR/bin
+cp $BP_DIR/kafkacat $KAFKACAT_BUILD_DIR/bin/
 
 mkdir -p $BUILD_DIR/.profile.d
 # ignore when building with inline buildpack
