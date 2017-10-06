@@ -33,22 +33,29 @@ function indent() {
 #
 if [ ! -f $BP_DIR/kafkacat.c ] 
 then
+    topic "Building kafkacat binary"
+
     BP_DIR=..
+    eval "$BP_DIR/bin/make-kafkacat $@"
+
+    mkdir -p $KAFKACAT_BUILD_DIR/bin
+    cp $BP_DIR/kafkacat $KAFKACAT_BUILD_DIR/bin/
+
+    mkdir -p $BUILD_DIR/.profile.d
+    # ignore when building with inline buildpack
+    cp $BP_DIR/.profile.d/* $BUILD_DIR/.profile.d/ || true
+
+    mkdir -p $BUILD_DIR/bin
+    cp $BP_DIR/bin/app/* $BUILD_DIR/bin/ 
+
+    echo ""
+    topic "kafkacat built successfully!"
+    echo ""
+else
+    topic "Downloading kafkacat binary"
+    # dl from s3
+    # curl ...
 fi
 
-eval "$BP_DIR/bin/make-kafkacat $@"
-
-mkdir -p $KAFKACAT_BUILD_DIR/bin
-cp $BP_DIR/kafkacat $KAFKACAT_BUILD_DIR/bin/
-
-mkdir -p $BUILD_DIR/.profile.d
-# ignore when building with inline buildpack
-cp $BP_DIR/.profile.d/* $BUILD_DIR/.profile.d/ || true
-
-mkdir -p $BUILD_DIR/bin
-cp $BP_DIR/bin/app/* $BUILD_DIR/bin/  
 
 
-echo ""
-topic "kafkacat built successfully!"
-echo ""
