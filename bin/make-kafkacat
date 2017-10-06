@@ -10,7 +10,7 @@ set -u
 #set -x
 
 # parse and derive params
-BUILD_DIR=$1
+cd =$1
 CACHE_DIR=$2
 ENV_DIR=$3
 BP_DIR=`cd $(dirname $0); cd ..; pwd`
@@ -124,7 +124,7 @@ export CPPFLAGS="${CPPFLAGS:-} -I$KAFKACAT_BUILD_DIR/usr/local/include"
 export LIBS="$(pkg_cfg_lib rdkafka) $(pkg_cfg_lib yajl)"
 export STATIC_LIB_rdkafka="$KAFKACAT_BUILD_DIR/usr/local/lib/librdkafka.a"
 export STATIC_LIB_yajl="$KAFKACAT_BUILD_DIR/usr/local/lib/libyajl_s.a"
-$BUILD_DIR/configure --prefix=$KAFKACAT_BUILD_DIR --enable-static --enable-json >> build.log
+./configure --prefix=$KAFKACAT_BUILD_DIR --enable-static --enable-json >> build.log
 make >> build.log
 
 echo ""
