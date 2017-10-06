@@ -78,10 +78,8 @@ function build {
 
     if [[ $ret == 0 ]]; then
         echo "Build of $dir SUCCEEDED!" | indent
-        echo ""
     else 
         echo "Build of $dir FAILED!"| indent
-        echo ""
     fi
 
     return $ret
