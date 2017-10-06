@@ -1,4 +1,4 @@
-export KAFKACAT_HOME="/app/kafkacat"
+export KAFKACAT_HOME="/app/.heroku"
 
 # write kafka ssl config vars to files
 mkdir -p $KAFKACAT_HOME/env
