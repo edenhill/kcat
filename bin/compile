@@ -38,7 +38,7 @@ fi
 
 eval "$BP_DIR/bin/make-kafkacat $@"
 
-#cp $BP_DIR/kafkacat $KAFKACAT_BUILD_DIR/kafkacat
+cp $BP_DIR/kafkacat $KAFKACAT_BUILD_DIR/kafkacat
 
 mkdir -p $BUILD_DIR/.profile.d
 cp $BP_DIR/.profile.d/* $BUILD_DIR/.profile.d/
