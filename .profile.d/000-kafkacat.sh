@@ -1,4 +1,4 @@
-export KAFKACAT_HOME="/app/kafkacat"
+export KAFKACAT_HOME="/app/kafkacat_dir"
 
 # write kafka ssl config vars to files
 mkdir -p $KAFKACAT_HOME/env
