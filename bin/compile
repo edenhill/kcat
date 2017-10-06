@@ -31,7 +31,7 @@ function indent() {
 #
 # detect when building with inline buildpack
 #
-if [ ! -f $BP_DIR/kafkacat.c ] 
+if [ -f $BP_DIR/kafkacat.c ] 
 then
     topic "Building kafkacat binary"
 
