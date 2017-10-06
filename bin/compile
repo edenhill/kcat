@@ -16,6 +16,18 @@ ENV_DIR=$3
 BP_DIR=`cd $(dirname $0); cd ..; pwd`
 KAFKACAT_BUILD_DIR=${BUILD_DIR}/kafkacat_dir/bin
 
+function topic() {
+  echo "-----> $*"
+}
+
+function indent() {
+  c='s/^/       /'
+  case $(uname) in
+    Darwin) sed -l "$c";;
+    *)      sed -u "$c";;
+  esac
+}
+
 #
 # detect when building with inline buildpack
 #
@@ -34,3 +46,7 @@ cp $BP_DIR/.profile.d/* $BUILD_DIR/.profile.d/
 mkdir -p $BUILD_DIR/bin
 cp $BP_DIR/bin/app/* $BUILD_DIR/bin/  
 
+
+echo ""
+topic "kafkacat built successfully!"
+echo ""

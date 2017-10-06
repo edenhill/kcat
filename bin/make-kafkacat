@@ -115,7 +115,7 @@ build libyajl "([ -f config.h ] || ./configure >> build.log) && make >> build.lo
 
 popd > /dev/null
 
-pushd $BUILD_DIR > /dev/null
+cd $BUILD_DIR
 
 echo ""
 topic "Building kafkacat"
@@ -126,9 +126,3 @@ export STATIC_LIB_rdkafka="$KAFKACAT_BUILD_DIR/usr/local/lib/librdkafka.a"
 export STATIC_LIB_yajl="$KAFKACAT_BUILD_DIR/usr/local/lib/libyajl_s.a"
 ./configure --prefix=$KAFKACAT_BUILD_DIR --enable-static --enable-json >> build.log
 make >> build.log
-
-popd > /dev/null
-
-echo ""
-topic "kafkacat built successfully!"
-echo ""
