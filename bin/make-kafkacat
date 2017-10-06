@@ -113,7 +113,6 @@ build librdkafka "([ -f config.h ] || ./configure >> build.log) && make >> build
 
 build libyajl "([ -f config.h ] || ./configure >> build.log) && make >> build.log && make DESTDIR=\"${PWD}/\" install >> build.log" || (echo "Failed to build libyajl: JSON support will probably be disabled" | indent ; true)
 
-
 popd > /dev/null
 
 echo ""
@@ -123,7 +122,7 @@ export CPPFLAGS="${CPPFLAGS:-} -I$KAFKACAT_BUILD_DIR/usr/local/include"
 export LIBS="$(pkg_cfg_lib rdkafka) $(pkg_cfg_lib yajl)"
 export STATIC_LIB_rdkafka="$KAFKACAT_BUILD_DIR/usr/local/lib/librdkafka.a"
 export STATIC_LIB_yajl="$KAFKACAT_BUILD_DIR/usr/local/lib/libyajl_s.a"
-./configure --prefix=$KAFKACAT_BUILD_DIR --enable-static --enable-json >> build.log
+([ -f config.h ] || ./configure --prefix=$KAFKACAT_BUILD_DIR --enable-static --enable-json >> build.log)
 make >> build.log
 
 echo ""
