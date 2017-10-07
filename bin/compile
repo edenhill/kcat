@@ -31,8 +31,9 @@ function indent() {
 #
 # detect when building with inline buildpack
 #
-if [ -f $BP_DIR/kafkacat.c ] 
+if [ ! -f $BP_DIR/kafkacat.c ] 
 then
+    BP_DIR=..
     topic "Building kafkacat binary"
 
     eval "$BP_DIR/bin/make-kafkacat $@"
@@ -51,7 +52,6 @@ then
     topic "kafkacat built successfully!"
     echo ""
 else
-    BP_DIR=..
     topic "Downloading kafkacat binary"
     # dl from s3
     # curl ...
