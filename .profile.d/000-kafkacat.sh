@@ -1,11 +1,11 @@
-export KAFKACAT_HOME="/app/.heroku"
+export KAFKACAT_ENV="/app/.kafkacat/env"
 
 # write kafka ssl config vars to files
-mkdir -p $KAFKACAT_HOME/env
+mkdir -p $KAFKACAT_ENV
 
-echo "$KAFKA_TRUSTED_CERT" > $KAFKACAT_HOME/env/KAFKA_TRUSTED_CERT
-echo "$KAFKA_CLIENT_CERT" > $KAFKACAT_HOME/env/KAFKA_CLIENT_CERT
-echo "$KAFKA_CLIENT_CERT_KEY" > $KAFKACAT_HOME/env/KAFKA_CLIENT_CERT_KEY
+echo "$KAFKA_TRUSTED_CERT" > $KAFKACAT_ENV/KAFKA_TRUSTED_CERT
+echo "$KAFKA_CLIENT_CERT" > $KAFKACAT_ENV/KAFKA_CLIENT_CERT
+echo "$KAFKA_CLIENT_CERT_KEY" > $KAFKACAT_ENV/KAFKA_CLIENT_CERT_KEY
 
 #
 # Attempt at dynamically parsing through all kafka URLS and assigning them to different env variables 
