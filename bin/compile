@@ -71,7 +71,7 @@ else
     cp kafkacat-binary/bin/kafkacat $KAFKACAT_BUILD_DIR/bin/
 
     mkdir -p $BUILD_DIR/bin
-    cp kafkacat-binary/bin/* $BUILD_DIR/bin/ 
+    cp $BP_DIR/bin/app/* $BUILD_DIR/bin/ 
 
     topic "Install of kafkacat SUCCEEDED!"
     echo ""
