@@ -1,9 +1,19 @@
 #!/bin/bash
 
-# You don't need Fog in Ruby or some other library to upload to S3 -- shell works perfectly fine
-# This is how I upload my new Sol Trader builds (http://soltrader.net)
-# Based on a modified script from here: http://tmont.com/blargh/2014/1/uploading-to-s3-in-bash
-
+# NAME 
+#   putS3
+# 
+# SYNOPSIS
+#   putS3 [file]
+#
+# DESCRIPTION
+#   Takes a single file as a parameter and writes it to the root 
+#   directory of the s3 bucket named kafkacat-buildpack
+#
+# Config
+#   AWS_SECRET_ACCESS_KEY
+#   AWS_ACCESS_KEY_ID
+#
 
 function putS3
 {
