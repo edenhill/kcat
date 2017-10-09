@@ -31,11 +31,11 @@ function indent() {
   esac
 }
 
-echo "listing BP_DIR..."
-ls -al $BP_DIR
+# echo "listing BP_DIR..."
+# ls -al $BP_DIR
 
-echo "listing BUILD_DIR..."
-ls -al $BUILD_DIR
+# echo "listing BUILD_DIR..."
+# ls -al $BUILD_DIR
 #
 # detect when building with inline buildpack
 #
@@ -52,14 +52,16 @@ then
     cp $BP_DIR/kafkacat $KAFKACAT_BUILD_DIR/bin/
 
     mkdir -p $BUILD_DIR/.profile.d
+    
     # ignore when building with inline buildpack
-    cp $BP_DIR/.profile.d/* $BUILD_DIR/.profile.d/ || true
+    # don't need this since BP_DIR = BUILD_DIR
+    # cp $BP_DIR/.profile.d/* $BUILD_DIR/.profile.d/ || true
 
     mkdir -p $BUILD_DIR/bin
     cp $BP_DIR/bin/app/* $BUILD_DIR/bin/ 
 
     echo ""
-    topic "kafkacat built successfully!"
+    topic "kafkacat build SUCCEEDED!"
     echo ""
 else
     topic "Downloading kafkacat binary"
