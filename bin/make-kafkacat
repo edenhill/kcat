@@ -97,7 +97,7 @@ function pkg_cfg_lib {
     libs=$(echo $libs | sed -e "s/-l${pkg}//g")
     echo " $libs"
 
-    >&2 echo "Using $libs for $pkg" | indent
+    # >&2 echo "Using $libs for $pkg" | indent
 }
 
 
