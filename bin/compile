@@ -41,7 +41,6 @@ ls -al $BUILD_DIR
 #
 if [ "$BUILD_INLINE" == "true" ]
 then
-    BP_DIR=..
     topic "Building kafkacat binary"
 
     eval "$BP_DIR/bin/make-kafkacat $@"
