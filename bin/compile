@@ -39,7 +39,10 @@ ls -al $BUILD_DIR
 #
 # detect when building with inline buildpack
 #
-if [ "$BUILD_INLINE" == "true" ]
+# BUILD_INLINE env variable set from the forked build inline buildpack:
+#   https://github.com/trevorscott/heroku-buildpack-inline
+#
+if [ "${BUILD_INLINE:-false}" == "true" ]
 then
     topic "Building kafkacat binary"
 
