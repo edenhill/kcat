@@ -31,15 +31,11 @@ function indent() {
   esac
 }
 
-# echo "listing BP_DIR..."
-# ls -al $BP_DIR
 
-# echo "listing BUILD_DIR..."
-# ls -al $BUILD_DIR
 #
 # detect when building with inline buildpack
 #
-# BUILD_INLINE env variable set from the forked build inline buildpack:
+# BUILD_INLINE env variable set from the forked inline buildpack:
 #   https://github.com/trevorscott/heroku-buildpack-inline
 #
 if [ "${BUILD_INLINE:-false}" == "true" ]
