@@ -61,7 +61,20 @@ then
 else
     topic "Downloading kafkacat binary..."
     # dl from s3
-    # curl ...
+    curl --progress-bar -O https://s3-us-west-1.amazonaws.com/kafkacat-buildpack/kafkacat.tar.gz
+    tar -xzf kafkacat.tar.gz
+
+    mkdir -p $BUILD_DIR/.profile.d
+    cp $BP_DIR/.profile.d/* $BUILD_DIR/.profile.d/
+
+    mkdir -p $KAFKACAT_BUILD_DIR/bin
+    cp kafkacat-binary/bin/kafkacat $KAFKACAT_BUILD_DIR/bin/
+
+    mkdir -p $BUILD_DIR/bin
+    cp kafkacat-binary/bin/* $BUILD_DIR/bin/ 
+
+    topic "Install of kafkacat SUCCEEDED!"
+    echo ""
 fi
 
 
