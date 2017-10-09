@@ -44,7 +44,7 @@ function indent() {
 #
 if [ "${BUILD_INLINE:-false}" == "true" ]
 then
-    topic "Building kafkacat binary"
+    topic "Building kafkacat binary..."
 
     eval "$BP_DIR/bin/make-kafkacat $@"
 
@@ -60,11 +60,10 @@ then
     mkdir -p $BUILD_DIR/bin
     cp $BP_DIR/bin/app/* $BUILD_DIR/bin/ 
 
-    echo ""
-    topic "kafkacat build SUCCEEDED!"
+    topic "Build of kafkacat SUCCEEDED!"
     echo ""
 else
-    topic "Downloading kafkacat binary"
+    topic "Downloading kafkacat binary..."
     # dl from s3
     # curl ...
 fi
