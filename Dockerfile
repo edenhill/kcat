@@ -1,6 +1,7 @@
 FROM debian:stretch-slim
 
-ENV librdkafka_version=v0.11.1-RC1 yajl_version=2.1.0
+ARG librdkafka_version=v0.11.1-RC1
+ARG yajl_version=2.1.0
 
 COPY . /usr/src/kafkacat
 
