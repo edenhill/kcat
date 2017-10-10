@@ -6,7 +6,7 @@ ARG yajl_version=2.1.0
 COPY . /usr/src/kafkacat
 
 RUN set -ex; \
-  runtimeDeps='zlib1g liblz4-1 libssl1.1 libsasl2-2'; \
+  runtimeDeps='libssl1.1 libsasl2-2'; \
   buildDeps='curl ca-certificates build-essential zlib1g-dev liblz4-dev libssl-dev libsasl2-dev python cmake'; \
   export DEBIAN_FRONTEND=noninteractive; \
   apt-get update && apt-get install -y $runtimeDeps $buildDeps --no-install-recommends; \
@@ -25,6 +25,8 @@ RUN set -ex; \
   \
   rm -rf /usr/src/kafkacat/tmp-bootstrap; \
   apt-get purge -y --auto-remove $buildDeps; \
-  rm /var/log/dpkg.log /var/log/alternatives.log /var/log/apt/*.log
+  rm /var/log/dpkg.log /var/log/alternatives.log /var/log/apt/*.log; \
+  \
+  kafkacat -V
 
 ENTRYPOINT ["kafkacat"]
