@@ -3,7 +3,7 @@ FROM debian:stretch-slim
 COPY . /usr/src/kafkacat
 
 RUN set -ex; \
-  buildDeps='curl ca-certificates build-essential zlib1g-dev libssl-dev libsasl2-dev python cmake'; \
+  buildDeps='curl ca-certificates build-essential zlib1g-dev liblz4-dev libssl-dev libsasl2-dev python cmake'; \
   export DEBIAN_FRONTEND=noninteractive; \
   apt-get update && apt-get install -y $buildDeps --no-install-recommends; \
   rm -rf /var/lib/apt/lists/*; \
