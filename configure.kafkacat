@@ -30,19 +30,19 @@ struct rd_kafka_metadata foo;"
     #endif"
 
 
-    mkl_meta_set "yajl" "deb" "libyajl-dev"
-    # Check for JSON library (yajl)
-    if [[ $WITH_JSON == y ]] && \
-        mkl_lib_check --static=-lyajl "yajl" HAVE_YAJL disable CC "-lyajl" \
-        "#include  <yajl/yajl_version.h>
-#if YAJL_MAJOR >= 2
-#else
-#error \"Requires libyajl2\"
-#endif
-"
-    then
-        mkl_allvar_set "json" ENABLE_JSON y
-    fi
+#     mkl_meta_set "yajl" "deb" "libyajl-dev"
+#     # Check for JSON library (yajl)
+#     if [[ $WITH_JSON == y ]] && \
+#         mkl_lib_check --static=-lyajl "yajl" HAVE_YAJL disable CC "-lyajl" \
+#         "#include  <yajl/yajl_version.h>
+# #if YAJL_MAJOR >= 2
+# #else
+# #error \"Requires libyajl2\"
+# #endif
+# "
+#     then
+#         mkl_allvar_set "json" ENABLE_JSON y
+#     fi
 }
 
 

@@ -1,0 +1,81 @@
+#!/bin/bash
+
+# Fail immediately on non-zero exit code.
+set -e
+# Fail immediately on non-zero exit code within a pipeline.
+set -o pipefail
+# Fail on undeclared variables.
+set -u
+# Debug, echo every command
+#set -x
+
+# parse and derive params
+BUILD_DIR=$1
+CACHE_DIR=$2
+ENV_DIR=$3
+#
+#   BP_DIR = BUILD_DIR 
+#
+BP_DIR=`cd $(dirname $0); cd ..; pwd`
+KAFKACAT_BUILD_DIR=${BUILD_DIR}/kafkacat-binary
+
+function topic() {
+  echo "-----> $*"
+}
+
+function indent() {
+  c='s/^/       /'
+  case $(uname) in
+    Darwin) sed -l "$c";;
+    *)      sed -u "$c";;
+  esac
+}
+
+
+#
+# detect when building with inline buildpack
+#
+# BUILD_INLINE env variable set from the forked inline buildpack:
+#   https://github.com/trevorscott/heroku-buildpack-inline
+#
+if [ "${BUILD_INLINE:-false}" == "true" ]
+then
+    topic "Building kafkacat binary..."
+
+    eval "$BP_DIR/bin/make-kafkacat $@"
+
+    mkdir -p $KAFKACAT_BUILD_DIR/bin
+    cp $BP_DIR/kafkacat $KAFKACAT_BUILD_DIR/bin/
+
+    mkdir -p $BUILD_DIR/.profile.d
+    
+    # ignore when building with inline buildpack
+    # don't need this since BP_DIR = BUILD_DIR
+    # cp $BP_DIR/.profile.d/* $BUILD_DIR/.profile.d/ || true
+
+    mkdir -p $BUILD_DIR/bin
+    cp $BP_DIR/bin/app/* $BUILD_DIR/bin/ 
+
+    topic "Build of kafkacat SUCCEEDED!"
+    echo ""
+else
+    topic "Downloading kafkacat binary..."
+    # dl from s3
+    curl --progress-bar -O https://s3-us-west-1.amazonaws.com/kafkacat-buildpack/kafkacat.tar.gz
+    tar -xzf kafkacat.tar.gz
+
+    mkdir -p $BUILD_DIR/.profile.d
+    cp $BP_DIR/.profile.d/* $BUILD_DIR/.profile.d/
+
+    mkdir -p $KAFKACAT_BUILD_DIR/bin
+    cp kafkacat-binary/bin/kafkacat $KAFKACAT_BUILD_DIR/bin/
+
+    mkdir -p $BUILD_DIR/bin
+    cp $BP_DIR/bin/app/* $BUILD_DIR/bin/ 
+
+    topic "Install of kafkacat SUCCEEDED!"
+    echo ""
+fi
+
+
+

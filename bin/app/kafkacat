@@ -1,0 +1,9 @@
+#!/bin/bash
+
+/app/kafkacat-binary/bin/kafkacat \
+  -b $KAFKA_URL_1 \
+  -X security.protocol=SSL \
+  -X ssl.ca.location=$KAFKACAT_ENV/KAFKA_TRUSTED_CERT \
+  -X ssl.certificate.location=$KAFKACAT_ENV/KAFKA_CLIENT_CERT \
+  -X ssl.key.location=$KAFKACAT_ENV/KAFKA_CLIENT_CERT_KEY \
+  $@
