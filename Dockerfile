@@ -6,9 +6,10 @@ ARG yajl_version=2.1.0
 COPY . /usr/src/kafkacat
 
 RUN set -ex; \
+  runtimeDeps='libsasl2-2'; \
   buildDeps='curl ca-certificates build-essential zlib1g-dev liblz4-dev libssl-dev libsasl2-dev python cmake'; \
   export DEBIAN_FRONTEND=noninteractive; \
-  apt-get update && apt-get install -y $buildDeps --no-install-recommends; \
+  apt-get update && apt-get install -y $runtimeDeps $buildDeps --no-install-recommends; \
   rm -rf /var/lib/apt/lists/*; \
   \
   cd /usr/src/kafkacat; \
