@@ -10,7 +10,7 @@ RUN set -ex; \
   \
   cd /usr/src/kafkacat; \
   echo "Source versions:"; \
-  cat ./bootstrap.sh | grep github_download; \
+  grep ^github_download ./bootstrap.sh; \
   ./bootstrap.sh; \
   mv ./kafkacat /usr/local/bin/; \
   \
