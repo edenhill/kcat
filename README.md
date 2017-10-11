@@ -145,3 +145,26 @@ Pretty-printed JSON metadata listing
 Query offset(s) by timestamp(s)
 
     $ kafkacat -b mybroker -Q -t mytopic:3:2389238523  mytopic2:0:18921841
+
+# Running in docker
+
+There is no official image build yet. Build using `docker build -t kafkacat .`.
+
+Examples:
+```bash
+# see info about your image
+docker run --rm kafkacat
+# produce stuff (Ctrl+C to exit)
+echo "msg 1" | docker run -i --rm --net=host kafkacat -b mybroker -t logs -P
+# consume stuff (Ctrl+C to exit)
+docker run --rm -t --net=host kafkacat -b mybroker -t logs -C
+# produce from file or command inside the container
+echo 1 > example.log
+docker run --name test-producer -d -v $(pwd)/example.log:/logs/example.log --entrypoint /bin/bash --net=host kafkacat \
+  -c 'tail -f /logs/example.log | kafkacat -b mybroker -t logs -P'
+echo 2 >> example.log
+# the last example runs in background so clean up
+docker kill test-producer && docker rm test-producer
+```
+
+Note that `--net=host` isn't required if your Kafka broker is resolvable through DNS. It just makes the example work with the same setup as when running locally.
