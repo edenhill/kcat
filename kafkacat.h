@@ -28,6 +28,7 @@
 #pragma once
 
 #include <inttypes.h>
+#include <ctype.h>
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
@@ -54,6 +55,7 @@ typedef enum {
         KC_FMT_PAYLOAD_LEN_BINARY,
         KC_FMT_TOPIC,
         KC_FMT_PARTITION,
+        KC_FMT_BINARY,
 	KC_FMT_TIMESTAMP
 } fmt_type_t;
 

@@ -134,6 +134,9 @@ void fmt_parse (const char *fmt) {
                         case 'p':
                                 fmt_add(KC_FMT_PARTITION, NULL, 0);
                                 break;
+                        case 'B':
+                                fmt_add(KC_FMT_BINARY, NULL, 0);
+                                break;
                         case 'T':
                                 fmt_add(KC_FMT_TIMESTAMP, NULL, 0);
                                 conf.flags |= CONF_F_APIVERREQ;
@@ -174,7 +177,56 @@ void fmt_term (void) {
 #endif
 }
 
+#ifndef HEXDUMP_COLS
+#define HEXDUMP_COLS 8
+#endif
 
+int hexdump(void *mem, unsigned int len, FILE *fp)
+{
+        unsigned int i, j;
+
+        for(i = 0; i < len + ((len % HEXDUMP_COLS) ? (HEXDUMP_COLS - len % HEXDUMP_COLS) : 0); i++)
+        {
+                /* print offset */
+                if(i % HEXDUMP_COLS == 0)
+                {
+                        fprintf(fp, "0x%06x: ", i);
+                }
+
+                /* print hex data */
+                if(i < len)
+                {
+                        fprintf(fp, "%02x ", 0xFF & ((char*)mem)[i]);
+                }
+                else /* end of block, just aligning for ASCII dump */
+                {
+                        fprintf(fp, "   ");
+                }
+
+                /* print ASCII dump */
+                if(i % HEXDUMP_COLS == (HEXDUMP_COLS - 1))
+                {
+                        for(j = i - (HEXDUMP_COLS - 1); j <= i; j++)
+                        {
+                                if(j >= len) /* end of block, not really printing */
+                                {
+                                        fputc(' ', fp);
+                                }
+                                else if(isprint(((char*)mem)[j])) /* printable char */
+                                {
+                                        fputc(0xFF & ((char*)mem)[j], fp);
+                                }
+                                else /* other char */
+                                {
+                                        fputc('.', fp);
+                                }
+                        }
+                        fputc('\n', fp);
+                }
+        }
+
+        --i;
+}
 
 /**
  * Delimited output
@@ -209,6 +261,10 @@ static void fmt_msg_output_str (FILE *fp,
                                     rkmessage->key ? (ssize_t)rkmessage->key_len : -1);
                         break;
 
+                case KC_FMT_BINARY:
+                        r = hexdump(rkmessage->payload, rkmessage->len, fp);
+
+                        break;
                 case KC_FMT_PAYLOAD:
                         if (rkmessage->len)
                                 r = fwrite(rkmessage->payload,
