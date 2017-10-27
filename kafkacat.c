@@ -892,7 +892,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
         fprintf(out,
                 "kafkacat - Apache Kafka producer and consumer tool\n"
                 "https://github.com/edenhill/kafkacat\n"
-                "Copyright (c) 2014-2015, Magnus Edenhill\n"
+                "Copyright (c) 2014-2017, Magnus Edenhill\n"
                 "Version %s%s (librdkafka %s builtin.features=%s)\n"
                 "\n",
                 KAFKACAT_VERSION,
