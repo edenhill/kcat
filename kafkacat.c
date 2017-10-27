@@ -858,8 +858,8 @@ static void metadata_list (void) {
  * Print usage and exit.
  */
 static void RD_NORETURN usage (const char *argv0, int exitcode,
-							   const char *reason,
-							   int version_only) {
+                               const char *reason,
+                               int version_only) {
 
         FILE *out = stdout;
         char features[256];
