@@ -69,15 +69,16 @@ static void fmt_add (fmt_type_t type, const char *str, int len) {
                                         base = 16;
                                         /* FALLTHRU */
                                 default:
-									if (*s >= '0' && *s <= '9') {
-										*d = (char)strtoul(s, (char **)&next,
-														   base);
-										if (next > s)
-											s = next - 1;
-									} else {
-										*d = *s;
-									}
-									break;
+                                        if (*s >= '0' && *s <= '9') {
+                                                *d = (char)strtoul(
+                                                        s, (char **)&next,
+                                                        base);
+                                                if (next > s)
+                                                        s = next - 1;
+                                        } else {
+                                                *d = *s;
+                                        }
+                                        break;
                                 }
                         } else {
                                 *d = *s;
