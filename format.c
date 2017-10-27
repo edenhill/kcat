@@ -139,6 +139,12 @@ void fmt_parse (const char *fmt) {
                                 fmt_add(KC_FMT_TIMESTAMP, NULL, 0);
                                 conf.flags |= CONF_F_APIVERREQ;
                                 break;
+#if HAVE_HEADERS
+                        case 'h':
+                                fmt_add(KC_FMT_HEADERS, NULL, 0);
+                                conf.flags |= CONF_F_APIVERREQ;
+                                break;
+#endif
                         case '%':
                                 fmt_add(KC_FMT_STR, s, 1);
                                 break;
@@ -176,6 +182,23 @@ void fmt_term (void) {
 }
 
 
+#if HAVE_HEADERS
+static int print_headers (FILE *fp, const rd_kafka_headers_t *hdrs) {
+        size_t idx = 0;
+        const char *name;
+        const void *value;
+        size_t size;
+
+        while (!rd_kafka_header_iter_all(hdrs, idx++, &name, &value, &size)) {
+                fprintf(fp, "%s%s=", idx > 1 ? "," : "", name);
+                if (value && size > 0)
+                        fprintf(fp, "%.*s", (int)size, value);
+                else if (!value)
+                        fprintf(fp, "NULL");
+        }
+        return 1;
+}
+#endif
 
 /**
  * Delimited output
@@ -254,6 +277,27 @@ static void fmt_msg_output_str (FILE *fp,
                                                                &tstype));
 #else
                         r = fprintf(fp, "-1");
+#endif
+                        break;
+                }
+
+                case KC_FMT_HEADERS:
+                {
+#if HAVE_HEADERS
+                        rd_kafka_headers_t *hdrs;
+                        rd_kafka_resp_err_t err;
+
+                        err = rd_kafka_message_headers(rkmessage, &hdrs);
+                        if (err == RD_KAFKA_RESP_ERR__NOENT) {
+                                r = 1; /* Fake it to continue */
+                        } else if (err != RD_KAFKA_RESP_ERR_NO_ERROR) {
+                                fprintf(stderr,
+                                        "%% Failed to parse headers: %s",
+                                        rd_kafka_err2str(err));
+                                r = 1; /* Fake it to continue */
+                        } else {
+                                r = print_headers(fp, hdrs);
+                        }
 #endif
                         break;
                 }

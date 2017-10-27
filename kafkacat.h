@@ -43,6 +43,12 @@
 #include "config.h"
 #endif
 
+#ifdef RD_KAFKA_V_HEADER
+#define HAVE_HEADERS 1
+#else
+#define HAVE_HEADERS 0
+#endif
+
 
 typedef enum {
         KC_FMT_STR,
@@ -54,7 +60,8 @@ typedef enum {
         KC_FMT_PAYLOAD_LEN_BINARY,
         KC_FMT_TOPIC,
         KC_FMT_PARTITION,
-	KC_FMT_TIMESTAMP
+        KC_FMT_TIMESTAMP,
+        KC_FMT_HEADERS
 } fmt_type_t;
 
 #define KC_FMT_MAX_SIZE  128

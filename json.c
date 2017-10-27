@@ -54,6 +54,52 @@ void fmt_msg_output_json (FILE *fp, const rd_kafka_message_t *rkmessage) {
         JS_STR(g, "offset");
         yajl_gen_integer(g, (long long int)rkmessage->offset);
 
+#if RD_KAFKA_VERSION >= 0x000902ff
+        {
+                rd_kafka_timestamp_type_t tstype;
+                int64_t ts = rd_kafka_message_timestamp(rkmessage, &tstype);
+                if (tstype != RD_KAFKA_TIMESTAMP_NOT_AVAILABLE) {
+                        JS_STR(g, "tstype");
+                        if (tstype == RD_KAFKA_TIMESTAMP_CREATE_TIME)
+                                JS_STR(g, "create");
+                        if (tstype == RD_KAFKA_TIMESTAMP_LOG_APPEND_TIME)
+                                JS_STR(g, "logappend");
+                        else
+                                JS_STR(g, "unknown");
+                        JS_STR(g, "ts");
+                        yajl_gen_integer(g, (long long int)ts);
+                }
+        }
+#endif
+
+
+#if HAVE_HEADERS
+        {
+                rd_kafka_headers_t *hdrs;
+
+                if (!rd_kafka_message_headers(rkmessage, &hdrs)) {
+                        size_t idx = 0;
+                        const char *name;
+                        const void *value;
+                        size_t size;
+
+                        JS_STR(g, "headers");
+                        yajl_gen_array_open(g);
+
+                        while (!rd_kafka_header_iter_all(hdrs, idx++, &name,
+                                                         &value, &size)) {
+                                JS_STR(g, name);
+                                if (value)
+                                        yajl_gen_string(g, value, size);
+                                else
+                                        yajl_gen_null(g);
+                        }
+
+                        yajl_gen_array_close(g);
+                }
+        }
+#endif
+
 
         JS_STR(g, "key");
         yajl_gen_string(g, (const unsigned char *)rkmessage->key,

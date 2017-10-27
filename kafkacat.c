@@ -1001,6 +1001,9 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
 #if RD_KAFKA_VERSION >= 0x000902ff
                 "  %%T                 Message timestamp (milliseconds since epoch UTC)\n"
 #endif
+#if HAVE_HEADERS
+                "  %%h                 Message headers (n=v CSV)\n"
+#endif
                 "  %%t                 Topic\n"
                 "  %%p                 Partition\n"
                 "  %%o                 Message offset\n"
