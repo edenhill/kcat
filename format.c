@@ -268,9 +268,9 @@ static void fmt_msg_output_str (FILE *fp,
                         r = fprintf(fp, "%"PRId32, rkmessage->partition);
                         break;
 
-#if RD_KAFKA_VERSION >= 0x000902ff
                 case KC_FMT_TIMESTAMP:
                 {
+#if RD_KAFKA_VERSION >= 0x000902ff
                         rd_kafka_timestamp_type_t tstype;
                         r = fprintf(fp, "%"PRId64,
                                     rd_kafka_message_timestamp(rkmessage,
