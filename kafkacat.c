@@ -943,7 +943,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "  -D <delim>         Delimiter to split input into messages\n"
                 "  -K <delim>         Delimiter to split input key and message\n"
                 "  -k <str>           Use a fixed key for all messages.\n"
-                "                     If combined with -K, per-message key\n"
+                "                     If combined with -K, per-message keys\n"
                 "                     takes precendence.\n"
                 "  -l                 Send messages from a file separated by\n"
                 "                     delimiter, as with stdin.\n"
