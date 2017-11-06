@@ -353,7 +353,7 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
 
                         if (!key && conf.fixed_key) {
                                 key = conf.fixed_key;
-                                key_len = (size_t)(strlen(conf.fixed_key));
+                                key_len = conf.fixed_key_len;
                         }
 
                         if (!(msgflags & RD_KAFKA_MSG_F_COPY) &&
@@ -1235,6 +1235,7 @@ static void argparse (int argc, char **argv,
                         break;
                 case 'F':
                         conf.fixed_key = optarg;
+                        conf.fixed_key_len = (size_t)(strlen(conf.fixed_key));
                         break;
                 case 'l':
                         conf.flags |= CONF_F_LINE;
