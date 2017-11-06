@@ -942,7 +942,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "  -p -1              Use random partitioner\n"
                 "  -D <delim>         Delimiter to split input into messages\n"
                 "  -K <delim>         Delimiter to split input key and message\n"
-                "  -F <str>           Use a fixed key for all messages\n"
+                "  -k <str>           Use a fixed key for all messages\n"
                 "  -l                 Send messages from a file separated by\n"
                 "                     delimiter, as with stdin.\n"
                 "                     (only one file allowed)\n"
@@ -1153,7 +1153,7 @@ static void argparse (int argc, char **argv,
         int do_conf_dump = 0;
 
         while ((opt = getopt(argc, argv,
-                             "PCG:LQt:p:b:z:o:eED:K:F:Od:qvX:c:Tuf:ZlVh"
+                             "PCG:LQt:p:b:z:o:eED:K:k:Od:qvX:c:Tuf:ZlVh"
 #if ENABLE_JSON
                              "J"
 #endif
@@ -1233,7 +1233,7 @@ static void argparse (int argc, char **argv,
                         key_delim = optarg;
                         conf.flags |= CONF_F_KEY_DELIM;
                         break;
-                case 'F':
+                case 'k':
                         conf.fixed_key = optarg;
                         conf.fixed_key_len = (size_t)(strlen(conf.fixed_key));
                         break;
