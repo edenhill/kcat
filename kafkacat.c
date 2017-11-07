@@ -57,6 +57,7 @@ struct conf conf = {
         .partition = RD_KAFKA_PARTITION_UA,
         .msg_size = 1024*1024,
         .null_str = "NULL",
+        .fixed_key = NULL
 };
 
 static struct stats {
@@ -348,6 +349,11 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                                                         key = NULL;
                                         }
                                 }
+                        }
+
+                        if (!key && conf.fixed_key) {
+                                key = conf.fixed_key;
+                                key_len = conf.fixed_key_len;
                         }
 
                         if (!(msgflags & RD_KAFKA_MSG_F_COPY) &&
@@ -936,6 +942,9 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "  -p -1              Use random partitioner\n"
                 "  -D <delim>         Delimiter to split input into messages\n"
                 "  -K <delim>         Delimiter to split input key and message\n"
+                "  -k <str>           Use a fixed key for all messages.\n"
+                "                     If combined with -K, per-message keys\n"
+                "                     takes precendence.\n"
                 "  -l                 Send messages from a file separated by\n"
                 "                     delimiter, as with stdin.\n"
                 "                     (only one file allowed)\n"
@@ -1146,7 +1155,7 @@ static void argparse (int argc, char **argv,
         int do_conf_dump = 0;
 
         while ((opt = getopt(argc, argv,
-                             "PCG:LQt:p:b:z:o:eED:K:Od:qvX:c:Tuf:ZlVh"
+                             "PCG:LQt:p:b:z:o:eED:K:k:Od:qvX:c:Tuf:ZlVh"
 #if ENABLE_JSON
                              "J"
 #endif
@@ -1225,6 +1234,10 @@ static void argparse (int argc, char **argv,
                 case 'K':
                         key_delim = optarg;
                         conf.flags |= CONF_F_KEY_DELIM;
+                        break;
+                case 'k':
+                        conf.fixed_key = optarg;
+                        conf.fixed_key_len = (size_t)(strlen(conf.fixed_key));
                         break;
                 case 'l':
                         conf.flags |= CONF_F_LINE;

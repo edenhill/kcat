@@ -88,6 +88,8 @@ struct conf {
         char   *topic;
         int32_t partition;
         char   *group;
+        char   *fixed_key;
+        int32_t fixed_key_len;
         int64_t offset;
         int     exit_eof;
         int64_t msg_cnt;
