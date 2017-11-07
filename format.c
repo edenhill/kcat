@@ -35,7 +35,7 @@
 static void fmt_add (fmt_type_t type, const char *str, int len) {
         if (conf.fmt_cnt == KC_FMT_MAX_SIZE)
                 KC_FATAL("Too many formatters & strings (KC_FMT_MAX_SIZE=%i)",
-                      KC_FMT_MAX_SIZE);
+                         KC_FMT_MAX_SIZE);
 
         conf.fmt[conf.fmt_cnt].type = type;
 

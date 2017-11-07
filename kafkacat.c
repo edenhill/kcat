@@ -92,7 +92,7 @@ void RD_NORETURN fatal0 (const char *func, int line,
         va_end(ap);
 
         KC_INFO(2, "Fatal error at %s:%i:\n", func, line);
-        fprintf(stderr, "%% KC_ERROR: %s\n", buf);
+        fprintf(stderr, "%% ERROR: %s\n", buf);
         exit(1);
 }
 
@@ -110,7 +110,8 @@ void error0 (int exitonerror, const char *func, int line, const char *fmt, ...) 
         if (exitonerror)
                 KC_INFO(2, "Error at %s:%i:\n", func, line);
 
-        fprintf(stderr, "%% KC_ERROR: %s%s\n", buf, exitonerror ? " : terminating":"");
+        fprintf(stderr, "%% ERROR: %s%s\n",
+                buf, exitonerror ? " : terminating":"");
 
         if (exitonerror)
                 exit(1);
@@ -1056,10 +1057,10 @@ static void error_cb (rd_kafka_t *rk, int err,
 
         if (err == RD_KAFKA_RESP_ERR__ALL_BROKERS_DOWN) {
                 KC_ERROR("%s: %s", rd_kafka_err2str(err),
-                      reason ? reason : "");
+                         reason ? reason : "");
         } else {
-                KC_INFO(1, "KC_ERROR: %s: %s\n", rd_kafka_err2str(err),
-                      reason ? reason : "");
+                KC_INFO(1, "ERROR: %s: %s\n", rd_kafka_err2str(err),
+                        reason ? reason : "");
         }
 }
 
