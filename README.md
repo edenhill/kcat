@@ -144,7 +144,7 @@ Pretty-printed JSON metadata listing
 
 Query offset(s) by timestamp(s)
 
-    $ kafkacat -b mybroker -Q -t mytopic:3:2389238523  mytopic2:0:18921841
+    $ kafkacat -b mybroker -Q -t mytopic:3:2389238523 -t mytopic2:0:18921841
 
 # Running in docker
 
