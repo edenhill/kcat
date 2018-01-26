@@ -86,8 +86,8 @@ void fmt_msg_output_json (FILE *fp, const rd_kafka_message_t *rkmessage) {
                         JS_STR(g, "headers");
                         yajl_gen_array_open(g);
 
-                        while (!rd_kafka_header_iter_all(hdrs, idx++, &name,
-                                                         &value, &size)) {
+                        while (!rd_kafka_header_get_all(hdrs, idx++, &name,
+                                                        &value, &size)) {
                                 JS_STR(g, name);
                                 if (value)
                                         yajl_gen_string(g, value, size);

@@ -189,7 +189,7 @@ static int print_headers (FILE *fp, const rd_kafka_headers_t *hdrs) {
         const void *value;
         size_t size;
 
-        while (!rd_kafka_header_iter_all(hdrs, idx++, &name, &value, &size)) {
+        while (!rd_kafka_header_get_all(hdrs, idx++, &name, &value, &size)) {
                 fprintf(fp, "%s%s=", idx > 1 ? "," : "", name);
                 if (value && size > 0)
                         fprintf(fp, "%.*s", (int)size, value);
