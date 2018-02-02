@@ -81,6 +81,8 @@ struct conf {
 #define CONF_F_LINE	  0x20 /* Read files in line mode when producing */
 #define CONF_F_APIVERREQ  0x40 /* Enable api.version.request=true */
 #define CONF_F_APIVERREQ_USER 0x80 /* User set api.version.request */
+#define CONF_F_NO_CONF_SEARCH 0x100 /* Disable default config file search */
+#define CONF_F_BROKERS_SEEN 0x200 /* Brokers have been configured */
         int     delim;
         int     key_delim;
 
