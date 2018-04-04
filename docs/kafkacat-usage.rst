@@ -7,10 +7,10 @@ If you already know ``kafka-console-producer`` and ``kafka-console-consumer`` th
 
 kafkacat is an open-source tool, available at https://github.com/edenhill/kafkacat. It is not included in Confluent Platform.
 
-``kafkacat`` the Consumer
+kafkacat the Consumer
 -------------------------
 
-Let's start simple. Give ``kafkacat`` a broker and a topic, and you'll see its contents:
+Give ``kafkacat`` a broker and a topic, and you'll see its contents:
 
 .. code:: shell
 
@@ -37,7 +37,7 @@ Seeing the value of the message is useful, but Kafka messages also have a key, w
     $ kafkacat -b localhost:9092 -t mysql_users -C -c1 -K\t
     1   {"uid":1,"name":"Cliff","locale":"en_US","address_city":"St Louis","elite":"P"}
 
-With ``kafkacat`` we can really dig into a topic's messages. The ``-f`` flag takes arguments specifying both the format of the output, as well as the fields to include. Here's a simple example of pretty-printing the key/value pairs for each message:
+The ``-f`` flag takes arguments specifying both the format of the output and the fields to include. Here's a simple example of pretty-printing the key/value pairs for each message:
 
 .. code:: shell
 
@@ -45,7 +45,7 @@ With ``kafkacat`` we can really dig into a topic's messages. The ``-f`` flag tak
     Key: 1
     Value: {"uid":1,"name":"Cliff","locale":"en_US","address_city":"St Louis","elite":"P"}
 
-(Note that we replaced the ``-K:`` because the key parameter is specified in the ``-f`` format string now)
+Note that the ``-K:`` was replaced because the key parameter is specified in the ``-f`` format string now.
 
 A more advanced use of ``-f`` would be to show even more metadata - offsets, timestamps, and even data lengths:
 
@@ -63,10 +63,10 @@ A more advanced use of ``-f`` would be to show even more metadata - offsets, tim
     Timestamp: 1520618381093        Partition: 0    Offset: 1
     --
 
-``kafkacat`` the Producer
+kafkacat the Producer
 -------------------------
 
-Sending data to a topic is really simple with ``kafkacat`` too. Run it with the ``-P`` command and enter the data you want, and then press Ctrl-D to finish:
+You can easily send data to a topic using ``kafkacat``. Run it with the ``-P`` command and enter the data you want, and then press ``Ctrl-D`` to finish:
 
 .. code:: shell
 
@@ -80,7 +80,7 @@ Replay it (replace ``-P`` with ``-C``) to verify:
     $ kafkacat -b localhost:9092 -t new_topic -C
     test
 
-As well as ``stdin`` you can add data from a file (``-l``), and using the ``-T`` flag to also echo the input to ``stdout``:
+You can send data to ``kafkacat`` by adding data from a file (``-l``), and using the ``-T`` flag to also echo the input to ``stdout``:
 
 .. code:: shell
 
@@ -89,7 +89,7 @@ As well as ``stdin`` you can add data from a file (``-l``), and using the ``-T``
     three messages
     sent through kafkacat
 
-It's easy to specify the key for messages, using the same ``-K`` parameter plus delimiter character as we did for the consumer above:
+You can specify the key for messages, using the same ``-K`` parameter plus delimiter character that was used for the previous consumer example:
 
 .. code:: shell
 
@@ -103,7 +103,7 @@ It's easy to specify the key for messages, using the same ``-K`` parameter plus 
     Key: 2
     Value: bar
 
-As well as the key, the partition can be set:
+You can set the partition: 
 
 .. code:: shell
 
