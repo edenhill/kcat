@@ -1,3 +1,4 @@
+.. _kafkacat-usage:
 kafkacat
 ========
 
@@ -103,7 +104,7 @@ You can specify the key for messages, using the same ``-K`` parameter plus delim
     Key: 2
     Value: bar
 
-You can set the partition: 
+You can set the partition:
 
 .. code:: shell
 
