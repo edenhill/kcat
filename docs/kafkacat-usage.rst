@@ -1,4 +1,5 @@
 .. _kafkacat-usage:
+
 kafkacat
 ========
 
