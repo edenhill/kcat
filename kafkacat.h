@@ -49,6 +49,12 @@
 #define HAVE_HEADERS 0
 #endif
 
+#if RD_KAFKA_VERSION >= 0x000b0500
+#define HAVE_CONTROLLERID 1
+#else
+#define HAVE_CONTROLLERID 0
+#endif
+
 
 typedef enum {
         KC_FMT_STR,
@@ -152,7 +158,8 @@ void fmt_term (void);
  * json.c
  */
 void fmt_msg_output_json (FILE *fp, const rd_kafka_message_t *rkmessage);
-void metadata_print_json (const struct rd_kafka_metadata *metadata);
+void metadata_print_json (const struct rd_kafka_metadata *metadata,
+                          int32_t controllerid);
 void partition_list_print_json (const rd_kafka_topic_partition_list_t *parts,
                                 void *json_gen);
 void fmt_init_json (void);

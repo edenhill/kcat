@@ -125,7 +125,8 @@ void fmt_msg_output_json (FILE *fp, const rd_kafka_message_t *rkmessage) {
 /**
  * Print metadata information
  */
-void metadata_print_json (const struct rd_kafka_metadata *metadata) {
+void metadata_print_json (const struct rd_kafka_metadata *metadata,
+                          int32_t controllerid) {
         yajl_gen g;
         int i, j, k;
         const unsigned char *buf;
@@ -149,6 +150,9 @@ void metadata_print_json (const struct rd_kafka_metadata *metadata) {
         JS_STR(g, "topic");
         JS_STR(g, conf.topic ? : "*");
         yajl_gen_map_close(g);
+
+        JS_STR(g, "controllerid");
+        yajl_gen_integer(g, (long long int)controllerid);
 
         /* Iterate brokers */
         JS_STR(g, "brokers");

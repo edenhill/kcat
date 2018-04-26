@@ -758,7 +758,8 @@ static void consumer_run (FILE *fp) {
 /**
  * Print metadata information
  */
-static void metadata_print (const rd_kafka_metadata_t *metadata) {
+static void metadata_print (const rd_kafka_metadata_t *metadata,
+                            int32_t controllerid) {
         int i, j, k;
 
         printf("Metadata for %s (from broker %"PRId32": %s):\n",
@@ -768,10 +769,12 @@ static void metadata_print (const rd_kafka_metadata_t *metadata) {
         /* Iterate brokers */
         printf(" %i brokers:\n", metadata->broker_cnt);
         for (i = 0 ; i < metadata->broker_cnt ; i++)
-                printf("  broker %"PRId32" at %s:%i\n",
+                printf("  broker %"PRId32" at %s:%i%s\n",
                        metadata->brokers[i].id,
                        metadata->brokers[i].host,
-                       metadata->brokers[i].port);
+                       metadata->brokers[i].port,
+                       controllerid == metadata->brokers[i].id ?
+                       " (controller)" : "");
 
         /* Iterate topics */
         printf(" %i topics:\n", metadata->topic_cnt);
@@ -821,13 +824,14 @@ static void metadata_list (void) {
         char    errstr[512];
         rd_kafka_resp_err_t err;
         const rd_kafka_metadata_t *metadata;
+        int32_t controllerid = -1;
 
         /* Create handle */
         if (!(conf.rk = rd_kafka_new(RD_KAFKA_PRODUCER, conf.rk_conf,
                                      errstr, sizeof(errstr))))
                 KC_FATAL("Failed to create producer: %s", errstr);
 
-		if (!conf.debug && conf.verbosity == 0)
+        if (!conf.debug && conf.verbosity == 0)
                 rd_kafka_set_log_level(conf.rk, 0);
 
         /* Create topic, if specified */
@@ -847,13 +851,17 @@ static void metadata_list (void) {
         if (err != RD_KAFKA_RESP_ERR_NO_ERROR)
                 KC_FATAL("Failed to acquire metadata: %s", rd_kafka_err2str(err));
 
+#if HAVE_CONTROLLERID
+        controllerid = rd_kafka_controllerid(conf.rk, 0);
+#endif
+
         /* Print metadata */
 #if ENABLE_JSON
         if (conf.flags & CONF_F_FMT_JSON)
-                metadata_print_json(metadata);
+                metadata_print_json(metadata, controllerid);
         else
 #endif
-                metadata_print(metadata);
+                metadata_print(metadata, controllerid);
 
         rd_kafka_metadata_destroy(metadata);
 
