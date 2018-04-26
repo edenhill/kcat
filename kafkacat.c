@@ -59,6 +59,7 @@ struct conf conf = {
         .msg_size = 1024*1024,
         .null_str = "NULL",
         .fixed_key = NULL
+        .flags = CONF_F_NO_CONF_SEARCH,
 };
 
 static struct stats {
@@ -928,9 +929,8 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "  -c <cnt>           Limit message count\n"
                 "  -F <config-file>   Read configuration properties from file,\n"
                 "                     file format is \"property=value\".\n"
-                "                     Default config file:\n"
-                "                        ~/.ccloud/config - Confluent Cloud settings.\n"
-                "                     Use `-F none` to disable default search.\n"
+                "                     The KAFKACAT_CONFIG=path environment can "
+                "                     also be used, but -F takes preceedence.\n"
                 "  -X list            List available librdkafka configuration "
                 "properties\n"
                 "  -X prop=val        Set librdkafka configuration property.\n"
@@ -1318,20 +1318,30 @@ static int read_conf_file (const char *path, int fatal) {
 }
 
 
-static void read_default_conf_files (void) {
+/**
+ * @returns the value for environment variable \p env, or NULL
+ *          if it is not set, is empty, or not supported on platform.
+ */
+static const char *kc_getenv (const char *env) {
 #ifdef _MSC_VER
-        return;
+        return NULL;
 #else
+        const char *val;
+        if (!(val = getenv(env)) || !*val)
+                return NULL;
+        return val;
+}
+
+static void read_default_conf_files (void) {
         char path[512];
         const char *home;
 
-        if (!(home = getenv("HOME")))
+        if (!(home = kc_getenv("HOME")))
                 return;
 
         snprintf(path, sizeof(path), "%s/.ccloud/config", home);
 
         read_conf_file(path, 0/*not fatal*/);
-#endif
 }
 
 /**
@@ -1346,6 +1356,7 @@ static void argparse (int argc, char **argv,
         const char *key_delim = NULL;
         char tmp_fmt[64];
         int do_conf_dump = 0;
+        int conf_files_read = 0;
 
         while ((opt = getopt(argc, argv,
                              "PCG:LQt:p:b:z:o:eED:K:k:Od:qvF:X:c:Tuf:ZlVh"
@@ -1468,8 +1479,9 @@ static void argparse (int argc, char **argv,
                         conf.flags |= CONF_F_NO_CONF_SEARCH;
                         if (!strcmp(optarg, "-") || !strcmp(optarg, "none"))
                                 break;
-                        else
-                                read_conf_file(optarg, 1);
+
+                        read_conf_file(optarg, 1);
+                        conf_files_read++;
                         break;
                 case 'X':
                 {
@@ -1515,6 +1527,14 @@ static void argparse (int argc, char **argv,
                 default:
                         usage(argv[0], 1, "unknown argument", 0);
                         break;
+                }
+        }
+
+        if (conf_files_read == 0) {
+                const char *cpath = kc_getenv("KAFKACAT_CONFIG");
+                if (cpath) {
+                        conf.flags |= CONF_F_NO_CONF_SEARCH;
+                        read_conf_file(cpath, 1/*fatal errors*/);
                 }
         }
 
