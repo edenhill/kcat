@@ -58,7 +58,7 @@ struct conf conf = {
         .partition = RD_KAFKA_PARTITION_UA,
         .msg_size = 1024*1024,
         .null_str = "NULL",
-        .fixed_key = NULL
+        .fixed_key = NULL,
         .flags = CONF_F_NO_CONF_SEARCH,
 };
 
@@ -938,7 +938,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "  -F <config-file>   Read configuration properties from file,\n"
                 "                     file format is \"property=value\".\n"
                 "                     The KAFKACAT_CONFIG=path environment can "
-                "                     also be used, but -F takes preceedence.\n"
+                "also be used, but -F takes preceedence.\n"
                 "  -X list            List available librdkafka configuration "
                 "properties\n"
                 "  -X prop=val        Set librdkafka configuration property.\n"
@@ -1338,6 +1338,7 @@ static const char *kc_getenv (const char *env) {
         if (!(val = getenv(env)) || !*val)
                 return NULL;
         return val;
+#endif
 }
 
 static void read_default_conf_files (void) {
