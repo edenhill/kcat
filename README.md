@@ -1,6 +1,6 @@
 kafkacat
 ========
-Copyright (c) 2014-2016 Magnus Edenhill
+Copyright (c) 2014-2018 Magnus Edenhill
 
 [https://github.com/edenhill/kafkacat](https://github.com/edenhill/kafkacat)
 
@@ -110,6 +110,12 @@ Read the last 100 messages from topic 'syslog' with  librdkafka configuration pa
 
     $ kafkacat -C -b mybroker -X broker.version.fallback=0.8.2.1 -t syslog -p 0 -o -100 -e
 
+
+Produce a tombstone (a "delete" for compacted topics) for key "abc" by providing an empty message value which `-Z` interpretes as NULL:
+
+    $ echo "abc:" | kafkacat -b mybroker -t mytopic -Z -K:
+
+
 Metadata listing
 
 ````
@@ -145,6 +151,7 @@ Pretty-printed JSON metadata listing
 Query offset(s) by timestamp(s)
 
     $ kafkacat -b mybroker -Q -t mytopic:3:2389238523 -t mytopic2:0:18921841
+
 
 # Running in docker
 
