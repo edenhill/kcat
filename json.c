@@ -102,12 +102,19 @@ void fmt_msg_output_json (FILE *fp, const rd_kafka_message_t *rkmessage) {
 
 
         JS_STR(g, "key");
-        yajl_gen_string(g, (const unsigned char *)rkmessage->key,
-                        rkmessage->key_len);
+        if (rkmessage->key)
+                yajl_gen_string(g, (const unsigned char *)rkmessage->key,
+                                rkmessage->key_len);
+        else
+                yajl_gen_null(g);
 
         JS_STR(g, "payload");
-        yajl_gen_string(g, (const unsigned char *)rkmessage->payload,
-                        rkmessage->len);
+        if (rkmessage->payload)
+                yajl_gen_string(g, (const unsigned char *)rkmessage->payload,
+                                rkmessage->len);
+        else
+                yajl_gen_null(g);
+
         yajl_gen_map_close(g);
 
         yajl_gen_get_buf(g, &buf, &len);
