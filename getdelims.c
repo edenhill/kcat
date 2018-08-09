@@ -184,7 +184,8 @@ static int _at_delim(FILE *stream, state_t *state) {
         if (c != state->delim[state->delim_len - scan_rest]) {
             // nope. we need to push what we've scanned into the pushback thing. As we compared true so far,
             // what we scanned can be taken from the delimiter.
-            for (size_t i = 1; i < state->delim_len - scan_rest; i++) {
+            size_t i;
+            for (i = 1; i < state->delim_len - scan_rest; i++) {
                 _ungetc(state, state->delim[i]);
             }
             _ungetc(state, c);
