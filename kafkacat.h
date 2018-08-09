@@ -172,3 +172,10 @@ void fmt_term_json (void);
  * tools.c
  */
 int query_offsets_by_time (rd_kafka_topic_partition_list_t *offsets);
+
+/*
+ *  getdelims.c
+ */
+void *getdelims_init(const char *delim);
+int getdelims(char **bufptr, size_t *n, void *state, FILE *stream);
+void getdelims_done(void *state);

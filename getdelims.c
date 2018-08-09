@@ -39,12 +39,12 @@
 #define GET_STATE(voidp) (assert(((state_t *) voidp)->magic == MAGIC), ((state_t *) voidp))
 
 typedef struct {
-    int magic;
+    int magic; // Just for sanity checking incoming args.
     size_t delim_len;
     char *delim;
     char *pushback;
-    int pushback_index;
-    int pushback_read_pointer;
+    size_t pushback_index;
+    size_t pushback_read_pointer;
 } state_t;
 
 static char _getc(FILE *fp, state_t *state);
@@ -54,7 +54,7 @@ static int _at_delim(FILE *stream, state_t *state);
 
 /**
  * void *getdelims_init(const char *delim)
- * int getdelims(char **bufptr, size_t *n, void *state, FILE *stream, void *state)
+ * int getdelims(char **bufptr, size_t *n, void *state, FILE *stream)
  * void getdelims_done(void *state)
  *
  * This works _exactly_ like `getdelim()` but allows a multi-byte delimiter. Because of
@@ -157,19 +157,20 @@ int getdelims(char **bufptr, size_t *n, void *statep, FILE *fp) {
 // Stack pop and push. We push to index 0, 1, 2, ... so the popping needs to follow that order as well.
 static char _getc(FILE *fp, state_t *state) {
     if (state->pushback_index > state->pushback_read_pointer) {
-        int index = state->pushback_read_pointer++;
+        size_t index = state->pushback_read_pointer++;
         if (index == state->pushback_index) {
             // stack empty, reset to beginning
             state->pushback_read_pointer = state->pushback_index = 0;
         }
         return state->pushback[index];
     } else {
+        state->pushback_read_pointer = state->pushback_index = 0;
         return getc(fp);
     }
 }
 static void _ungetc(state_t *state, char c) {
     if (state->pushback_index == state->delim_len) {
-        KC_FATAL("get_delims: BUG - overflow of pushback register");
+        KC_FATAL("get_delims: BUG - overflow of pushback register. index = %d, len = %d, contents = '%s'\n", state->pushback_index, state->delim_len, state->pushback);
     }
     state->pushback[state->pushback_index++] = c;
 }
@@ -183,7 +184,7 @@ static int _at_delim(FILE *stream, state_t *state) {
         if (c != state->delim[state->delim_len - scan_rest]) {
             // nope. we need to push what we've scanned into the pushback thing. As we compared true so far,
             // what we scanned can be taken from the delimiter.
-            for (int i = 1; i < state->delim_len - scan_rest; i++) {
+            for (size_t i = 1; i < state->delim_len - scan_rest; i++) {
                 _ungetc(state, state->delim[i]);
             }
             _ungetc(state, c);
@@ -209,6 +210,8 @@ int main(int _argc, char **_argv) {
     assert(10 == getdelims(&bufptr, &linelen, state, testfd));
     assert(0 == strcmp(bufptr, "and12line2"));
     assert(-1 == getdelims(&bufptr, &linelen, state, testfd));
+
+    getdelims_done(state); // hard to test but should be fine
 
     printf("Wow. All tests passed!");
 }

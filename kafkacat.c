@@ -281,7 +281,7 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                                      errstr, sizeof(errstr))))
                 KC_FATAL("Failed to create producer: %s", errstr);
 
-		if (!conf.debug && conf.verbosity == 0)
+        if (!conf.debug && conf.verbosity == 0)
                 rd_kafka_set_log_level(conf.rk, 0);
 
         /* Create topic */
@@ -311,8 +311,10 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
 
         } else {
                 /* Read messages from input, delimited by conf.delim */
+                void *state = getdelims_init(conf.delim);
+                int sep_len = strlen(conf.key_delim);
                 while (conf.run &&
-                       (len = getdelim(&sbuf, &size, conf.delim, fp)) != -1) {
+                       (len = getdelims(&sbuf, &size, state, fp)) != -1) {
                         int msgflags = 0;
                         char *buf = sbuf;
                         char *key = NULL;
@@ -322,21 +324,15 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                         if (len == 0)
                                 continue;
 
-                        /* Shave off delimiter */
-                        if ((int)buf[len-1] == conf.delim)
-                                len--;
-
-                        if (len == 0)
-                                continue;
-
                         /* Extract key, if desired and found. */
                         if (conf.flags & CONF_F_KEY_DELIM) {
                                 char *t;
-                                if ((t = memchr(buf, conf.key_delim, len))) {
+                                if ((t = strstr(buf, conf.key_delim))) {
                                         key_len = (size_t)(t-sbuf);
                                         key     = buf;
-                                        buf    += key_len+1;
-                                        len    -= key_len+1;
+                                        buf    += key_len+sep_len;
+                                        len    -= key_len+sep_len;
+                                        *t      = '\0';
 
                                         /* Since buf has been forwarded
                                          * from its initial allocation point
@@ -401,6 +397,7 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                                 KC_FATAL("Unable to read message: %s",
                                       strerror(errno));
                 }
+                getdelims_done(state);
         }
 
         /* Wait for all messages to be transmitted */
@@ -1087,7 +1084,7 @@ static char *parse_delim (const char *str) {
     // It's never going to be _longer_ than the input string.
     char *parsed = malloc(strlen(str) + 1);
     char *parsed_start = parsed;
-    if (parsed == NULL) {
+    if (!parsed) {
         KC_FATAL("Cannot allocate memory for delimiter");
     }
     for (const char *c = str; *c != '\0';) {
@@ -1103,8 +1100,7 @@ static char *parse_delim (const char *str) {
                 c += 2;
         }
         else {
-                *parsed++ = *str;
-                c += 1;
+                *parsed++ = *c++;
         }
     }
     *parsed = '\0';
