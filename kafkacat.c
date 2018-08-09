@@ -1080,19 +1080,35 @@ static void error_cb (rd_kafka_t *rk, int err,
 
 
 /**
- * Parse delimiter string from command line arguments.
+ * Parse delimiter string from command line arguments. Allocates memory for
+ * the return value.
  */
-static int parse_delim (const char *str) {
-        int delim;
-        if (!strncmp(str, "\\x", strlen("\\x")))
-                delim = strtoul(str+strlen("\\x"), NULL, 16) & 0xff;
-        else if (!strcmp(str, "\\n"))
-                delim = (int)'\n';
-        else if (!strcmp(str, "\\t"))
-                delim = (int)'\t';
-        else
-                delim = (int)*str & 0xff;
-        return delim;
+static char *parse_delim (const char *str) {
+    // It's never going to be _longer_ than the input string.
+    char *parsed = malloc(strlen(str) + 1);
+    char *parsed_start = parsed;
+    if (parsed == NULL) {
+        KC_FATAL("Cannot allocate memory for delimiter");
+    }
+    for (const char *c = str; *c != '\0';) {
+        if (!strncmp(c, "\\x", strlen("\\x"))) {
+                *parsed++ = strtoul(c+strlen("\\x"), (char **) &c, 16) & 0xff;
+        }
+        else if (!strcmp(str, "\\n")) {
+                *parsed++ = '\n';
+                c += 2;
+        }
+        else if (!strcmp(str, "\\t")) {
+                *parsed++ = '\t';
+                c += 2;
+        }
+        else {
+                *parsed++ = *str;
+                c += 1;
+        }
+    }
+    *parsed = '\0';
+    return parsed_start;
 }
 
 /**

@@ -89,8 +89,8 @@ struct conf {
 #define CONF_F_APIVERREQ_USER 0x80 /* User set api.version.request */
 #define CONF_F_NO_CONF_SEARCH 0x100 /* Disable default config file search */
 #define CONF_F_BROKERS_SEEN 0x200 /* Brokers have been configured */
-        int     delim;
-        int     key_delim;
+        char   *delim;
+        char   *key_delim;
 
         struct {
                 fmt_type_t type;
