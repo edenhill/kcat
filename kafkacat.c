@@ -1087,7 +1087,8 @@ static char *parse_delim (const char *str) {
     if (!parsed) {
         KC_FATAL("Cannot allocate memory for delimiter");
     }
-    for (const char *c = str; *c != '\0';) {
+    const char *c = str;
+    while (*c) {
         if (!strncmp(c, "\\x", strlen("\\x"))) {
                 *parsed++ = strtoul(c+strlen("\\x"), (char **) &c, 16) & 0xff;
         }
