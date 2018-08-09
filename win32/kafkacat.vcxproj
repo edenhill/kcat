@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="packages\librdkafka.redist.0.11.0-RC1\build\native\librdkafka.redist.props" Condition="Exists('packages\librdkafka.redist.0.11.0-RC1\build\native\librdkafka.redist.props')" />
   <ItemGroup Label="ProjectConfigurations">
@@ -121,6 +121,7 @@
   <ItemGroup>
     <ClCompile Include="..\tools.c" />
     <ClCompile Include="..\format.c" />
+    <ClCompile Include="..\getdelims.c" />
     <ClCompile Include="..\kafkacat.c" />
     <ClCompile Include="getdelim.c" />
     <ClCompile Include="wingetopt.c" />
