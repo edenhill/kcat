@@ -168,8 +168,8 @@ static char _getc(FILE *fp, state_t *state) {
     }
 }
 static void _ungetc(state_t *state, char c) {
-    if (state->pushback_index == state->delim_len) {
-        KC_FATAL("get_delims: BUG - overflow of pushback register. index = %d, len = %d, contents = '%s'\n", state->pushback_index, state->delim_len, state->pushback);
+    if (state->pushback_index >= state->delim_len) {
+        KC_FATAL("get_delims: BUG - overflow of pushback register. index = %d, len = %d, contents = '%.*s'\n", state->pushback_index, state->delim_len, state->pushback_index, state->pushback);
     }
     state->pushback[state->pushback_index++] = c;
 }
