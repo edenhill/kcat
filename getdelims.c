@@ -87,7 +87,6 @@ void *getdelims_init(const char *delim) {
 }
 void getdelims_done(void *statep) {
     state_t *state = GET_STATE(statep);
-    // TODO free buffers in state
     free(state->delim);
     free(state->pushback);
     free(state);
