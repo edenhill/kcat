@@ -218,6 +218,17 @@ static void fmt_msg_output_str (FILE *fp,
                         break;
 
                 case KC_FMT_KEY:
+#ifdef ENABLE_AVRO
+                        if(conf.flags & CONF_F_FMT_AVRO_KEY){
+                            char * json = cnv_msg_output_avro(rkmessage->key, rkmessage->key_len);
+                            if(json){
+                                r = fwrite(
+                                        json,
+                                        strlen(json), 1, fp);
+                                free(json);
+                            }
+                        } else
+#endif
                         if (rkmessage->key_len)
                                 r = fwrite(rkmessage->key,
                                            rkmessage->key_len, 1, fp);
@@ -228,6 +239,17 @@ static void fmt_msg_output_str (FILE *fp,
                         break;
 
                 case KC_FMT_KEY_LEN:
+#ifdef ENABLE_AVRO
+                                if(conf.flags & CONF_F_FMT_AVRO_MSG){
+                                        char * json = cnv_msg_output_avro(rkmessage->payload, rkmessage->len);
+                                        if(json) {
+                                            r = fwrite(
+                                                    json,
+                                                    strlen(json), 1, fp);
+                                            free(json);
+                                        }
+                                } else
+#endif
                         r = fprintf(fp, "%zd",
                                     /* Use -1 to indicate NULL keys */
                                     rkmessage->key ? (ssize_t)rkmessage->key_len : -1);

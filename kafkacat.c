@@ -1372,6 +1372,9 @@ static void argparse (int argc, char **argv,
 #if ENABLE_JSON
                              "J"
 #endif
+#if ENABLE_AVRO
+                             "Aas:"
+#endif
                         )) != -1) {
                 switch (opt) {
                 case 'P':
@@ -1439,6 +1442,17 @@ static void argparse (int argc, char **argv,
 #if ENABLE_JSON
                 case 'J':
                         conf.flags |= CONF_F_FMT_JSON;
+                        break;
+#endif
+#if ENABLE_AVRO
+                case 's':
+                        conf.schema_registry_url = optarg;
+                        break;
+                case 'A':
+                        conf.flags |= CONF_F_FMT_AVRO_KEY;
+                        break;
+                case 'a':
+                        conf.flags |= CONF_F_FMT_AVRO_MSG;
                         break;
 #endif
                 case 'D':

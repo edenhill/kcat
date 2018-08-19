@@ -44,6 +44,7 @@ Otherwise follow directions below.
 
  * librdkafka - https://github.com/edenhill/librdkafka
  * libyajl (for JSON support, optional)
+ * libavro and libserdes (for Avro support, optional. See https://github.com/confluentinc/libserdes)
 
 On Ubuntu or Debian: `sudo apt-get install librdkafka-dev libyajl-dev`
 
@@ -101,6 +102,9 @@ Output consumed messages in JSON envelope:
 
     $ kafkacat -b mybroker -t syslog -J
 
+Convert consumed key (-A) and message (-a) from Avro to JSON (no '/' at the end of the URL):
+
+    $ kafkacat -b mybroker -t syslog -A -a -s http://schema-registry-url
 
 Output consumed messages according to format string:
 
