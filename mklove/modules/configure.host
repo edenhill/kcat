@@ -23,6 +23,8 @@ function checks {
     # Try to figure out what OS/distro we are running on.
     mkl_check_begin "distro" "" "no-cache" "OS or distribution"
 
+    solib_ext=.so
+
     # Try lsb_release
     local sys
     sys=$(lsb_release -is 2>/dev/null)
@@ -32,15 +34,19 @@ function checks {
         case $kn in
             Linux)
                 sys=Linux
+                solib_ext=.so
                 ;;
             Darwin)
                 sys=osx
+                solib_ext=.dylib
                 ;;
             CYGWIN*)
                 sys=Cygwin
+                solib_ext=.dll
                 ;;
             *)
                 sys="$kn"
+                solib_ext=.so
                 ;;
         esac
     fi
@@ -50,6 +56,7 @@ function checks {
     else
         mkl_check_done "distro" "" "ignore" "ok" "$sys"
         mkl_mkvar_set "distro" "MKL_DISTRO" "$sys"
+        mkl_allvar_set "distro" "SOLIB_EXT" "$solib_ext"
     fi
 }
 

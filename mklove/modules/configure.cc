@@ -39,7 +39,7 @@ function checks {
             fi
         fi
         export CXX="${CXX}"
-        mkl_mkvar_set "CXX" CXX $CXX
+        mkl_mkvar_set "CXX" CXX "$CXX"
     fi
 
     # Handle machine bits, if specified.
@@ -105,7 +105,7 @@ function checks {
     fi
     mkl_mkvar_set "pkgconfig" PKG_CONFIG $PKG_CONFIG
 
-    [[ ! -z "$PKG_CONFIG_PATH" ]] && mkl_env_append PKG_CONFIG_PATH "$PKG_CONFIG_PATH"
+    [[ ! -z "$append_PKG_CONFIG_PATH" ]] && mkl_env_append PKG_CONFIG_PATH "$append_PKG_CONFIG_PATH" ":"
 
     # install
     if [ -z "$INSTALL" ]; then
@@ -169,7 +169,7 @@ for n in CFLAGS CPPFLAGS CXXFLAGS LDFLAGS ARFLAGS; do
     mkl_option "Compiler" "mk:$n" "--$n=$n" "Add $n flags"
 done
 
-mkl_option "Compiler" "env:PKG_CONFIG_PATH" "--pkg-config-path" "Extra paths for pkg-config"
+mkl_option "Compiler" "env:append_PKG_CONFIG_PATH" "--pkg-config-path=EXTRA_PATHS" "Extra paths for pkg-config"
 
 mkl_option "Compiler" "WITH_PROFILING" "--enable-profiling" "Enable profiling"
 mkl_option "Compiler" "WITH_STATIC_LINKING" "--enable-static" "Enable static linking"

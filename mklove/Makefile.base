@@ -111,19 +111,37 @@ Description: $(MKL_APP_DESC_ONELINE)
 Version: $(MKL_APP_VERSION)
 Cflags: -I$${includedir}
 Libs: -L$${libdir} -l$(LIBNAME0)
-Libs.private: $(patsubst -L%,,$(LIBS))
+Libs.private: $(LIBS)
 endef
 
 export _PKG_CONFIG_DEF
+
+define _PKG_CONFIG_STATIC_DEF
+prefix=$(prefix)
+libdir=$(libdir)
+includedir=$(includedir)
+
+Name: $(LIBNAME)-static
+Description: $(MKL_APP_DESC_ONELINE) (static)
+Version: $(MKL_APP_VERSION)
+Cflags: -I$${includedir}
+Libs: -L$${libdir} $${libdir}/$(LIBNAME).a $(LIBS)
+endef
+
+export _PKG_CONFIG_STATIC_DEF
 
 $(LIBNAME0).pc: $(TOPDIR)/Makefile.config
 	@printf "$(MKL_YELLOW)Generating pkg-config file $@$(MKL_CLR_RESET)\n"
 	@echo "$$_PKG_CONFIG_DEF" > $@
 
-lib-gen-pkg-config: $(LIBNAME0).pc
+$(LIBNAME0)-static.pc: $(TOPDIR)/Makefile.config
+	@printf "$(MKL_YELLOW)Generating pkg-config file $@$(MKL_CLR_RESET)\n"
+	@echo "$$_PKG_CONFIG_STATIC_DEF" > $@
+
+lib-gen-pkg-config: $(LIBNAME0).pc $(LIBNAME0)-static.pc
 
 lib-clean-pkg-config:
-	rm -f $(LIBNAME0).pc
+	rm -f $(LIBNAME0).pc $(LIBNAME0)-static.pc
 else
 lib-gen-pkg-config:
 lib-clean-pkg-config:
@@ -161,6 +179,10 @@ lib-install:
 		$(INSTALL) -d $$DESTDIR$(pkgconfigdir) ; \
 		$(INSTALL) -m 0644 $(LIBNAME0).pc $$DESTDIR$(pkgconfigdir) \
 	) ; \
+	[ -f "$(LIBNAME0)-static.pc" ] && ( \
+		$(INSTALL) -d $$DESTDIR$(pkgconfigdir) ; \
+		$(INSTALL) -m 0644 $(LIBNAME0)-static.pc $$DESTDIR$(pkgconfigdir) \
+	) ; \
 	(cd $$DESTDIR$(libdir) && ln -sf $(LIBFILENAME) $(LIBFILENAMELINK))
 
 lib-uninstall:
@@ -171,8 +193,9 @@ lib-uninstall:
 	rm -f $$DESTDIR$(libdir)/$(LIBFILENAME)
 	rm -f $$DESTDIR$(libdir)/$(LIBFILENAMELINK)
 	rmdir $$DESTDIR$(includedir)/$(PKGNAME) || true
-
-
+	rm -f $$DESTDIR$(pkgconfigdir)/$(LIBNAME0).pc
+	rm -f $$DESTDIR$(pkgconfigdir)/$(LIBNAME0)-static.pc
+	rmdir $$DESTDIR$(pkgconfigdir) || true
 
 bin-install:
 	@printf "$(MKL_YELLOW)Install $(BIN) to $$DESTDIR$(prefix)$(MKL_CLR_RESET)\n"
@@ -182,6 +205,7 @@ bin-install:
 bin-uninstall:
 	@printf "$(MKL_YELLOW)Uninstall $(BIN) from $$DESTDIR$(prefix)$(MKL_CLR_RESET)\n"
 	rm -f $$DESTDIR$(bindir)/$(BIN)
+	rmdir $$DESTDIR$(bindir) || true
 
 
 generic-clean:
