@@ -653,7 +653,7 @@ static void consumer_run (FILE *fp) {
 
 
         /* Query broker for topic + partition information. */
-        if ((err = rd_kafka_metadata(conf.rk, 0, conf.rkt, &metadata, 5000)))
+        if ((err = rd_kafka_metadata(conf.rk, 0, conf.rkt, &metadata, 30000)))
                 KC_FATAL("Failed to query metadata for topic %s: %s",
                       rd_kafka_topic_name(conf.rkt), rd_kafka_err2str(err));
 
@@ -847,7 +847,7 @@ static void metadata_list (void) {
 
         /* Fetch metadata */
         err = rd_kafka_metadata(conf.rk, conf.rkt ? 0 : 1, conf.rkt,
-                                &metadata, 5000);
+                                &metadata, 30000);
         if (err != RD_KAFKA_RESP_ERR_NO_ERROR)
                 KC_FATAL("Failed to acquire metadata: %s", rd_kafka_err2str(err));
 
