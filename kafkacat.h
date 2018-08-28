@@ -89,8 +89,8 @@ struct conf {
 #define CONF_F_APIVERREQ_USER 0x80 /* User set api.version.request */
 #define CONF_F_NO_CONF_SEARCH 0x100 /* Disable default config file search */
 #define CONF_F_BROKERS_SEEN 0x200 /* Brokers have been configured */
-        int     delim;
-        int     key_delim;
+        char   *delim;
+        char   *key_delim;
 
         struct {
                 fmt_type_t type;
@@ -172,3 +172,10 @@ void fmt_term_json (void);
  * tools.c
  */
 int query_offsets_by_time (rd_kafka_topic_partition_list_t *offsets);
+
+/*
+ *  getdelims.c
+ */
+void *getdelims_init(const char *delim);
+int getdelims(char **bufptr, size_t *n, void *state, FILE *stream);
+void getdelims_done(void *state);
