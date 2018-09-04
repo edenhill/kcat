@@ -27,11 +27,9 @@ endif
 
 _UNAME_S := $(shell uname -s)
 ifeq ($(_UNAME_S),Darwin)
-        SOLIB_EXT?=.dylib
 	LIBFILENAME=$(LIBNAME).$(LIBVER)$(SOLIB_EXT)
 	LIBFILENAMELINK=$(LIBNAME)$(SOLIB_EXT)
 else
-        SOLIB_EXT?=.so
 	LIBFILENAME=$(LIBNAME)$(SOLIB_EXT).$(LIBVER)
 	LIBFILENAMELINK=$(LIBNAME)$(SOLIB_EXT)
 endif

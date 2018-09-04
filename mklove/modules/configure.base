@@ -1076,7 +1076,7 @@ function mkl_lib_check {
 
     while [[ $1 == --* ]]; do
         case $1 in
-            --static)
+            --static=*)
                 staticopt=$1
                 ;;
             --no-static)
@@ -1161,7 +1161,7 @@ function mkl_pkg_config_check {
 
     while [[ $1 == --* ]]; do
         case $1 in
-            --static)
+            --static=*)
                 staticopt=$1
                 ;;
             --no-static)
@@ -1175,7 +1175,7 @@ function mkl_pkg_config_check {
                 no_LIBSopt=$1
                 ;;
             *)
-                mkl_err "Invalid option to mkl_lib_check: $1"
+                mkl_err "Invalid option to mkl_pkg_config_check: $1"
                 return 1
                 ;;
         esac
