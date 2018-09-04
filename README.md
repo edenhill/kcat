@@ -153,25 +153,54 @@ Query offset(s) by timestamp(s)
     $ kafkacat -b mybroker -Q -t mytopic:3:2389238523 -t mytopic2:0:18921841
 
 
-# Running in docker
+# Running in Docker
 
-There is no official image build yet. Build using `docker build -t kafkacat .`.
+You can find an image for [kafkacat on Docker Hub](https://hub.docker.com/r/confluentinc/cp-kafkacat/). 
 
-Examples:
-```bash
-# see info about your image
-docker run --rm kafkacat
-# produce stuff (Ctrl+C to exit)
-echo "msg 1" | docker run -i --rm --net=host kafkacat -b mybroker -t logs -P
-# consume stuff (Ctrl+C to exit)
-docker run --rm -t --net=host kafkacat -b mybroker -t logs -C
-# produce from file or command inside the container
-echo 1 > example.log
-docker run --name test-producer -d -v $(pwd)/example.log:/logs/example.log --entrypoint /bin/bash --net=host kafkacat \
-  -c 'tail -f /logs/example.log | kafkacat -b mybroker -t logs -P'
-echo 2 >> example.log
-# the last example runs in background so clean up
-docker kill test-producer && docker rm test-producer
-```
+If you are connecting to Kafka brokers also running on Docker you should specify the network name as part of the `docker run` command using the `--network` parameter. For more details of networking with Kafka and Docker [see this post](https://rmoff.net/2018/08/02/kafka-listeners-explained/.
 
-Note that `--net=host` isn't required if your Kafka broker is resolvable through DNS. It just makes the example work with the same setup as when running locally.
+Here are two short examples of using kafkacat from Docker. See the [Docker Hub listing](https://hub.docker.com/r/confluentinc/cp-kafkacat/) and [kafkacat docs](https://docs.confluent.io/current/app-development/kafkacat-usage.html) for more details: 
+
+* Send messages using [here doc](http://tldp.org/LDP/abs/html/here-docs.html): 
+
+    ```
+    docker run --interactive --rm \
+        confluentinc/cp-kafkacat \
+        kafkacat -b kafka-broker:9092 \
+                -t test \
+                -K: \
+                -P <<EOF
+    1:{"order_id":1,"order_ts":1534772501276,"total_amount":10.50,"customer_name":"Bob Smith"}
+    2:{"order_id":2,"order_ts":1534772605276,"total_amount":3.32,"customer_name":"Sarah Black"}
+    3:{"order_id":3,"order_ts":1534772742276,"total_amount":21.00,"customer_name":"Emma Turner"}
+    EOF
+    ```
+
+* Consume messages: 
+
+    ```
+    docker run --tty --interactive --rm \
+           confluentinc/cp-kafkacat \
+           kafkacat -b kafka-broker:9092 \ 
+           -C \
+           -f '\nKey (%K bytes): %k\t\nValue (%S bytes): %s\n\Partition: %p\tOffset: %o\n--\n' \
+           -t test
+    ```
+
+    ```
+    Key (1 bytes): 1
+    Value (88 bytes): {"order_id":1,"order_ts":1534772501276,"total_amount":10.50,"customer_name":"Bob Smith"}
+    Partition: 0    Offset: 0
+    --
+
+    Key (1 bytes): 2
+    Value (89 bytes): {"order_id":2,"order_ts":1534772605276,"total_amount":3.32,"customer_name":"Sarah Black"}
+    Partition: 0    Offset: 1
+    --
+
+    Key (1 bytes): 3
+    Value (90 bytes): {"order_id":3,"order_ts":1534772742276,"total_amount":21.00,"customer_name":"Emma Turner"}
+    Partition: 0    Offset: 2
+    --
+    % Reached end of topic test [0] at offset 3
+    ```
