@@ -308,7 +308,44 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                 else if (good < pathcnt)
                         KC_INFO(1, "Failed to produce from %i/%i files\n",
                              pathcnt - good, pathcnt);
+        } else if (conf.flags & CONF_F_BINARY) {
+                /* Read message from input, entire input is a single message. */
+                const size_t buffer_size = 1024;
 
+                int msgflags = 0;
+                size_t read_size = 0;
+                sbuf = malloc(buffer_size);
+                if (!sbuf)
+                        KC_FATAL("Failed to allocate message: %s", strerror(errno));
+
+                while ((read_size = fread(sbuf + size, 1, buffer_size, fp)) == buffer_size) {
+                        size += read_size;
+                        sbuf = realloc(sbuf, size + buffer_size);
+                        if (!sbuf)
+                                KC_FATAL("Failed to allocate message: %s", strerror(errno));
+                }
+                size += read_size;
+
+                if (!feof(fp))
+                        KC_FATAL("Unable to read message: %s", strerror(errno));
+
+                if (size > 1024) {
+                        /* If message is larger than this arbitrary threshold
+                         * it will be more effective to not copy the data but
+                         * let rdkafka own it instead. */
+                        msgflags |= RD_KAFKA_MSG_F_FREE;
+                } else {
+                        /* For smaller messages a copy is more efficient. */
+                        msgflags |= RD_KAFKA_MSG_F_COPY;
+                }
+
+                produce(sbuf, size, NULL, 0, msgflags);
+
+                if (msgflags & RD_KAFKA_MSG_F_FREE) {
+                        /* rdkafka owns the allocated buffer memory now. */
+                        sbuf  = NULL;
+                        size = 0;
+                }
         } else {
                 /* Read messages from input, delimited by conf.delim */
                 while (conf.run &&
@@ -963,6 +1000,8 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "  -l                 Send messages from a file separated by\n"
                 "                     delimiter, as with stdin.\n"
                 "                     (only one file allowed)\n"
+                "  -B                 Read message from stdin in binary mode.\n"
+                "                     The entire input will be sent as one message.\n"
                 "  -T                 Output sent messages to stdout, acting like tee.\n"
                 "  -c <cnt>           Exit after producing this number "
                 "of messages\n"
@@ -1368,7 +1407,7 @@ static void argparse (int argc, char **argv,
         int conf_files_read = 0;
 
         while ((opt = getopt(argc, argv,
-                             "PCG:LQt:p:b:z:o:eED:K:k:Od:qvF:X:c:Tuf:ZlVh"
+                             "PCG:LQt:p:b:z:o:eED:K:k:Od:qvF:X:c:Tuf:ZlBVh"
 #if ENABLE_JSON
                              "J"
 #endif
@@ -1454,6 +1493,9 @@ static void argparse (int argc, char **argv,
                         break;
                 case 'l':
                         conf.flags |= CONF_F_LINE;
+                        break;
+                case 'B':
+                        conf.flags |= CONF_F_BINARY;
                         break;
                 case 'O':
                         conf.flags |= CONF_F_OFFSET;
