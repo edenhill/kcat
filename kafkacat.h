@@ -31,6 +31,7 @@
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
+#include <regex.h>
 
 #include <librdkafka/rdkafka.h>
 
@@ -107,7 +108,9 @@ struct conf {
         int32_t fixed_key_len;
         int64_t offset;
         int     exit_eof;
-        int64_t msg_cnt;
+        uint64_t msg_cnt;
+        regex_t regex;
+        int     use_regex;
         char   *null_str;
         int     null_str_len;
 

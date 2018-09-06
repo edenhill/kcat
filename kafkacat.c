@@ -41,6 +41,7 @@
 #include <stdarg.h>
 #include <signal.h>
 #include <ctype.h>
+#include <regex.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -60,6 +61,7 @@ struct conf conf = {
         .null_str = "NULL",
         .fixed_key = NULL,
         .flags = CONF_F_NO_CONF_SEARCH,
+        .msg_cnt = UINT64_MAX,
 };
 
 static struct stats {
@@ -481,8 +483,17 @@ static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
 
         }
 
+        int is_match = 0;
+        if (conf.use_regex) {
+            is_match = regexec(&conf.regex, rkmessage->payload, 0, NULL, 0);
+        }
+
+
         /* Print message */
-        fmt_msg_output(fp, rkmessage);
+        if (!is_match) {
+                fmt_msg_output(fp, rkmessage);
+                ++stats.rx;
+        }
 
         if (conf.mode == 'C') {
                 rd_kafka_offset_store(rkmessage->rkt,
@@ -490,7 +501,7 @@ static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
                                       rkmessage->offset);
         }
 
-        if (++stats.rx == (uint64_t)conf.msg_cnt) {
+        if (stats.rx == conf.msg_cnt) {
                 conf.run = 0;
                 rd_kafka_yield(conf.rk);
         }
@@ -990,6 +1001,8 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "  -O                 Print message offset using -K delimiter\n"
                 "  -c <cnt>           Exit after consuming this number "
                 "of messages\n"
+                "  -x <regex>         Filter messages based on regex.\n"
+                "                     Only matches will count towards count specified by -c\n"
                 "  -Z                 Print NULL messages and keys as \"%s\""
                 "(instead of empty)\n"
                 "  -u                 Unbuffered output\n"
@@ -1368,7 +1381,7 @@ static void argparse (int argc, char **argv,
         int conf_files_read = 0;
 
         while ((opt = getopt(argc, argv,
-                             "PCG:LQt:p:b:z:o:eED:K:k:Od:qvF:X:c:Tuf:ZlVh"
+                             "PCG:LQt:p:b:z:o:eED:K:k:Od:qvF:X:c:x:Tuf:ZlVh"
 #if ENABLE_JSON
                              "J"
 #endif
@@ -1460,6 +1473,12 @@ static void argparse (int argc, char **argv,
                         break;
                 case 'c':
                         conf.msg_cnt = strtoll(optarg, NULL, 10);
+                        break;
+                case 'x':
+                        if (regcomp(&conf.regex, optarg, 0)) {
+                                KC_FATAL("%s", "Could not compile regex\n");
+                        }
+                        conf.use_regex = 1;
                         break;
                 case 'Z':
                         conf.flags |= CONF_F_NULL;
