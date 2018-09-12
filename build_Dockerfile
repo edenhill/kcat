@@ -1,0 +1,7 @@
+FROM ubuntu:trusty
+
+RUN apt-get update
+RUN apt-get install -y git curl gcc g++ make
+COPY . /kafkacat
+RUN cd /kafkacat && ./bootstrap.sh
+RUN strip /kafkacat/kafkacat
