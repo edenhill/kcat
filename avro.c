@@ -5,15 +5,19 @@
 
 #include "kafkacat.h"
 
-char *cnv_msg_output_avro(const void *data, int data_len) {
-    serdes_t *serdes;
-    serdes_err_t err;
+serdes_t *serdes=NULL;
+serdes_err_t err;
+char errstr[512];
 
+void serdes_init(){
     serdes_conf_t *sconf = serdes_conf_new(NULL, 0, "schema.registry.url", conf.schema_registry_url, NULL);
-
-    char errstr[512];
     serdes = serdes_new(sconf, errstr, sizeof(errstr));
+    if (err) {
+        fprintf(stderr, "%% avro_init failed: %s\n", errstr);
+    }
+}
 
+char *cnv_msg_output_avro(const void *data, int data_len) {
     avro_value_t avro;
     serdes_schema_t *schema;
     char *as_json = NULL;

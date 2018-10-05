@@ -182,6 +182,7 @@ void fmt_term_json (void);
  */
 
 char *cnv_msg_output_avro(const void *avro_data, int data_len);
+void serdes_init();
 
 #endif
 

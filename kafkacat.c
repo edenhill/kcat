@@ -1447,6 +1447,7 @@ static void argparse (int argc, char **argv,
 #if ENABLE_AVRO
                 case 's':
                         conf.schema_registry_url = optarg;
+                        serdes_init();
                         break;
                 case 'A':
                         conf.flags |= CONF_F_FMT_AVRO_KEY;
