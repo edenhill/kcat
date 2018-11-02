@@ -50,7 +50,8 @@ struct rd_kafka_metadata foo;"
     # Check for Avro serdes library (serdes)
     if [[ $WITH_AVRO == y ]] && \
         mkl_lib_check --static=-lserdes "serdes" HAVE_SERDES disable CC "-lserdes -lavro" \
-        "#include  <stdlib.h>
+        "#include <sys/types.h>
+        #include  <stdlib.h>
         #include  <libserdes/serdes-avro.h>
 "
     then
