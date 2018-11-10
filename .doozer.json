@@ -6,7 +6,13 @@
       "builddeps": [
         "build-essential",
         "python",
-        "curl"
+        "curl",
+        "cmake",
+        "pkg-config",
+        "autoconf",
+        "dh-autoreconf",
+        "libcurl4-openssl-dev",
+        "libjansson-dev"
       ],
       "buildcmd": [
           "./bootstrap.sh"
@@ -19,7 +25,13 @@
       "builddeps": [
         "build-essential",
         "python",
-        "curl"
+        "curl",
+        "cmake",
+        "pkg-config",
+        "autoconf",
+        "dh-autoreconf",
+        "libcurl4-openssl-dev",
+        "libjansson-dev"
       ],
       "buildcmd": [
           "./bootstrap.sh"
