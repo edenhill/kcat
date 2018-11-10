@@ -87,15 +87,31 @@ build librdkafka "([ -f config.h ] || ./configure) && make && make DESTDIR=\"${P
 
 build libyajl "([ -f config.h ] || ./configure) && make && make DESTDIR=\"${PWD}/\" install" || (echo "Failed to build libyajl: JSON support will probably be disabled" ; true)
 
+github_download "akheron/jansson" "master" "libjansson"
+build libjansson "autoreconf -i && ./configure --enable-static && make && make DESTDIR=\"${PWD}/\" install" || (echo "Failed to build libjansson: AVRO support will probably be disabled" ; true)
+
+github_download "confluentinc/avro-c-packaging" "master" "avroc"
+build avroc "mkdir -p build && cd build && cmake .. && make DESTDIR=\"${PWD}/\" install" || (echo "Failed to build Avro C: AVRO support will probably be disabled" ; true)
+
+github_download "confluentinc/libserdes" "master" "libserdes"
+build libserdes "([ -f config.h ] || ./configure  --enable-static --CFLAGS=-I${PWD}/usr/local/include --LDFLAGS=-L${PWD}/usr/local/lib) && make && make DESTDIR=\"${PWD}/\" install" || (echo "Failed to build libserdes: AVRO support will probably be disabled" ; true)
 
 popd > /dev/null
 
 echo "Building kafkacat"
 export CPPFLAGS="${CPPFLAGS:-} -Itmp-bootstrap/usr/local/include"
-export LIBS="$(pkg_cfg_lib rdkafka) $(pkg_cfg_lib yajl)"
+# Link libcurl dynamically
+export LIBS="$(pkg_cfg_lib rdkafka) $(pkg_cfg_lib yajl) -lcurl"
+export STATIC_LIB_avro="tmp-bootstrap/usr/local/lib/libavro.a"
 export STATIC_LIB_rdkafka="tmp-bootstrap/usr/local/lib/librdkafka.a"
+export STATIC_LIB_serdes="tmp-bootstrap/usr/local/lib/libserdes.a"
 export STATIC_LIB_yajl="tmp-bootstrap/usr/local/lib/libyajl_s.a"
-./configure --enable-static --enable-json
+export STATIC_LIB_jansson="tmp-bootstrap/usr/local/lib/libjansson.a"
+
+# Remove tinycthread from libserdes b/c same code is also in librdkafka.
+ar dv tmp-bootstrap/usr/local/lib/libserdes.a tinycthread.o
+
+./configure --enable-static --enable-json --enable-avro
 make
 
 echo ""

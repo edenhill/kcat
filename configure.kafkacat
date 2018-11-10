@@ -49,7 +49,15 @@ struct rd_kafka_metadata foo;"
     mkl_meta_set "libserdes" "deb" "libserdes-dev"
     # Check for Avro serdes library (serdes)
     if [[ $WITH_AVRO == y ]] && \
-        mkl_lib_check --static=-lserdes "serdes" HAVE_SERDES disable CC "-lserdes -lavro" \
+        mkl_lib_check --static=-ljansson "jansson" HAVE_JANSSON disable CC "" \
+        "#include <jansson.h>
+" && \
+        mkl_lib_check --static=-lserdes "serdes" HAVE_SERDES disable CC "tmp-bootstrap/usr/local/lib/libavro.a" \
+        "#include <sys/types.h>
+        #include  <stdlib.h>
+        #include  <libserdes/serdes-avro.h>
+" && \
+        mkl_lib_check --static=-lavro "avro" HAVE_AVRO disable CC "tmp-bootstrap/usr/local/lib/libserdes.a" \
         "#include <sys/types.h>
         #include  <stdlib.h>
         #include  <libserdes/serdes-avro.h>
@@ -60,6 +68,5 @@ struct rd_kafka_metadata foo;"
 }
 
 
-
 mkl_toggle_option "kafkacat" WITH_JSON --enable-json "JSON support (requires libyajl2)" y
-mkl_toggle_option "kafkacat" WITH_AVRO --enable-avro "Avro support (requires libserdes, libavro)" y
+mkl_toggle_option "kafkacat" WITH_AVRO --enable-avro "Avro support (requires libcurl)" y
