@@ -12,7 +12,15 @@
         "autoconf",
         "dh-autoreconf",
         "libcurl4-openssl-dev",
-        "libjansson-dev"
+        "libjansson-dev",
+        "libidn11-dev",
+        "librtmp-dev",
+        "libssl-dev",
+        "libkrb5-dev",
+        "libk5crypto",
+        "libcom_err",
+        "libldap-dev",
+        "libz-dev"
       ],
       "buildcmd": [
           "./bootstrap.sh"
@@ -31,7 +39,16 @@
         "autoconf",
         "dh-autoreconf",
         "libcurl4-openssl-dev",
-        "libjansson-dev"
+        "libjansson-dev",
+        "libidn11-dev",
+        "librtmp-dev",
+        "libssl-dev",
+        "libkrb5-dev",
+        "libk5crypto",
+        "libcom_err",
+        "libldap-dev",
+        "libz-dev"
+
       ],
       "buildcmd": [
           "./bootstrap.sh"
