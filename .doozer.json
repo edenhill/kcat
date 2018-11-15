@@ -17,8 +17,6 @@
         "librtmp-dev",
         "libssl-dev",
         "libkrb5-dev",
-        "libk5crypto",
-        "libcom_err",
         "libldap-dev",
         "libz-dev"
       ],
@@ -44,8 +42,6 @@
         "librtmp-dev",
         "libssl-dev",
         "libkrb5-dev",
-        "libk5crypto",
-        "libcom_err",
         "libldap-dev",
         "libz-dev"
 
