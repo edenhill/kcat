@@ -59,7 +59,6 @@ struct conf conf = {
         .msg_size = 1024*1024,
         .null_str = "NULL",
         .fixed_key = NULL,
-        .flags = CONF_F_NO_CONF_SEARCH,
 };
 
 static struct stats {
@@ -953,6 +952,8 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "                     file format is \"property=value\".\n"
                 "                     The KAFKACAT_CONFIG=path environment can "
                 "also be used, but -F takes preceedence.\n"
+                "                     The default configuration file is "
+                "$HOME/.config/kafkacat.conf\n"
                 "  -X list            List available librdkafka configuration "
                 "properties\n"
                 "  -X prop=val        Set librdkafka configuration property.\n"
@@ -1274,8 +1275,7 @@ static int read_conf_file (const char *path, int fatal) {
                 return -1;
         }
 
-        if (!fatal)
-                KC_INFO(1, "Reading configuration from file %s\n", path);
+        KC_INFO(fatal ? 1 : 3, "Reading configuration from file %s\n", path);
 
         while (fgets(buf, sizeof(buf), fp)) {
                 char *s = buf;
@@ -1369,7 +1369,7 @@ static void read_default_conf_files (void) {
         if (!(home = kc_getenv("HOME")))
                 return;
 
-        snprintf(path, sizeof(path), "%s/.ccloud/config", home);
+        snprintf(path, sizeof(path), "%s/.config/kafkacat.conf", home);
 
         read_conf_file(path, 0/*not fatal*/);
 }
