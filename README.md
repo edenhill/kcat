@@ -115,8 +115,15 @@ Produce a tombstone (a "delete" for compacted topics) for key "abc" by providing
 
     $ echo "abc:" | kafkacat -b mybroker -t mytopic -Z -K:
 
+Produce with headers:
 
-Metadata listing
+    $ echo "hello there" | kafkacat -b mybroker -H "header1=header value" -H "nullheader" -H "emptyheader=" -H "header1=duplicateIsOk"
+
+Print headers in consumer:
+
+    $ kafkacat -b mybroker -C -t mytopic -f 'Headers: %h: Message value: %s\n'
+
+Metadata listing:
 
 ````
 $ kafkacat -L -b mybroker

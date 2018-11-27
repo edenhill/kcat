@@ -102,6 +102,7 @@ struct conf {
         char   *brokers;
         char   *topic;
         int32_t partition;
+        rd_kafka_headers_t *headers;
         char   *group;
         char   *fixed_key;
         int32_t fixed_key_len;

@@ -154,6 +154,11 @@ static void dr_msg_cb (rd_kafka_t *rk, const rd_kafka_message_t *rkmessage,
  */
 static void produce (void *buf, size_t len,
                      const void *key, size_t key_len, int msgflags) {
+        rd_kafka_headers_t *hdrs = NULL;
+
+        /* Headers are freed on successful producev(), pass a copy. */
+        if (conf.headers)
+                hdrs = rd_kafka_headers_copy(conf.headers);
 
         /* Produce message: keep trying until it succeeds. */
         do {
@@ -163,8 +168,17 @@ static void produce (void *buf, size_t len,
                         KC_FATAL("Program terminated while "
                               "producing message of %zd bytes", len);
 
-                if (rd_kafka_produce(conf.rkt, conf.partition, msgflags,
-                                     buf, len, key, key_len, NULL) != -1) {
+                err = rd_kafka_producev(
+                        conf.rk,
+                        RD_KAFKA_V_RKT(conf.rkt),
+                        RD_KAFKA_V_PARTITION(conf.partition),
+                        RD_KAFKA_V_MSGFLAGS(msgflags),
+                        RD_KAFKA_V_VALUE(buf, len),
+                        RD_KAFKA_V_KEY(key, key_len),
+                        RD_KAFKA_V_HEADERS(hdrs),
+                        RD_KAFKA_V_END);
+
+                if (!err) {
                         stats.tx++;
                         break;
                 }
@@ -960,6 +974,8 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "  -k <str>           Use a fixed key for all messages.\n"
                 "                     If combined with -K, per-message keys\n"
                 "                     takes precendence.\n"
+                "  -H <header=value>  Add Message Headers "
+                "(may be specified multiple times)\n"
                 "  -l                 Send messages from a file separated by\n"
                 "                     delimiter, as with stdin.\n"
                 "                     (only one file allowed)\n"
@@ -1359,6 +1375,33 @@ static void read_default_conf_files (void) {
 }
 
 /**
+ * @brief Add a single header specified as a command line option.
+ *
+ * @param inp "name=value" or "name" formatted header
+ */
+static void add_header (const char *inp) {
+        const char *t;
+        rd_kafka_resp_err_t err;
+
+        t = strchr(inp, '=');
+        if (t == inp || !*inp)
+                KC_FATAL("Expected -H \"name=value..\" or -H \"name\"");
+
+        if (!conf.headers)
+                conf.headers = rd_kafka_headers_new(8);
+
+
+        err = rd_kafka_header_add(conf.headers,
+                                  inp,
+                                  t ? (ssize_t)(t-inp) : -1,
+                                  t ? t+1 : NULL, -1);
+        if (err)
+                KC_FATAL("Failed to add header \"%s\": %s",
+                         inp, rd_kafka_err2str(err));
+}
+
+
+/**
  * Parse command line arguments
  */
 static void argparse (int argc, char **argv,
@@ -1373,7 +1416,7 @@ static void argparse (int argc, char **argv,
         int conf_files_read = 0;
 
         while ((opt = getopt(argc, argv,
-                             "PCG:LQt:p:b:z:o:eED:K:k:Od:qvF:X:c:Tuf:ZlVh"
+                             "PCG:LQt:p:b:z:o:eED:K:k:H:Od:qvF:X:c:Tuf:ZlVh"
 #if ENABLE_JSON
                              "J"
 #endif
@@ -1456,6 +1499,9 @@ static void argparse (int argc, char **argv,
                 case 'k':
                         conf.fixed_key = optarg;
                         conf.fixed_key_len = (size_t)(strlen(conf.fixed_key));
+                        break;
+                case 'H':
+                        add_header(optarg);
                         break;
                 case 'l':
                         conf.flags |= CONF_F_LINE;
@@ -1719,6 +1765,9 @@ int main (int argc, char **argv) {
                 usage(argv[0], 0, NULL, 0);
                 break;
         }
+
+        if (conf.headers)
+                rd_kafka_headers_destroy(conf.headers);
 
         if (in != stdin)
                 fclose(in);
