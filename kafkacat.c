@@ -1176,6 +1176,11 @@ static int try_conf_set (const char *name, const char *val,
                                               strlen("topic."),
                                               val,
                                               errstr, errstr_size);
+        else
+                /* If no "topic." prefix, try the topic config first. */
+                res = rd_kafka_topic_conf_set(conf.rkt_conf,
+                                              name, val,
+                                              errstr, errstr_size);
 
         if (res == RD_KAFKA_CONF_UNKNOWN)
                 res = rd_kafka_conf_set(conf.rk_conf, name, val,
