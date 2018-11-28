@@ -640,7 +640,7 @@ static void consumer_run (FILE *fp) {
         /* Create consumer */
         if (!(conf.rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf.rk_conf,
                                      errstr, sizeof(errstr))))
-                KC_FATAL("Failed to create producer: %s", errstr);
+                KC_FATAL("Failed to create consumer: %s", errstr);
 
         if (!conf.debug && conf.verbosity == 0)
                 rd_kafka_set_log_level(conf.rk, 0);
