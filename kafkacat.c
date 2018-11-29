@@ -1525,7 +1525,7 @@ static void argparse (int argc, char **argv,
                                 if (!*rktparlistp)
                                         *rktparlistp = rd_kafka_topic_partition_list_new(1);
                                 add_topparoff("-t", *rktparlistp, optarg);
-
+                                conf.flags |= CONF_F_APIVERREQ;
                         } else
                                 conf.topic = optarg;
 
