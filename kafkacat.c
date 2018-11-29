@@ -71,12 +71,12 @@ static struct stats {
 } stats;
 
 
-/* Partition's at EOF state array */
-int *part_eof = NULL;
-/* Number of partitions that has reached EOF */
-int part_eof_cnt = 0;
-/* Threshold level (partitions at EOF) before exiting */
-int part_eof_thres = 0;
+/* Partition's stopped state array */
+int *part_stop = NULL;
+/* Number of partitions that are stopped */
+int part_stop_cnt = 0;
+/* Threshold level (partitions stopped) before exiting */
+int part_stop_thres = 0;
 
 
 
@@ -429,6 +429,17 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                 conf.exitcode = 1;
 }
 
+static void stop_partition (rd_kafka_message_t *rkmessage) {
+        if (!part_stop[rkmessage->partition]) {
+                /* Stop consuming this partition */
+                rd_kafka_consume_stop(rkmessage->rkt,
+                                      rkmessage->partition);
+                part_stop[rkmessage->partition] = 1;
+                part_stop_cnt++;
+                if (part_stop_cnt >= part_stop_thres)
+                        conf.run = 0;
+        }
+}
 
 static void handle_partition_eof (rd_kafka_message_t *rkmessage) {
 
@@ -441,15 +452,7 @@ static void handle_partition_eof (rd_kafka_message_t *rkmessage) {
                                       rkmessage->offset == 0 ?
                                       0 : rkmessage->offset-1);
                 if (conf.exit_eof) {
-                        if (!part_eof[rkmessage->partition]) {
-                                /* Stop consuming this partition */
-                                rd_kafka_consume_stop(rkmessage->rkt,
-                                                      rkmessage->partition);
-                                part_eof[rkmessage->partition] = 1;
-                                part_eof_cnt++;
-                                if (part_eof_cnt >= part_eof_thres)
-                                        conf.run = 0;
-                        }
+                        stop_partition(rkmessage);
                 }
 
         } else if (conf.mode == 'G') {
@@ -490,6 +493,20 @@ static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
                         KC_FATAL("Consumer error: %s",
                               rd_kafka_message_errstr(rkmessage));
 
+        }
+
+        if (conf.stopts) {
+                int64_t ts = rd_kafka_message_timestamp(rkmessage, NULL);
+                if (ts >= conf.stopts) {
+                        stop_partition(rkmessage);
+                        KC_INFO(1, "Reached stop timestamp for topic %s [%"PRId32"] "
+                             "at offset %"PRId64"%s\n",
+                             rd_kafka_topic_name(rkmessage->rkt),
+                             rkmessage->partition,
+                             rkmessage->offset,
+                             !conf.run ? ": exiting" : "");
+                        return;                       
+                }
         }
 
         /* Print message */
@@ -722,14 +739,14 @@ static void consumer_run (FILE *fp) {
 
         /* If Exit-at-EOF is enabled, set up array to track EOF
          * state for each partition. */
-        if (conf.exit_eof) {
-                part_eof = calloc(sizeof(*part_eof),
+        if (conf.exit_eof || conf.stopts) {
+                part_stop = calloc(sizeof(*part_stop),
                                   metadata->topics[0].partition_cnt);
 
                 if (conf.partition != RD_KAFKA_PARTITION_UA)
-                        part_eof_thres = 1;
+                        part_stop_thres = 1;
                 else
-                        part_eof_thres = metadata->topics[0].partition_cnt;
+                        part_stop_thres = metadata->topics[0].partition_cnt;
         }
 
 #if RD_KAFKA_VERSION >= 0x00090300
@@ -793,7 +810,7 @@ static void consumer_run (FILE *fp) {
                         continue;
 
 		/* Dont stop already stopped partitions */
-		if (!part_eof || !part_eof[partition])
+		if (!part_stop || !part_stop[partition])
 			rd_kafka_consume_stop(conf.rkt, partition);
 
                 rd_kafka_consume_stop(conf.rkt, partition);
@@ -1048,6 +1065,8 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "                     -<value> (relative offset from end)\n"
 #if RD_KAFKA_VERSION >= 0x00090300
                 "                     s@<value> (timestamp in ms to start at)\n"
+                "                     e@<value> (timestamp in ms to stop at "
+                "(not included))\n"
 #endif
                 "  -e                 Exit successfully when last message "
                 "received\n"
@@ -1604,6 +1623,9 @@ static void argparse (int argc, char **argv,
 #if RD_KAFKA_VERSION >= 0x00090300
                         else if (!strncmp(optarg, "s@", 2)) {
                                 conf.startts = strtoll(optarg+2, NULL, 10);
+                                conf.flags |= CONF_F_APIVERREQ;
+                        } else if (!strncmp(optarg, "e@", 2)) {
+                                conf.stopts = strtoll(optarg+2, NULL, 10);
                                 conf.flags |= CONF_F_APIVERREQ;
                         }
 #endif
