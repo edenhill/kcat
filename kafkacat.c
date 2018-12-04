@@ -1638,6 +1638,10 @@ static void argparse (int argc, char **argv,
 
 
         if (strchr("GC", conf.mode)) {
+                /* Must be explicitly enabled for librdkafka >= v1.0.0 */
+                rd_kafka_conf_set(conf.rk_conf, "enable.partition.eof", "true",
+                                  NULL, 0);
+
                 if (!fmt) {
                         if ((conf.flags & CONF_F_FMT_JSON)) {
                                 /* For JSON the format string is simply the
