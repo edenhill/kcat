@@ -113,12 +113,14 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\base64.h" />
     <ClInclude Include="..\kafkacat.h" />
     <ClInclude Include="..\rdport.h" />
     <ClInclude Include="win32_config.h" />
     <ClInclude Include="wingetopt.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\base64.c" />
     <ClCompile Include="..\tools.c" />
     <ClCompile Include="..\format.c" />
     <ClCompile Include="..\kafkacat.c" />
