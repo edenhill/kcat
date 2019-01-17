@@ -47,7 +47,6 @@ void fmt_msg_output_json (FILE *fp, const rd_kafka_message_t *rkmessage) {
         JS_STR(g, "topic");
         JS_STR(g, topic);
 
-
         JS_STR(g, "partition");
         yajl_gen_integer(g, (int)rkmessage->partition);
 
@@ -62,7 +61,7 @@ void fmt_msg_output_json (FILE *fp, const rd_kafka_message_t *rkmessage) {
                         JS_STR(g, "tstype");
                         if (tstype == RD_KAFKA_TIMESTAMP_CREATE_TIME)
                                 JS_STR(g, "create");
-                        if (tstype == RD_KAFKA_TIMESTAMP_LOG_APPEND_TIME)
+                        else if (tstype == RD_KAFKA_TIMESTAMP_LOG_APPEND_TIME)
                                 JS_STR(g, "logappend");
                         else
                                 JS_STR(g, "unknown");
