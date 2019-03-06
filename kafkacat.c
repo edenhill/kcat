@@ -307,6 +307,12 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
         conf.rkt_conf = NULL;
 
 
+        /* Poll once before initiating any connections.
+         * This is necessary for the SASL/OAUTHBEARER case
+         * to retrieve the initial token but is a no-op otherwise.
+         */
+        rd_kafka_poll(conf.rk, 0);
+
         if (pathcnt > 0 && !(conf.flags & CONF_F_LINE)) {
                 int i;
                 int good = 0;
@@ -582,6 +588,12 @@ static void kafkaconsumer_run (FILE *fp, char *const *topics, int topic_cnt) {
                 KC_FATAL("Failed to create consumer: %s", errstr);
         conf.rk_conf  = NULL;
 
+        /* Poll once before initiating any connections.
+         * This is necessary for the SASL/OAUTHBEARER case
+         * to retrieve the initial token but is a no-op otherwise.
+         */
+        rd_kafka_poll(conf.rk, 0);
+
         /* Forward main event queue to consumer queue so we can
          * serve both queues with a single consumer_poll() call. */
         rd_kafka_poll_set_consumer(conf.rk);
@@ -664,6 +676,11 @@ static void consumer_run (FILE *fp) {
         conf.rk_conf  = NULL;
         conf.rkt_conf = NULL;
 
+        /* Poll once before initiating any connections.
+         * This is necessary for the SASL/OAUTHBEARER case
+         * to retrieve the initial token but is a no-op otherwise.
+         */
+        rd_kafka_poll(conf.rk, 0);
 
         /* Query broker for topic + partition information. */
         if ((err = rd_kafka_metadata(conf.rk, 0, conf.rkt, &metadata, 5000)))
@@ -857,6 +874,12 @@ static void metadata_list (void) {
         conf.rk_conf  = NULL;
         conf.rkt_conf = NULL;
 
+
+        /* Poll once before initiating any connections.
+         * This is necessary for the SASL/OAUTHBEARER case
+         * to retrieve the initial token but is a no-op otherwise.
+         */
+        rd_kafka_poll(conf.rk, 0);
 
         /* Fetch metadata */
         err = rd_kafka_metadata(conf.rk, conf.rkt ? 0 : 1, conf.rkt,
