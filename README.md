@@ -1,6 +1,6 @@
 kafkacat
 ========
-Copyright (c) 2014-2018 Magnus Edenhill
+Copyright (c) 2014-2019 Magnus Edenhill
 
 [https://github.com/edenhill/kafkacat](https://github.com/edenhill/kafkacat)
 
@@ -135,6 +135,11 @@ Produce with headers:
 Print headers in consumer:
 
     $ kafkacat -b mybroker -C -t mytopic -f 'Headers: %h: Message value: %s\n'
+
+Enable the idempotent producer, providing exactly-once and strict-ordering
+**producer** guarantees:
+
+    $ kafkacat -b mybroker -X enable.idempotence=true -P -t mytopic ....
 
 Metadata listing:
 
