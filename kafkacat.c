@@ -182,8 +182,6 @@ static void produce (void *buf, size_t len,
                         break;
                 }
 
-                err = rd_kafka_last_error();
-
                 if (err != RD_KAFKA_RESP_ERR__QUEUE_FULL)
                         KC_FATAL("Failed to produce message (%zd bytes): %s",
                               len, rd_kafka_err2str(err));
