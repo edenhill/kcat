@@ -27,7 +27,7 @@
  */
 
 #include "kafkacat.h"
-
+#include "base64.h"
 #ifndef _MSC_VER
 #include <arpa/inet.h>  /* for htonl() */
 #endif
@@ -114,11 +114,17 @@ void fmt_parse (const char *fmt) {
                         case 'o':
                                 fmt_add(KC_FMT_OFFSET, NULL, 0);
                                 break;
+                        case 'a':
+                                fmt_add(KC_FMT_KEY_BASE64, NULL, 0);
+                                break;
                         case 'k':
                                 fmt_add(KC_FMT_KEY, NULL, 0);
                                 break;
                         case 'K':
                                 fmt_add(KC_FMT_KEY_LEN, NULL, 0);
+                                break;
+                        case 'b':
+                                fmt_add(KC_FMT_PAYLOAD_BASE64, NULL, 0);
                                 break;
                         case 's':
                                 fmt_add(KC_FMT_PAYLOAD, NULL, 0);
@@ -200,6 +206,19 @@ static int print_headers (FILE *fp, const rd_kafka_headers_t *hdrs) {
 }
 #endif
 
+static int fmt_msg_output_write_base64_buffer(FILE *fp, const char* const buffer, const size_t length) {
+    int r = 1;
+    int b64bufLength = Base64encode_len(length);
+    char* b64buf = malloc(b64bufLength);
+    if (!b64buf) {
+        KC_INFO(1, "Failed to allocate base64 buffer for length %d: %s\n", b64bufLength, strerror(errno));
+        return -1;
+    }
+    Base64encode(b64buf, buffer, length);
+    r = fwrite(b64buf, b64bufLength, 1, fp);
+    free(b64buf);
+    return r;
+}
 /**
  * Delimited output
  */
@@ -216,7 +235,13 @@ static void fmt_msg_output_str (FILE *fp,
                 case KC_FMT_OFFSET:
                         r = fprintf(fp, "%"PRId64, rkmessage->offset);
                         break;
-
+                case KC_FMT_KEY_BASE64:
+                    if (rkmessage->key_len){
+                        r = fmt_msg_output_write_base64_buffer(fp, rkmessage->key, rkmessage->key_len);
+                    } else if (conf.flags & CONF_F_NULL)
+                        r = fwrite(conf.null_str,
+                            conf.null_str_len, 1, fp);
+                    break;
                 case KC_FMT_KEY:
                         if (rkmessage->key_len)
                                 r = fwrite(rkmessage->key,
@@ -232,6 +257,14 @@ static void fmt_msg_output_str (FILE *fp,
                                     /* Use -1 to indicate NULL keys */
                                     rkmessage->key ? (ssize_t)rkmessage->key_len : -1);
                         break;
+
+                case KC_FMT_PAYLOAD_BASE64:
+                    if (rkmessage->len)
+                        r = fmt_msg_output_write_base64_buffer(fp, rkmessage->payload, rkmessage->len);
+                    else if (conf.flags & CONF_F_NULL)
+                        r = fwrite(conf.null_str,
+                            conf.null_str_len, 1, fp);
+                    break;
 
                 case KC_FMT_PAYLOAD:
                         if (rkmessage->len)
