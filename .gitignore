@@ -12,3 +12,4 @@ tmp-bootstrap
 core
 core.*
 vgcore.*
+.idea

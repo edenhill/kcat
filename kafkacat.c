@@ -999,6 +999,11 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
 #if ENABLE_JSON
                 "  -J                 Output with JSON envelope\n"
 #endif
+#if ENABLE_AVRO
+                "  -A                 Convert Avro keys to JSON (requires -s)\n"
+                "  -a                 Convert Avro messages to JSON (requires -s)\n"
+                "  -s <url>           Schema registry URL (without trailing /)\n"
+#endif
                 "  -D <delim>         Delimiter to separate messages on output\n"
                 "  -K <delim>         Print message keys prefixing the message\n"
                 "                     with specified delimiter.\n"
@@ -1434,6 +1439,9 @@ static void argparse (int argc, char **argv,
 #if ENABLE_JSON
                              "J"
 #endif
+#if ENABLE_AVRO
+                             "Aas:"
+#endif
                         )) != -1) {
                 switch (opt) {
                 case 'P':
@@ -1501,6 +1509,18 @@ static void argparse (int argc, char **argv,
 #if ENABLE_JSON
                 case 'J':
                         conf.flags |= CONF_F_FMT_JSON;
+                        break;
+#endif
+#if ENABLE_AVRO
+                case 's':
+                        conf.schema_registry_url = optarg;
+                        serdes_init();
+                        break;
+                case 'A':
+                        conf.flags |= CONF_F_FMT_AVRO_KEY;
+                        break;
+                case 'a':
+                        conf.flags |= CONF_F_FMT_AVRO_MSG;
                         break;
 #endif
                 case 'D':
@@ -1603,6 +1623,7 @@ static void argparse (int argc, char **argv,
                         break;
                 }
         }
+
 
         if (conf_files_read == 0) {
                 const char *cpath = kc_getenv("KAFKACAT_CONFIG");
@@ -1746,6 +1767,14 @@ int main (int argc, char **argv) {
                                       strerror(errno));
                 }
         }
+
+#if ENABLE_AVRO
+        if ((((conf.flags & CONF_F_FMT_AVRO_KEY)) ||
+             (conf.flags & CONF_F_FMT_AVRO_MSG)) &&
+            (conf.schema_registry_url == NULL)){
+          usage(argv[0], 1, "Schema registry URL (-s) is required with -a and -A", 0);
+        }
+#endif
 
         /* Run according to mode */
         switch (conf.mode)

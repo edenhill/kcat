@@ -43,6 +43,10 @@
 #include "config.h"
 #endif
 
+#ifdef ENABLE_AVRO
+#include <libserdes/serdes-avro.h>
+#endif
+
 #ifdef RD_KAFKA_V_HEADER
 #define HAVE_HEADERS 1
 #else
@@ -89,6 +93,8 @@ struct conf {
 #define CONF_F_APIVERREQ_USER 0x80 /* User set api.version.request */
 #define CONF_F_NO_CONF_SEARCH 0x100 /* Disable default config file search */
 #define CONF_F_BROKERS_SEEN 0x200 /* Brokers have been configured */
+#define CONF_F_FMT_AVRO_KEY 0x400 /* Convert key from Avro to JSON */
+#define CONF_F_FMT_AVRO_MSG 0x800 /* Convert message from Avro to JSON  */
         int     delim;
         int     key_delim;
 
@@ -119,6 +125,9 @@ struct conf {
         rd_kafka_topic_t      *rkt;
 
         char   *debug;
+#ifdef ENABLE_AVRO
+        char   *schema_registry_url;
+#endif
 };
 
 extern struct conf conf;
@@ -165,6 +174,16 @@ void partition_list_print_json (const rd_kafka_topic_partition_list_t *parts,
                                 void *json_gen);
 void fmt_init_json (void);
 void fmt_term_json (void);
+
+#endif
+#if ENABLE_AVRO
+
+/*
+ * avro.c
+ */
+
+char *cnv_msg_output_avro(const void *avro_data, int data_len);
+void serdes_init();
 
 #endif
 
