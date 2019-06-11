@@ -115,9 +115,13 @@ Output consumed messages in JSON envelope:
 
     $ kafkacat -b mybroker -t syslog -J
 
-Convert consumed key (-A) and message (-a) from Avro to JSON (no '/' at the end of the URL):
+Decode Avro key (`-a key`), value (`-a value`) or both (`-a .`) to JSON:
 
-    $ kafkacat -b mybroker -t syslog -A -a -s http://schema-registry-url
+    $ kafkacat -b mybroker -t ledger -a . -s http://schema-registry-url:8080
+
+Decode Avro message value and extract Avro record's "age" field:
+
+    $ kafkacat -b mybroker -t ledger -a value -s http://schema-registry-url:8080 | jq .payload.age
 
 Output consumed messages according to format string:
 

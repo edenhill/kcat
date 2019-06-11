@@ -43,8 +43,8 @@
 #include "config.h"
 #endif
 
-#ifdef ENABLE_AVRO
-#include <libserdes/serdes-avro.h>
+#if ENABLE_AVRO
+#include <libserdes/serdes.h>
 #endif
 
 #ifdef RD_KAFKA_V_HEADER
@@ -87,14 +87,14 @@ struct conf {
 #define CONF_F_KEY_DELIM  0x2 /* Producer: use key delimiter */
 #define CONF_F_OFFSET     0x4 /* Print offsets */
 #define CONF_F_TEE        0x8 /* Tee output when producing */
-#define CONF_F_NULL       0x10 /* Send empty messages as NULL */
+#define CONF_F_NULL       0x10 /* -Z: Send empty messages as NULL */
 #define CONF_F_LINE	  0x20 /* Read files in line mode when producing */
 #define CONF_F_APIVERREQ  0x40 /* Enable api.version.request=true */
 #define CONF_F_APIVERREQ_USER 0x80 /* User set api.version.request */
 #define CONF_F_NO_CONF_SEARCH 0x100 /* Disable default config file search */
-#define CONF_F_BROKERS_SEEN 0x200 /* Brokers have been configured */
-#define CONF_F_FMT_AVRO_KEY 0x400 /* Convert key from Avro to JSON */
-#define CONF_F_FMT_AVRO_MSG 0x800 /* Convert message from Avro to JSON  */
+#define CONF_F_BROKERS_SEEN   0x200 /* Brokers have been configured */
+#define CONF_F_FMT_AVRO_KEY   0x400 /* Convert key from Avro to JSON */
+#define CONF_F_FMT_AVRO_VALUE 0x800 /* Convert value from Avro to JSON  */
         int     delim;
         int     key_delim;
 
@@ -125,7 +125,9 @@ struct conf {
         rd_kafka_topic_t      *rkt;
 
         char   *debug;
-#ifdef ENABLE_AVRO
+
+#if ENABLE_AVRO
+        serdes_conf_t *srconf;
         char   *schema_registry_url;
 #endif
 };
@@ -174,17 +176,21 @@ void partition_list_print_json (const rd_kafka_topic_partition_list_t *parts,
                                 void *json_gen);
 void fmt_init_json (void);
 void fmt_term_json (void);
-
+int  json_can_emit_verbatim (void);
 #endif
-#if ENABLE_AVRO
 
+#if ENABLE_AVRO
 /*
  * avro.c
  */
+char *kc_avro_to_json (const void *data, size_t data_len,
+                       char *errstr, size_t errstr_size);
 
-char *cnv_msg_output_avro(const void *avro_data, int data_len);
-void serdes_init();
-
+void kc_avro_init (const char *key_schema_name,
+                   const char *key_schema_path,
+                   const char *value_schema_name,
+                   const char *value_schema_path);
+void kc_avro_term (void);
 #endif
 
 

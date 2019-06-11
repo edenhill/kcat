@@ -45,28 +45,21 @@ struct rd_kafka_metadata foo;"
     fi
 
 
-
+    mkl_meta_set "avroc" "static" "libavro.a"
     mkl_meta_set "libserdes" "deb" "libserdes-dev"
-    # Check for Avro serdes library (serdes)
-    if [[ $WITH_AVRO == y ]] && \
-        mkl_lib_check --static=-ljansson "jansson" HAVE_JANSSON disable CC "" \
-        "#include <jansson.h>
-" && \
-        mkl_lib_check --static=-lserdes "serdes" HAVE_SERDES disable CC "tmp-bootstrap/usr/local/lib/libavro.a" \
+    mkl_meta_set "libserdes" "static" "libserdes.a"
+
+    # Check for Avro and Schema-Registry client libs
+    if [[ $WITH_AVRO == y ]] &&
+           mkl_lib_check --libname=avro-c --static=-lavro "avroc" "" disable CC "-lavro" "#include <avro.h>" &&
+           mkl_lib_check --static=-lserdes "serdes" HAVE_SERDES disable CC "-lserdes" \
         "#include <sys/types.h>
         #include  <stdlib.h>
-        #include  <libserdes/serdes-avro.h>
-" && \
-        mkl_lib_check --static=-lavro "avro" HAVE_AVRO disable CC "tmp-bootstrap/usr/local/lib/libserdes.a" \
-        "#include <sys/types.h>
-        #include  <stdlib.h>
-        #include  <libserdes/serdes-avro.h>
-"
-    then
+        #include  <libserdes/serdes-avro.h>"; then
         mkl_allvar_set "avro" ENABLE_AVRO y
     fi
 }
 
 
 mkl_toggle_option "kafkacat" WITH_JSON --enable-json "JSON support (requires libyajl2)" y
-mkl_toggle_option "kafkacat" WITH_AVRO --enable-avro "Avro support (requires libcurl)" y
+mkl_toggle_option "kafkacat" WITH_AVRO --enable-avro "Avro/Schema-Registry support (requires libserdes)" y

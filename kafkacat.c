@@ -292,7 +292,7 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                                      errstr, sizeof(errstr))))
                 KC_FATAL("Failed to create producer: %s", errstr);
 
-		if (!conf.debug && conf.verbosity == 0)
+        if (!conf.debug && conf.verbosity == 0)
                 rd_kafka_set_log_level(conf.rk, 0);
 
         /* Create topic */
@@ -915,14 +915,17 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "kafkacat - Apache Kafka producer and consumer tool\n"
                 "https://github.com/edenhill/kafkacat\n"
                 "Copyright (c) 2014-2017, Magnus Edenhill\n"
-                "Version %s%s (librdkafka %s builtin.features=%s)\n"
+                "Version %s (%slibrdkafka %s builtin.features=%s)\n"
                 "\n",
                 KAFKACAT_VERSION,
+                ""
 #if ENABLE_JSON
-                " (JSON)",
-#else
-                "",
+                "JSON, "
 #endif
+#if ENABLE_AVRO
+                "AVRO, "
+#endif
+                ,
                 rd_kafka_version_str(), features
                 );
 
@@ -957,6 +960,10 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "  -X prop=val        Set librdkafka configuration property.\n"
                 "                     Properties prefixed with \"topic.\" are\n"
                 "                     applied as topic properties.\n"
+#if ENABLE_AVRO
+                "  -X schema.registry.prop=val Set libserdes configuration property "
+                "for the Avro/Schema-Registry client.\n"
+#endif
                 "  -X dump            Dump configuration and exit.\n"
                 "  -d <dbg1,...>      Enable librdkafka debugging:\n"
                 "                     " RD_KAFKA_DEBUG_CONTEXTS "\n"
@@ -1000,9 +1007,9 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "  -J                 Output with JSON envelope\n"
 #endif
 #if ENABLE_AVRO
-                "  -A                 Convert Avro keys to JSON (requires -s)\n"
-                "  -a                 Convert Avro messages to JSON (requires -s)\n"
-                "  -s <url>           Schema registry URL (without trailing /)\n"
+                "  -a .               Convert Avro keys and values to JSON (requires -s)\n"
+                "  -a key|value       Convert Avro keys or values to JSON (requires -s)\n"
+                "  -s <url>           Schema registry URL (requires -a)\n"
 #endif
                 "  -D <delim>         Delimiter to separate messages on output\n"
                 "  -K <delim>         Print message keys prefixing the message\n"
@@ -1010,8 +1017,9 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "  -O                 Print message offset using -K delimiter\n"
                 "  -c <cnt>           Exit after consuming this number "
                 "of messages\n"
-                "  -Z                 Print NULL messages and keys as \"%s\""
-                "(instead of empty)\n"
+                "  -Z                 Print NULL values and keys as \"%s\""
+                "instead of empty.\n"
+                "                     For JSON (-J) the nullstr is always null.\n"
                 "  -u                 Unbuffered output\n"
                 "\n"
                 "Metadata options (-L):\n"
@@ -1047,6 +1055,15 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 " Example:\n"
                 "  -f 'Topic %%t [%%p] at offset %%o: key %%k: %%s\\n'\n"
                 "\n"
+                "JSON message envelope (on one line) when consuming with -J:\n"
+                " { \"topic\": str, \"partition\": int, \"offset\": int,\n"
+                "   \"tstype\": \"create|logappend|unknown\", \"ts\": int, "
+                "// timestamp in milliseconds since epoch\n"
+                "   \"headers\": { \"<name>\": str, .. }, // optional\n"
+                "   \"key\": str|json, \"payload\": str|json,\n"
+                "   \"key_error\": str, \"payload_error\": str } //optional\n"
+                " (note: key_error and payload_error are only included if "
+                "deserialization failed)\n"
                 "\n"
                 "Consumer mode (writes messages to stdout):\n"
                 "  kafkacat -b <broker> -t <topic> -p <partition>\n"
@@ -1202,6 +1219,30 @@ static void conf_dump (void) {
 static int try_conf_set (const char *name, const char *val,
                          char *errstr, size_t errstr_size) {
         rd_kafka_conf_res_t res = RD_KAFKA_CONF_UNKNOWN;
+        size_t srlen = strlen("schema.registry.");
+
+        /* Pass schema.registry. config to the serdes */
+        if (!strncmp(name, "schema.registry.", srlen)) {
+#if ENABLE_AVRO
+                serdes_err_t serr;
+
+                if (!conf.srconf)
+                        conf.srconf = serdes_conf_new(NULL, 0, NULL);
+
+                if (!strcmp(name, "schema.registry.url"))
+                        srlen = 0;
+
+                serr = serdes_conf_set(conf.srconf, name+srlen, val,
+                                       errstr, errstr_size);
+                return serr == SERDES_ERR_OK ? 0 : -1;
+#else
+                snprintf(errstr, errstr_size,
+                         "This build of kafkacat lacks "
+                         "Avro/Schema-Registry support");
+                return -1;
+#endif
+        }
+
 
         /* Try "topic." prefixed properties on topic
          * conf first, and then fall through to global if
@@ -1433,16 +1474,13 @@ static void argparse (int argc, char **argv,
         char tmp_fmt[64];
         int do_conf_dump = 0;
         int conf_files_read = 0;
+#if ENABLE_AVRO
+        char *arg_a = NULL;
+#endif
 
         while ((opt = getopt(argc, argv,
-                             "PCG:LQt:p:b:z:o:eED:K:k:H:Od:qvF:X:c:Tuf:ZlVh"
-#if ENABLE_JSON
-                             "J"
-#endif
-#if ENABLE_AVRO
-                             "Aas:"
-#endif
-                        )) != -1) {
+                             ":PCG:LQt:p:b:z:o:eED:K:k:H:Od:qvF:X:c:Tuf:ZlVh"
+                             "a:s:J")) != -1) {
                 switch (opt) {
                 case 'P':
                 case 'C':
@@ -1506,23 +1544,32 @@ static void argparse (int argc, char **argv,
                 case 'f':
                         fmt = optarg;
                         break;
-#if ENABLE_JSON
                 case 'J':
+#if ENABLE_JSON
                         conf.flags |= CONF_F_FMT_JSON;
-                        break;
+#else
+                        KC_FATAL("This build of kafkacat lacks JSON support");
 #endif
-#if ENABLE_AVRO
-                case 's':
-                        conf.schema_registry_url = optarg;
-                        serdes_init();
                         break;
-                case 'A':
-                        conf.flags |= CONF_F_FMT_AVRO_KEY;
-                        break;
+
                 case 'a':
-                        conf.flags |= CONF_F_FMT_AVRO_MSG;
-                        break;
+#if ENABLE_AVRO
+                        arg_a = optarg;
+#else
+                        KC_FATAL("This build of kafkacat lacks "
+                                 "Avro/Schema-Registry support");
 #endif
+                        break;
+                case 's':
+#if ENABLE_AVRO
+                        if (!*optarg)
+                                KC_FATAL("-s url must not be empty");
+                        conf.schema_registry_url = optarg;
+#else
+                        KC_FATAL("This build of kafkacat lacks "
+                                 "Avro/Schema-Registry support");
+#endif
+                        break;
                 case 'D':
                         delim = optarg;
                         break;
@@ -1659,7 +1706,9 @@ static void argparse (int argc, char **argv,
         if (!strchr("GLQ", conf.mode) && !conf.topic)
                 usage(argv[0], 1, "-t <topic> missing", 0);
         else if (conf.mode == 'Q' && !*rktparlistp)
-                usage(argv[0], 1, "-t <topic>:<partition>:<offset_or_timestamp> missing", 0);
+                usage(argv[0], 1,
+                      "-t <topic>:<partition>:<offset_or_timestamp> missing",
+                      0);
 
         if (conf.brokers &&
             rd_kafka_conf_set(conf.rk_conf, "metadata.broker.list",
@@ -1670,6 +1719,135 @@ static void argparse (int argc, char **argv,
         rd_kafka_conf_set_error_cb(conf.rk_conf, error_cb);
 
         fmt_init();
+
+        /*
+         * Verify and initialize Avro/SR
+         */
+#if ENABLE_AVRO
+        if (!conf.schema_registry_url != !arg_a)
+                KC_FATAL("-s requires -a and vice-versa");
+
+        if (arg_a) {
+                char *key_schema_name = NULL, *key_schema_path = NULL;
+                char *value_schema_name = NULL, *value_schema_path = NULL;
+                char *t;
+
+                /* Trim trailing slashes from URL to avoid 404 */
+                t = &conf.schema_registry_url[strlen(conf.
+                                                     schema_registry_url)-1];
+                while (t >= conf.schema_registry_url && *t == '/') {
+                        *t = '\0';
+                        t--;
+                }
+
+                if (try_conf_set("schema.registry.url",
+                                 conf.schema_registry_url,
+                                 errstr, sizeof(errstr)) == -1)
+                        KC_FATAL("%s", errstr);
+
+                /* Check that both -s and -a are configured */
+                if (strchr("GC", conf.mode)) {
+                        if (!strcmp(arg_a, ".") || !strcmp(arg_a, "key,value"))
+                                conf.flags |= CONF_F_FMT_AVRO_KEY |
+                                        CONF_F_FMT_AVRO_VALUE;
+                        else if (!strcmp(arg_a, "key"))
+                                conf.flags |= CONF_F_FMT_AVRO_KEY;
+                        else if (!strcmp(arg_a, "value"))
+                                conf.flags |= CONF_F_FMT_AVRO_VALUE;
+                        else
+                                KC_FATAL("Unknown message field: %s: expected "
+                                         "-a ., -a key, -a value, or "
+                                         "-a key,value", arg_a);
+
+                        if (conf.flags &
+                            (CONF_F_FMT_AVRO_KEY|CONF_F_FMT_AVRO_VALUE)) {
+
+#if ENABLE_JSON
+                                /* Avro is decoded to JSON which needs to be
+                                 * written verbatim to the JSON envelope when
+                                 * using -J: libyajl does not support this,
+                                 * but my own fork of yajl does. */
+                                if (conf.flags & CONF_F_FMT_JSON &&
+                                    !json_can_emit_verbatim())
+                                        KC_FATAL("This build of kafkacat lacks "
+                                                 "support for emitting "
+                                                 "JSON-formatted "
+                                                 "message keys and values: "
+                                                 "try without -J or build "
+                                                 "kafkacat with yajl from "
+                                                 "https://github.com/edenhill/yajl");
+#endif
+                        }
+
+#if 0 /* FIXME: Avro Producer support */
+                } else if (strchr("P", conf.mode)) {
+                        char *s;
+
+#if ENABLE_JSON
+                        if (!(conf.flags & CONF_F_FMT_JSON))
+#endif
+                                KC_FATAL("Producing with Avro serialization "
+                                         "requires JSON-formatted "
+                                         "input messages (-J)");
+
+                        /* Parse -a [key=path,][value=path] */
+                        s = arg_a;
+                        while (*s) {
+                                char *next, *t, *t2 = NULL;
+
+                                next = strchr(s, ',');
+                                if (!next)
+                                        next = s + strlen(s);
+                                else {
+                                        *next = '\0';
+                                        next++;
+                                }
+
+                                t = strchr(s, '=');
+                                if (t) {
+                                        *t = '\0';
+                                        t++;
+
+                                        t2 = strchr(t, ':');
+                                        if (t2) {
+                                                *t2 = '\0';
+                                                t2++;
+                                        }
+                                }
+
+                                if (!*s || !t || !*t || !t2 || !*t2 ||
+                                    !(!strcmp(s, "key") || !strcmp(s, "value")))
+                                        KC_FATAL("Malformed -a: expected "
+                                                 "-a key=name:path,"
+                                                 "name:value=path, "
+                                                 "-a key=name:path "
+                                                 "or -a value=name:path");
+
+                                if (!strcmp(s, "key")) {
+                                        key_schema_name = t;
+                                        key_schema_path = t2;
+                                }else if (!strcmp(s, "value")) {
+                                        value_schema_name = t;
+                                        value_schema_path = t2;
+                                } else
+                                        KC_FATAL("Malformed -a: %s=%s:%s",
+                                                 s, t, t2); /* NOTREACHED */
+
+                                s = next;
+                        }
+#endif
+                } else {
+                        KC_FATAL("-a and -s are only relevant "
+                                 "in consumer modes");
+                }
+
+                /* Initialize Avro/Schema-Registry client */
+                kc_avro_init(key_schema_name,
+                             key_schema_path,
+                             value_schema_name,
+                             value_schema_path);
+        }
+#endif
 
 
         if (strchr("GC", conf.mode)) {
@@ -1768,14 +1946,6 @@ int main (int argc, char **argv) {
                 }
         }
 
-#if ENABLE_AVRO
-        if ((((conf.flags & CONF_F_FMT_AVRO_KEY)) ||
-             (conf.flags & CONF_F_FMT_AVRO_MSG)) &&
-            (conf.schema_registry_url == NULL)){
-          usage(argv[0], 1, "Schema registry URL (-s) is required with -a and -A", 0);
-        }
-#endif
-
         /* Run according to mode */
         switch (conf.mode)
         {
@@ -1820,6 +1990,10 @@ int main (int argc, char **argv) {
                 fclose(in);
 
         rd_kafka_wait_destroyed(5000);
+
+#if ENABLE_AVRO
+        kc_avro_term();
+#endif
 
         fmt_term();
 

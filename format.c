@@ -168,14 +168,14 @@ void fmt_parse (const char *fmt) {
 
 
 void fmt_init (void) {
-#ifdef ENABLE_JSON
+#if ENABLE_JSON
         if (conf.flags & CONF_F_FMT_JSON)
                 fmt_init_json();
 #endif
 }
 
 void fmt_term (void) {
-#ifdef ENABLE_JSON
+#if ENABLE_JSON
         if (conf.flags & CONF_F_FMT_JSON)
                 fmt_term_json();
 #endif
@@ -206,10 +206,14 @@ static int print_headers (FILE *fp, const rd_kafka_headers_t *hdrs) {
 static void fmt_msg_output_str (FILE *fp,
                                 const rd_kafka_message_t *rkmessage) {
         int i;
+        char errstr[256];
+
+        *errstr = '\0';
 
         for (i = 0 ; i < conf.fmt_cnt ; i++) {
                 int r = 1;
                 uint32_t belen;
+                const char *what_failed = "";
 
                 switch (conf.fmt[i].type)
                 {
@@ -218,21 +222,28 @@ static void fmt_msg_output_str (FILE *fp,
                         break;
 
                 case KC_FMT_KEY:
-#ifdef ENABLE_AVRO
-                        if(conf.flags & CONF_F_FMT_AVRO_KEY){
-                            char * json = cnv_msg_output_avro(rkmessage->key, rkmessage->key_len);
-                            if(json){
-                                r = fwrite(
-                                        json,
-                                        strlen(json), 1, fp);
-                                free(json);
-                            }
-                        } else
+                        if (rkmessage->key_len) {
+#if ENABLE_AVRO
+                                if (conf.flags & CONF_F_FMT_AVRO_KEY) {
+                                        char *json = kc_avro_to_json(
+                                                rkmessage->key,
+                                                rkmessage->key_len,
+                                                errstr, sizeof(errstr));
+
+                                        if (!json) {
+                                                what_failed =
+                                                        "key deserialization";
+                                                goto fail;
+                                        }
+
+                                        r = fprintf(fp, "%s", json);
+                                        free(json);
+                                } else
 #endif
-                        if (rkmessage->key_len)
-                                r = fwrite(rkmessage->key,
-                                           rkmessage->key_len, 1, fp);
-                        else if (conf.flags & CONF_F_NULL)
+                                        r = fwrite(rkmessage->key,
+                                                   rkmessage->key_len, 1, fp);
+
+                        } else if (conf.flags & CONF_F_NULL)
                                 r = fwrite(conf.null_str,
                                            conf.null_str_len, 1, fp);
 
@@ -245,21 +256,30 @@ static void fmt_msg_output_str (FILE *fp,
                         break;
 
                 case KC_FMT_PAYLOAD:
-#ifdef ENABLE_AVRO
-                        if(conf.flags & CONF_F_FMT_AVRO_MSG){
-                                char * json = cnv_msg_output_avro(rkmessage->payload, rkmessage->len);
-                                if(json) {
-                                    r = fwrite(
-                                            json,
-                                            strlen(json), 1, fp);
-                                    free(json);
-                                }
-                        } else
+                        if (rkmessage->len) {
+#if ENABLE_AVRO
+                                if (conf.flags & CONF_F_FMT_AVRO_VALUE) {
+                                        char *json = kc_avro_to_json(
+                                                rkmessage->payload,
+                                                rkmessage->len,
+                                                errstr,
+                                                sizeof(errstr));
+
+                                        if (!json) {
+                                                what_failed =
+                                                        "message "
+                                                        "deserialization";
+                                                goto fail;
+                                        }
+
+                                        r = fprintf(fp, "%s", json);
+                                        free(json);
+                                } else
 #endif
-                        if (rkmessage->len)
-                                r = fwrite(rkmessage->payload,
-                                           rkmessage->len, 1, fp);
-                        else if (conf.flags & CONF_F_NULL)
+                                        r = fwrite(rkmessage->payload,
+                                                   rkmessage->len, 1, fp);
+
+                        } else if (conf.flags & CONF_F_NULL)
                                 r = fwrite(conf.null_str,
                                            conf.null_str_len, 1, fp);
                         break;
@@ -313,10 +333,10 @@ static void fmt_msg_output_str (FILE *fp,
                         if (err == RD_KAFKA_RESP_ERR__NOENT) {
                                 r = 1; /* Fake it to continue */
                         } else if (err != RD_KAFKA_RESP_ERR_NO_ERROR) {
-                                fprintf(stderr,
-                                        "%% Failed to parse headers: %s",
-                                        rd_kafka_err2str(err));
-                                r = 1; /* Fake it to continue */
+                                what_failed = "Failed to parse headers";
+                                snprintf(errstr, sizeof(errstr), "%s",
+                                         rd_kafka_err2str(err));
+                                goto fail;
                         } else {
                                 r = print_headers(fp, hdrs);
                         }
@@ -328,9 +348,24 @@ static void fmt_msg_output_str (FILE *fp,
 
                 if (r < 1)
                         KC_FATAL("Write error for message "
-                              "of %zd bytes at offset %"PRId64"): %s",
-                              rkmessage->len, rkmessage->offset,
-                              strerror(errno));
+                                 "of %zd bytes in %s [%"PRId32"] "
+                                 "at offset %"PRId64": %s",
+                                 rkmessage->len,
+                                 rd_kafka_topic_name(rkmessage->rkt),
+                                 rkmessage->partition,
+                                 rkmessage->offset,
+                                 strerror(errno));
+
+                continue;
+
+        fail:
+                KC_ERROR("Failed to format message in %s [%"PRId32"] "
+                         "at offset %"PRId64": %s: %s",
+                         rd_kafka_topic_name(rkmessage->rkt),
+                         rkmessage->partition,
+                         rkmessage->offset,
+                         what_failed, errstr);
+                return;
         }
 
 }
@@ -341,7 +376,7 @@ static void fmt_msg_output_str (FILE *fp,
  */
 void fmt_msg_output (FILE *fp, const rd_kafka_message_t *rkmessage) {
 
-#ifdef ENABLE_JSON
+#if ENABLE_JSON
         if (conf.flags & CONF_F_FMT_JSON)
                 fmt_msg_output_json(fp, rkmessage);
         else
