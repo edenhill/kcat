@@ -12,3 +12,6 @@ tmp-bootstrap
 core
 core.*
 vgcore.*
+build/
+meson/*
+!meson/*.wrap

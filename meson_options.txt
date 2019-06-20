@@ -1,0 +1,2 @@
+option('json', type: 'feature', value: 'enabled')
+option('static', type: 'boolean', value: 'false')

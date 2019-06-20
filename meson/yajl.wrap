@@ -1,0 +1,10 @@
+[wrap-file]
+directory = yajl-2.1.0
+
+source_url = https://github.com/lloyd/yajl/archive/2.1.0.tar.gz
+source_filename = yajl-2.1.0.tgz
+source_hash = 3fb73364a5a30efe615046d07e6db9d09fd2b41c763c5f7d3bfb121cd5c5ac5a
+
+patch_url = https://github.com/jcaesar/crappywraps/releases/download/1/yajl-patch.tgz
+patch_filename = yajl-patch-dl.tgz
+patch_hash = b7d104a586da43e86762cf705dfaba1c2409415665a0fb75b6d67b1e905e9280

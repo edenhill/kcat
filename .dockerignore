@@ -1,3 +1,6 @@
 win32
 tmp-bootstrap
 rpm
+build
+meson/*
+!meson/*.wrap
