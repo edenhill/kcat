@@ -44,7 +44,7 @@ Otherwise follow directions below.
 
  * librdkafka - https://github.com/edenhill/librdkafka
  * libyajl (for JSON support, optional)
- * libavro and libserdes (for Avro support, optional. See https://github.com/confluentinc/libserdes)
+ * libavro-c and libserdes (for Avro support, optional. See https://github.com/confluentinc/libserdes)
 
 On Ubuntu or Debian: `sudo apt-get install librdkafka-dev libyajl-dev`
 
@@ -115,17 +115,29 @@ Output consumed messages in JSON envelope:
 
     $ kafkacat -b mybroker -t syslog -J
 
-Decode Avro key (`-a key`), value (`-a value`) or both (`-a .`) to JSON:
 
-    $ kafkacat -b mybroker -t ledger -a . -s http://schema-registry-url:8080
+Decode Avro key (`-s key=avro`), value (`-s value=avro`) or both (`-s avro`) to JSON using schema from the Schema-Registry:
+
+    $ kafkacat -b mybroker -t ledger -s avro -r http://schema-registry-url:8080
+
 
 Decode Avro message value and extract Avro record's "age" field:
 
-    $ kafkacat -b mybroker -t ledger -a value -s http://schema-registry-url:8080 | jq .payload.age
+    $ kafkacat -b mybroker -t ledger -s value=avro -r http://schema-registry-url:8080 | jq .payload.age
+
+
+Decode key as 32-bit signed integer and value as 16-bit signed integer followed by an unsigned byte followed by string:
+
+    $ kafkacat -b mybroker -t mytopic -s key='i$' -s value='hB s'
+
+
+*Hint: see `./kafkacat -h` for all available deserializer options.*
+
 
 Output consumed messages according to format string:
 
     $ kafkacat -b mybroker -t syslog -f 'Topic %t[%p], offset: %o, key: %k, payload: %S bytes: %s\n'
+
 
 Read the last 100 messages from topic 'syslog' with  librdkafka configuration parameter 'broker.version.fallback' set to '0.8.2.1' :
 
@@ -136,18 +148,22 @@ Produce a tombstone (a "delete" for compacted topics) for key "abc" by providing
 
     $ echo "abc:" | kafkacat -b mybroker -t mytopic -Z -K:
 
+
 Produce with headers:
 
     $ echo "hello there" | kafkacat -b mybroker -H "header1=header value" -H "nullheader" -H "emptyheader=" -H "header1=duplicateIsOk"
+
 
 Print headers in consumer:
 
     $ kafkacat -b mybroker -C -t mytopic -f 'Headers: %h: Message value: %s\n'
 
+
 Enable the idempotent producer, providing exactly-once and strict-ordering
 **producer** guarantees:
 
     $ kafkacat -b mybroker -X enable.idempotence=true -P -t mytopic ....
+
 
 Metadata listing:
 
@@ -172,9 +188,11 @@ Metadata for all topics (from broker 1: mybroker:9092/1):
   ....
 ````
 
+
 JSON metadata listing
 
     $ kafkacat -b mybroker -L -J
+
 
 Pretty-printed JSON metadata listing
 
@@ -209,12 +227,12 @@ Here are two short examples of using kafkacat from Docker. See the [Docker Hub l
     EOF
     ```
 
-* Consume messages: 
+* Consume messages:
 
     ```
     docker run --tty --interactive --rm \
            confluentinc/cp-kafkacat \
-           kafkacat -b kafka-broker:9092 \ 
+           kafkacat -b kafka-broker:9092 \
            -C \
            -f '\nKey (%K bytes): %k\t\nValue (%S bytes): %s\n\Partition: %p\tOffset: %o\n--\n' \
            -t test

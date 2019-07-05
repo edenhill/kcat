@@ -27,10 +27,7 @@
  */
 
 #include "kafkacat.h"
-
-#ifndef _MSC_VER
-#include <arpa/inet.h>  /* for htonl() */
-#endif
+#include "rdendian.h"
 
 static void fmt_add (fmt_type_t type, const char *str, int len) {
         if (conf.fmt_cnt == KC_FMT_MAX_SIZE)
@@ -200,6 +197,181 @@ static int print_headers (FILE *fp, const rd_kafka_headers_t *hdrs) {
 }
 #endif
 
+
+/**
+ * @brief Check that the pack-format string is valid.
+ */
+void pack_check (const char *what, const char *fmt) {
+        const char *f = fmt;
+        static const char *valid = " <>bBhHiIqQcs$";
+
+        if (!*fmt)
+                KC_FATAL("%s pack-format must not be empty", what);
+
+        while (*f) {
+                if (!strchr(valid, (int)(*f)))
+                        KC_FATAL("Invalid token '%c' in %s pack-format, "
+                                 "see -s usage.",
+                                 (int)(*f), what);
+                f++;
+        }
+}
+
+
+/**
+ * @brief Unpack (deserialize) the data at \p buf using the
+ *        pack-format string \p fmt.
+ *        \p fmt must be a valid pack-format string.
+ *        Prints result to \p fp.
+ *
+ * Format is inspired by Python's struct.unpack()
+ *
+ * @returns 0 on success or -1 on error.
+ */
+static int unpack (FILE *fp, const char *what, const char *fmt,
+                   const char *buf, size_t len,
+                   char *errstr, size_t errstr_size) {
+        const char *b = buf;
+        const char *end = buf+len;
+        const char *f = fmt;
+        enum {
+                big_endian,
+                little_endian
+        } endian = big_endian;
+
+#define endian_swap(val,to_little,to_big)                       \
+        (endian == big_endian ? to_big(val) : to_little(val))
+
+#define fup_copy(dst,sz) do {                                           \
+                if ((sz) > remaining) {                                 \
+                        snprintf(errstr, errstr_size,                   \
+                                 "%s truncated, expected %d bytes "     \
+                                 "to unpack %c but only %d bytes remaining", \
+                                 what, (int)(sz), (int)(*f),            \
+                                 (int)remaining);                       \
+                        return -1;                                      \
+                }                                                       \
+                memcpy(dst, b, sz);                                     \
+                b += (sz);                                              \
+        } while (0)
+
+        while (*f) {
+                size_t remaining = (int)(end - b);
+
+                switch ((int)*f)
+                {
+                case ' ':
+                        fprintf(fp, " ");
+                        break;
+                case '<':
+                        endian = little_endian;
+                        break;
+                case '>':
+                        endian = big_endian;
+                        break;
+                case 'b':
+                {
+                        int8_t v;
+                        fup_copy(&v, sizeof(v));
+                        fprintf(fp, "%d", (int)v);
+                }
+                break;
+                case 'B':
+                {
+                        uint8_t v;
+                        fup_copy(&v, sizeof(v));
+                        fprintf(fp, "%u", (unsigned int)v);
+                }
+                break;
+                case 'h':
+                {
+                        int16_t v;
+                        fup_copy(&v, sizeof(v));
+                        v = endian_swap(v, be16toh, be16toh);
+                        fprintf(fp, "%hd", v);
+                }
+                break;
+                case 'H':
+                {
+                        uint16_t v;
+                        fup_copy(&v, sizeof(v));
+                        v = endian_swap(v, be16toh, be16toh);
+                        fprintf(fp, "%hu", v);
+                }
+                break;
+                case 'i':
+                {
+                        int32_t v;
+                        fup_copy(&v, sizeof(v));
+                        v = endian_swap(v, be32toh, htobe32);
+                        fprintf(fp, "%d", v);
+                }
+                break;
+                case 'I':
+                {
+                        uint32_t v;
+                        fup_copy(&v, sizeof(v));
+                        v = endian_swap(v, be32toh, htobe32);
+                        fprintf(fp, "%u", v);
+                }
+                break;
+                case 'q':
+                {
+                        int64_t v;
+                        fup_copy(&v, sizeof(v));
+                        v = endian_swap(v, be64toh, htobe64);
+                        fprintf(fp, "%"PRId64, v);
+                }
+                break;
+                case 'Q':
+                {
+                        uint64_t v;
+                        fup_copy(&v, sizeof(v));
+                        v = endian_swap(v, be64toh, htobe64);
+                        fprintf(fp, "%"PRIu64, v);
+                }
+                break;
+                case 'c':
+                        fprintf(fp, "%c", (int)*b);
+                        b++;
+                        break;
+                case 's':
+                {
+                        fprintf(fp, "%.*s", (int)remaining, b);
+                        b += remaining;
+                }
+                break;
+                case '$':
+                {
+                        if (remaining > 0) {
+                                snprintf(errstr, errstr_size,
+                                         "expected %s end-of-input, "
+                                         "but %d bytes remaining",
+                                         what, (int)remaining);
+                                return -1;
+                        }
+                }
+                break;
+
+                default:
+                        KC_FATAL("Invalid pack-format token '%c'", (int)*f);
+                        break;
+
+                }
+
+                f++;
+        }
+
+        /* Ignore remaining input bytes, if any. */
+        return 0;
+
+#undef endian_swap
+#undef fup_copy
+}
+
+
+
+
 /**
  * Delimited output
  */
@@ -223,8 +395,8 @@ static void fmt_msg_output_str (FILE *fp,
 
                 case KC_FMT_KEY:
                         if (rkmessage->key_len) {
-#if ENABLE_AVRO
                                 if (conf.flags & CONF_F_FMT_AVRO_KEY) {
+#if ENABLE_AVRO
                                         char *json = kc_avro_to_json(
                                                 rkmessage->key,
                                                 rkmessage->key_len,
@@ -232,14 +404,26 @@ static void fmt_msg_output_str (FILE *fp,
 
                                         if (!json) {
                                                 what_failed =
+                                                        "Avro/Schema-registry "
                                                         "key deserialization";
                                                 goto fail;
                                         }
 
                                         r = fprintf(fp, "%s", json);
                                         free(json);
-                                } else
+#else
+                                        KC_FATAL("NOTREACHED");
 #endif
+                                } else if (conf.pack[KC_MSG_FIELD_KEY]) {
+                                        if (unpack(fp,
+                                                   "key",
+                                                   conf.pack[KC_MSG_FIELD_KEY],
+                                                   rkmessage->key,
+                                                   rkmessage->key_len,
+                                                   errstr, sizeof(errstr)) ==
+                                            -1)
+                                                goto fail;
+                                } else
                                         r = fwrite(rkmessage->key,
                                                    rkmessage->key_len, 1, fp);
 
@@ -257,8 +441,8 @@ static void fmt_msg_output_str (FILE *fp,
 
                 case KC_FMT_PAYLOAD:
                         if (rkmessage->len) {
-#if ENABLE_AVRO
                                 if (conf.flags & CONF_F_FMT_AVRO_VALUE) {
+#if ENABLE_AVRO
                                         char *json = kc_avro_to_json(
                                                 rkmessage->payload,
                                                 rkmessage->len,
@@ -267,6 +451,7 @@ static void fmt_msg_output_str (FILE *fp,
 
                                         if (!json) {
                                                 what_failed =
+                                                        "Avro/Schema-registry "
                                                         "message "
                                                         "deserialization";
                                                 goto fail;
@@ -274,8 +459,19 @@ static void fmt_msg_output_str (FILE *fp,
 
                                         r = fprintf(fp, "%s", json);
                                         free(json);
-                                } else
+#else
+                                        KC_FATAL("NOTREACHED");
 #endif
+                                } else if (conf.pack[KC_MSG_FIELD_VALUE]) {
+                                        if (unpack(fp,
+                                                   "value",
+                                                   conf.pack[KC_MSG_FIELD_VALUE],
+                                                   rkmessage->payload,
+                                                   rkmessage->len,
+                                                   errstr, sizeof(errstr)) ==
+                                            -1)
+                                                goto fail;
+                                } else
                                         r = fwrite(rkmessage->payload,
                                                    rkmessage->len, 1, fp);
 
@@ -292,8 +488,9 @@ static void fmt_msg_output_str (FILE *fp,
 
                 case KC_FMT_PAYLOAD_LEN_BINARY:
                         /* Use -1 to indicate NULL messages */
-                        belen = htonl((uint32_t)(rkmessage->payload ?
-						 (ssize_t)rkmessage->len : -1));
+                        belen = htobe32((uint32_t)(rkmessage->payload ?
+                                                   (ssize_t)rkmessage->len :
+                                                   -1));
                         r = fwrite(&belen, sizeof(uint32_t), 1, fp);
                         break;
 
@@ -360,11 +557,12 @@ static void fmt_msg_output_str (FILE *fp,
 
         fail:
                 KC_ERROR("Failed to format message in %s [%"PRId32"] "
-                         "at offset %"PRId64": %s: %s",
+                         "at offset %"PRId64": %s%s%s",
                          rd_kafka_topic_name(rkmessage->rkt),
                          rkmessage->partition,
                          rkmessage->offset,
-                         what_failed, errstr);
+                         what_failed, *what_failed ? ": " : "",
+                         errstr);
                 return;
         }
 

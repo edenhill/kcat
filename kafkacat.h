@@ -1,7 +1,7 @@
 /*
  * kafkacat - Apache Kafka consumer and producer
  *
- * Copyright (c) 2015, Magnus Edenhill
+ * Copyright (c) 2015-2019, Magnus Edenhill
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -76,6 +76,12 @@ typedef enum {
 
 #define KC_FMT_MAX_SIZE  128
 
+typedef enum {
+        KC_MSG_FIELD_VALUE,
+        KC_MSG_FIELD_KEY,
+        KC_MSG_FIELD_CNT
+} kc_msg_field_t;
+
 struct conf {
         int     run;
         int     verbosity;
@@ -104,6 +110,11 @@ struct conf {
                 int         str_len;
         } fmt[KC_FMT_MAX_SIZE];
         int     fmt_cnt;
+
+        /**< Producer: per-field pack-format, see pack()
+         *   Consumer: per-field unpack-format, see unpack(). */
+        const char *pack[KC_MSG_FIELD_CNT];
+
         int     msg_size;
         char   *brokers;
         char   *topic;
@@ -156,6 +167,8 @@ void error0 (int erroronexit, const char *func, int line,
 /*
  * format.c
  */
+void pack_check (const char *what, const char *fmt);
+
 void fmt_msg_output (FILE *fp, const rd_kafka_message_t *rkmessage);
 
 void fmt_parse (const char *fmt);

@@ -97,14 +97,17 @@ pushd tmp-bootstrap > /dev/null
 
 export DEST="$PWD/usr"
 export CFLAGS="-I$DEST/include"
-export LDFLAGS="-L$DEST/lib -Wl,-rpath-link=$DEST/lib"
+if [[ $(uname -s) == Linux ]]; then
+    export LDFLAGS="-L$DEST/lib -Wl,-rpath-link=$DEST/lib"
+else
+    export LDFLAGS="-L$DEST/lib"
+fi
 export PKG_CONFIG_PATH="$DEST/lib/pkgconfig"
 
 github_download "edenhill/librdkafka" "$LIBRDKAFKA_VERSION" "librdkafka"
+build librdkafka "([ -f config.h ] || ./configure --prefix=$DEST --install-deps --disable-lz4-ext) && make -j && make install" || (echo "Failed to build librdkafka: bootstrap failed" ; false)
+
 github_download "edenhill/yajl" "edenhill" "libyajl"
-
-build librdkafka "([ -f config.h ] || ./configure --prefix=$DEST) && make && make install" || (echo "Failed to build librdkafka: bootstrap failed" ; false)
-
 build libyajl "([ -d build ] || ./configure --prefix $DEST) && make distro && make install" || (echo "Failed to build libyajl: JSON support will probably be disabled" ; true)
 
 download http://www.digip.org/jansson/releases/jansson-2.12.tar.gz libjansson

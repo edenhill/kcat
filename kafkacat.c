@@ -1,7 +1,7 @@
 /*
  * kafkacat - Apache Kafka consumer and producer
  *
- * Copyright (c) 2014, Magnus Edenhill
+ * Copyright (c) 2014-2019, Magnus Edenhill
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -914,7 +914,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
         fprintf(out,
                 "kafkacat - Apache Kafka producer and consumer tool\n"
                 "https://github.com/edenhill/kafkacat\n"
-                "Copyright (c) 2014-2017, Magnus Edenhill\n"
+                "Copyright (c) 2014-2019, Magnus Edenhill\n"
                 "Version %s (%slibrdkafka %s builtin.features=%s)\n"
                 "\n",
                 KAFKACAT_VERSION,
@@ -923,7 +923,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "JSON, "
 #endif
 #if ENABLE_AVRO
-                "AVRO, "
+                "Avro, "
 #endif
                 ,
                 rd_kafka_version_str(), features
@@ -1006,10 +1006,34 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
 #if ENABLE_JSON
                 "  -J                 Output with JSON envelope\n"
 #endif
+                "  -s key=<serdes>    Deserialize non-NULL keys using <serdes>.\n"
+                "  -s value=<serdes>  Deserialize non-NULL values using <serdes>.\n"
+                "  -s <serdes>        Deserialize non-NULL keys and values using <serdes>.\n"
+                "                     Available deserializers (<serdes>):\n"
+                "                       <pack-str> - A combination of:\n"
+                "                                    <: little-endian,\n"
+                "                                    >: big-endian (recommended),\n"
+                "                                    b: signed 8-bit integer\n"
+                "                                    B: unsigned 8-bit integer\n"
+                "                                    h: signed 16-bit integer\n"
+                "                                    H: unsigned 16-bit integer\n"
+                "                                    i: signed 32-bit integer\n"
+                "                                    I: unsigned 32-bit integer\n"
+                "                                    q: signed 64-bit integer\n"
+                "                                    Q: unsigned 64-bit integer\n"
+                "                                    c: ASCII character\n"
+                "                                    s: remaining data is string\n"
+                "                                    $: match end-of-input (no more bytes remaining or a parse error is raised).\n"
+                "                                       Not including this token skips any\n"
+                "                                       remaining data after the pack-str is\n"
+                "                                       exhausted.\n"
 #if ENABLE_AVRO
-                "  -a .               Convert Avro keys and values to JSON (requires -s)\n"
-                "  -a key|value       Convert Avro keys or values to JSON (requires -s)\n"
-                "  -s <url>           Schema registry URL (requires -a)\n"
+                "                       avro       - Avro-formatted with schema in Schema-Registry (requires -r)\n"
+                "                     E.g.: -s key=i -s value=avro - key is 32-bit integer, value is Avro.\n"
+                "                       or: -s avro - both key and value are Avro-serialized\n"
+#endif
+#if ENABLE_AVRO
+                "  -r <url>           Schema registry URL (requires avro deserializer to be used with -s)\n"
 #endif
                 "  -D <delim>         Delimiter to separate messages on output\n"
                 "  -K <delim>         Print message keys prefixing the message\n"
@@ -1474,13 +1498,11 @@ static void argparse (int argc, char **argv,
         char tmp_fmt[64];
         int do_conf_dump = 0;
         int conf_files_read = 0;
-#if ENABLE_AVRO
-        char *arg_a = NULL;
-#endif
+        int i;
 
         while ((opt = getopt(argc, argv,
                              ":PCG:LQt:p:b:z:o:eED:K:k:H:Od:qvF:X:c:Tuf:ZlVh"
-                             "a:s:J")) != -1) {
+                             "s:r:J")) != -1) {
                 switch (opt) {
                 case 'P':
                 case 'C':
@@ -1552,15 +1574,33 @@ static void argparse (int argc, char **argv,
 #endif
                         break;
 
-                case 'a':
-#if ENABLE_AVRO
-                        arg_a = optarg;
-#else
-                        KC_FATAL("This build of kafkacat lacks "
-                                 "Avro/Schema-Registry support");
-#endif
-                        break;
                 case 's':
+                {
+                        int field = -1;
+                        const char *t = optarg;
+
+                        if (!strncmp(t, "key=", strlen("key="))) {
+                                t += strlen("key=");
+                                field = KC_MSG_FIELD_KEY;
+                        } else if (!strncmp(t, "value=", strlen("value="))) {
+                                t += strlen("value=");
+                                field = KC_MSG_FIELD_VALUE;
+                        }
+
+                        if (field == -1 || field == KC_MSG_FIELD_KEY) {
+                                if (strcmp(t, "avro"))
+                                        pack_check("key", t);
+                                conf.pack[KC_MSG_FIELD_KEY] = t;
+                        }
+
+                        if (field == -1 || field == KC_MSG_FIELD_VALUE) {
+                                if (strcmp(t, "avro"))
+                                        pack_check("value", t);
+                                conf.pack[KC_MSG_FIELD_VALUE] = t;
+                        }
+                }
+                break;
+                case 'r':
 #if ENABLE_AVRO
                         if (!*optarg)
                                 KC_FATAL("-s url must not be empty");
@@ -1721,16 +1761,59 @@ static void argparse (int argc, char **argv,
         fmt_init();
 
         /*
+         * Verify serdes
+         */
+        for (i = 0 ; i < KC_MSG_FIELD_CNT ; i++) {
+                if (!conf.pack[i])
+                        continue;
+
+                if (!strchr("GC", conf.mode))
+                        KC_FATAL("-s serdes only available in the consumer");
+
+                if (conf.pack[i] && !strcmp(conf.pack[i], "avro")) {
+#if !ENABLE_AVRO
+                        KC_FATAL("This build of kafkacat lacks "
+                                 "Avro/Schema-Registry support");
+#endif
+#if ENABLE_JSON
+                        /* Avro is decoded to JSON which needs to be
+                         * written verbatim to the JSON envelope when
+                         * using -J: libyajl does not support this,
+                         * but my own fork of yajl does. */
+                        if (conf.flags & CONF_F_FMT_JSON &&
+                            !json_can_emit_verbatim())
+                                KC_FATAL("This build of kafkacat lacks "
+                                         "support for emitting "
+                                         "JSON-formatted "
+                                         "message keys and values: "
+                                         "try without -J or build "
+                                         "kafkacat with yajl from "
+                                         "https://github.com/edenhill/yajl");
+#endif
+
+                        if (i == KC_MSG_FIELD_VALUE)
+                                conf.flags |= CONF_F_FMT_AVRO_VALUE;
+                        else if (i == KC_MSG_FIELD_KEY)
+                                conf.flags |= CONF_F_FMT_AVRO_KEY;
+                        continue;
+                }
+        }
+
+
+        /*
          * Verify and initialize Avro/SR
          */
 #if ENABLE_AVRO
-        if (!conf.schema_registry_url != !arg_a)
-                KC_FATAL("-s requires -a and vice-versa");
+        if (!!conf.schema_registry_url !=
+            !!(conf.flags & (CONF_F_FMT_AVRO_VALUE|CONF_F_FMT_AVRO_KEY)))
+                KC_FATAL("-r requires -s avro and vice-versa");
 
-        if (arg_a) {
-                char *key_schema_name = NULL, *key_schema_path = NULL;
-                char *value_schema_name = NULL, *value_schema_path = NULL;
+        if (conf.schema_registry_url) {
                 char *t;
+
+                if (!strchr("GC", conf.mode))
+                        KC_FATAL("Schema-registry support is only available "
+                                 "in the consumer");
 
                 /* Trim trailing slashes from URL to avoid 404 */
                 t = &conf.schema_registry_url[strlen(conf.
@@ -1745,107 +1828,9 @@ static void argparse (int argc, char **argv,
                                  errstr, sizeof(errstr)) == -1)
                         KC_FATAL("%s", errstr);
 
-                /* Check that both -s and -a are configured */
-                if (strchr("GC", conf.mode)) {
-                        if (!strcmp(arg_a, ".") || !strcmp(arg_a, "key,value"))
-                                conf.flags |= CONF_F_FMT_AVRO_KEY |
-                                        CONF_F_FMT_AVRO_VALUE;
-                        else if (!strcmp(arg_a, "key"))
-                                conf.flags |= CONF_F_FMT_AVRO_KEY;
-                        else if (!strcmp(arg_a, "value"))
-                                conf.flags |= CONF_F_FMT_AVRO_VALUE;
-                        else
-                                KC_FATAL("Unknown message field: %s: expected "
-                                         "-a ., -a key, -a value, or "
-                                         "-a key,value", arg_a);
-
-                        if (conf.flags &
-                            (CONF_F_FMT_AVRO_KEY|CONF_F_FMT_AVRO_VALUE)) {
-
-#if ENABLE_JSON
-                                /* Avro is decoded to JSON which needs to be
-                                 * written verbatim to the JSON envelope when
-                                 * using -J: libyajl does not support this,
-                                 * but my own fork of yajl does. */
-                                if (conf.flags & CONF_F_FMT_JSON &&
-                                    !json_can_emit_verbatim())
-                                        KC_FATAL("This build of kafkacat lacks "
-                                                 "support for emitting "
-                                                 "JSON-formatted "
-                                                 "message keys and values: "
-                                                 "try without -J or build "
-                                                 "kafkacat with yajl from "
-                                                 "https://github.com/edenhill/yajl");
-#endif
-                        }
-
-#if 0 /* FIXME: Avro Producer support */
-                } else if (strchr("P", conf.mode)) {
-                        char *s;
-
-#if ENABLE_JSON
-                        if (!(conf.flags & CONF_F_FMT_JSON))
-#endif
-                                KC_FATAL("Producing with Avro serialization "
-                                         "requires JSON-formatted "
-                                         "input messages (-J)");
-
-                        /* Parse -a [key=path,][value=path] */
-                        s = arg_a;
-                        while (*s) {
-                                char *next, *t, *t2 = NULL;
-
-                                next = strchr(s, ',');
-                                if (!next)
-                                        next = s + strlen(s);
-                                else {
-                                        *next = '\0';
-                                        next++;
-                                }
-
-                                t = strchr(s, '=');
-                                if (t) {
-                                        *t = '\0';
-                                        t++;
-
-                                        t2 = strchr(t, ':');
-                                        if (t2) {
-                                                *t2 = '\0';
-                                                t2++;
-                                        }
-                                }
-
-                                if (!*s || !t || !*t || !t2 || !*t2 ||
-                                    !(!strcmp(s, "key") || !strcmp(s, "value")))
-                                        KC_FATAL("Malformed -a: expected "
-                                                 "-a key=name:path,"
-                                                 "name:value=path, "
-                                                 "-a key=name:path "
-                                                 "or -a value=name:path");
-
-                                if (!strcmp(s, "key")) {
-                                        key_schema_name = t;
-                                        key_schema_path = t2;
-                                }else if (!strcmp(s, "value")) {
-                                        value_schema_name = t;
-                                        value_schema_path = t2;
-                                } else
-                                        KC_FATAL("Malformed -a: %s=%s:%s",
-                                                 s, t, t2); /* NOTREACHED */
-
-                                s = next;
-                        }
-#endif
-                } else {
-                        KC_FATAL("-a and -s are only relevant "
-                                 "in consumer modes");
-                }
 
                 /* Initialize Avro/Schema-Registry client */
-                kc_avro_init(key_schema_name,
-                             key_schema_path,
-                             value_schema_name,
-                             value_schema_path);
+                kc_avro_init(NULL, NULL, NULL, NULL);
         }
 #endif
 
