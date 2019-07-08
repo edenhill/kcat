@@ -1,7 +1,7 @@
 /*
  * kafkacat - Apache Kafka consumer and producer
  *
- * Copyright (c) 2015, Magnus Edenhill
+ * Copyright (c) 2015-2019, Magnus Edenhill
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,10 @@
 #include "config.h"
 #endif
 
+#if ENABLE_AVRO
+#include <libserdes/serdes.h>
+#endif
+
 #ifdef RD_KAFKA_V_HEADER
 #define HAVE_HEADERS 1
 #else
@@ -72,6 +76,12 @@ typedef enum {
 
 #define KC_FMT_MAX_SIZE  128
 
+typedef enum {
+        KC_MSG_FIELD_VALUE,
+        KC_MSG_FIELD_KEY,
+        KC_MSG_FIELD_CNT
+} kc_msg_field_t;
+
 struct conf {
         int     run;
         int     verbosity;
@@ -83,12 +93,14 @@ struct conf {
 #define CONF_F_KEY_DELIM  0x2 /* Producer: use key delimiter */
 #define CONF_F_OFFSET     0x4 /* Print offsets */
 #define CONF_F_TEE        0x8 /* Tee output when producing */
-#define CONF_F_NULL       0x10 /* Send empty messages as NULL */
+#define CONF_F_NULL       0x10 /* -Z: Send empty messages as NULL */
 #define CONF_F_LINE	  0x20 /* Read files in line mode when producing */
 #define CONF_F_APIVERREQ  0x40 /* Enable api.version.request=true */
 #define CONF_F_APIVERREQ_USER 0x80 /* User set api.version.request */
 #define CONF_F_NO_CONF_SEARCH 0x100 /* Disable default config file search */
-#define CONF_F_BROKERS_SEEN 0x200 /* Brokers have been configured */
+#define CONF_F_BROKERS_SEEN   0x200 /* Brokers have been configured */
+#define CONF_F_FMT_AVRO_KEY   0x400 /* Convert key from Avro to JSON */
+#define CONF_F_FMT_AVRO_VALUE 0x800 /* Convert value from Avro to JSON  */
         int     delim;
         int     key_delim;
 
@@ -98,6 +110,11 @@ struct conf {
                 int         str_len;
         } fmt[KC_FMT_MAX_SIZE];
         int     fmt_cnt;
+
+        /**< Producer: per-field pack-format, see pack()
+         *   Consumer: per-field unpack-format, see unpack(). */
+        const char *pack[KC_MSG_FIELD_CNT];
+
         int     msg_size;
         char   *brokers;
         char   *topic;
@@ -119,6 +136,11 @@ struct conf {
         rd_kafka_topic_t      *rkt;
 
         char   *debug;
+
+#if ENABLE_AVRO
+        serdes_conf_t *srconf;
+        char   *schema_registry_url;
+#endif
 };
 
 extern struct conf conf;
@@ -145,6 +167,8 @@ void error0 (int erroronexit, const char *func, int line,
 /*
  * format.c
  */
+void pack_check (const char *what, const char *fmt);
+
 void fmt_msg_output (FILE *fp, const rd_kafka_message_t *rkmessage);
 
 void fmt_parse (const char *fmt);
@@ -165,7 +189,21 @@ void partition_list_print_json (const rd_kafka_topic_partition_list_t *parts,
                                 void *json_gen);
 void fmt_init_json (void);
 void fmt_term_json (void);
+int  json_can_emit_verbatim (void);
+#endif
 
+#if ENABLE_AVRO
+/*
+ * avro.c
+ */
+char *kc_avro_to_json (const void *data, size_t data_len,
+                       char *errstr, size_t errstr_size);
+
+void kc_avro_init (const char *key_schema_name,
+                   const char *key_schema_path,
+                   const char *value_schema_name,
+                   const char *value_schema_path);
+void kc_avro_term (void);
 #endif
 
 
