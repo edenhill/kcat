@@ -1,25 +1,31 @@
-FROM debian:stretch-slim
+FROM alpine:3.10
 
 COPY . /usr/src/kafkacat
 
-ENV BUILD_DEPS build-essential zlib1g-dev liblz4-dev libssl-dev libsasl2-dev python cmake libcurl4-openssl-dev pkg-config
-ENV RUN_DEPS libssl1.1 libsasl2-2 ca-certificates curl
+ENV BUILD_DEPS bash make gcc g++ cmake curl pkgconfig python perl bsd-compat-headers zlib-dev lz4-dev openssl-dev curl-dev
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $BUILD_DEPS $RUN_DEPS
+ENV RUN_DEPS libcurl lz4-libs ca-certificates
 
-RUN cd /usr/src/kafkacat && \
+# Kerberos requires a default realm to be set in krb5.conf, which we can't
+# do for obvious reasons. So skip it for now.
+#ENV BUILD_DEPS_EXTRA cyrus-sasl-dev
+#ENV RUN_DEPS_EXTRA libsasl heimdal-libs krb5
+
+RUN echo Installing ; \
+  apk add --no-cache --virtual .dev_pkgs $BUILD_DEPS $BUILD_DEPS_EXTRA && \
+  apk add --no-cache $RUN_DEPS $RUN_DEPS_EXTRA && \
+  echo Building && \
+  cd /usr/src/kafkacat && \
   rm -rf tmp-bootstrap && \
   echo "Source versions:" && \
   grep ^github_download ./bootstrap.sh && \
   ./bootstrap.sh && \
-  mv kafkacat /usr/bin/
-
-RUN rm -rf /usr/src/kafkacat; \
-  apt-get purge -y --auto-remove $BUILD_DEPS ; \
-  apt-get clean -y ; \
-  apt-get autoclean -y ; \
-  rm /var/log/dpkg.log /var/log/alternatives.log /var/log/apt/*.log; \
-  rm -rf /var/lib/apt/lists/*
+  mv kafkacat /usr/bin/ ; \
+  echo Cleaning up ; \
+  cd / ; \
+  rm -rf /usr/src/kafkacat; \
+  apk del .dev_pkgs ; \
+  rm -rf /var/cache/apk/*
 
 RUN kafkacat -V
 
