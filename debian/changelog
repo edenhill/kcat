@@ -1,8 +1,12 @@
-kafkacat (1.3.1-2) UNRELEASED; urgency=medium
+kafkacat (1.4.0-1) unstable; urgency=medium
 
+  [ Jelmer Vernooĳ ]
   * Use secure copyright file specification URI.
 
- -- Jelmer Vernooĳ <jelmer@debian.org>  Sun, 16 Sep 2018 09:12:13 +0100
+  [ Vincent Bernat ]
+  * New upstream version.
+
+ -- Vincent Bernat <bernat@debian.org>  Mon, 29 Jul 2019 13:54:42 +0200
 
 kafkacat (1.3.1-1) unstable; urgency=medium
 
