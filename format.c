@@ -34,8 +34,8 @@
 
 static void fmt_add (fmt_type_t type, const char *str, int len) {
         if (conf.fmt_cnt == KC_FMT_MAX_SIZE)
-                FATAL("Too many formatters & strings (KC_FMT_MAX_SIZE=%i)",
-                      KC_FMT_MAX_SIZE);
+                KC_FATAL("Too many formatters & strings (KC_FMT_MAX_SIZE=%i)",
+                         KC_FMT_MAX_SIZE);
 
         conf.fmt[conf.fmt_cnt].type = type;
 
@@ -69,15 +69,16 @@ static void fmt_add (fmt_type_t type, const char *str, int len) {
                                         base = 16;
                                         /* FALLTHRU */
                                 default:
-									if (*s >= '0' && *s <= '9') {
-										*d = (char)strtoul(s, (char **)&next,
-														   base);
-										if (next > s)
-											s = next - 1;
-									} else {
-										*d = *s;
-									}
-									break;
+                                        if (*s >= '0' && *s <= '9') {
+                                                *d = (char)strtoul(
+                                                        s, (char **)&next,
+                                                        base);
+                                                if (next > s)
+                                                        s = next - 1;
+                                        } else {
+                                                *d = *s;
+                                        }
+                                        break;
                                 }
                         } else {
                                 *d = *s;
@@ -138,14 +139,20 @@ void fmt_parse (const char *fmt) {
                                 fmt_add(KC_FMT_TIMESTAMP, NULL, 0);
                                 conf.flags |= CONF_F_APIVERREQ;
                                 break;
+#if HAVE_HEADERS
+                        case 'h':
+                                fmt_add(KC_FMT_HEADERS, NULL, 0);
+                                conf.flags |= CONF_F_APIVERREQ;
+                                break;
+#endif
                         case '%':
                                 fmt_add(KC_FMT_STR, s, 1);
                                 break;
                         case '\0':
-                                FATAL("Empty formatter");
+                                KC_FATAL("Empty formatter");
                                 break;
                         default:
-                                FATAL("Unsupported formatter: %%%c", *s);
+                                KC_FATAL("Unsupported formatter: %%%c", *s);
                                 break;
                         }
                         s++;
@@ -175,6 +182,23 @@ void fmt_term (void) {
 }
 
 
+#if HAVE_HEADERS
+static int print_headers (FILE *fp, const rd_kafka_headers_t *hdrs) {
+        size_t idx = 0;
+        const char *name;
+        const void *value;
+        size_t size;
+
+        while (!rd_kafka_header_get_all(hdrs, idx++, &name, &value, &size)) {
+                fprintf(fp, "%s%s=", idx > 1 ? "," : "", name);
+                if (value && size > 0)
+                        fprintf(fp, "%.*s", (int)size, (const char *)value);
+                else if (!value)
+                        fprintf(fp, "NULL");
+        }
+        return 1;
+}
+#endif
 
 /**
  * Delimited output
@@ -244,9 +268,9 @@ static void fmt_msg_output_str (FILE *fp,
                         r = fprintf(fp, "%"PRId32, rkmessage->partition);
                         break;
 
-#if RD_KAFKA_VERSION >= 0x000902ff
                 case KC_FMT_TIMESTAMP:
                 {
+#if RD_KAFKA_VERSION >= 0x000902ff
                         rd_kafka_timestamp_type_t tstype;
                         r = fprintf(fp, "%"PRId64,
                                     rd_kafka_message_timestamp(rkmessage,
@@ -256,11 +280,32 @@ static void fmt_msg_output_str (FILE *fp,
 #endif
                         break;
                 }
+
+                case KC_FMT_HEADERS:
+                {
+#if HAVE_HEADERS
+                        rd_kafka_headers_t *hdrs;
+                        rd_kafka_resp_err_t err;
+
+                        err = rd_kafka_message_headers(rkmessage, &hdrs);
+                        if (err == RD_KAFKA_RESP_ERR__NOENT) {
+                                r = 1; /* Fake it to continue */
+                        } else if (err != RD_KAFKA_RESP_ERR_NO_ERROR) {
+                                fprintf(stderr,
+                                        "%% Failed to parse headers: %s",
+                                        rd_kafka_err2str(err));
+                                r = 1; /* Fake it to continue */
+                        } else {
+                                r = print_headers(fp, hdrs);
+                        }
+#endif
+                        break;
+                }
                 }
 
 
                 if (r < 1)
-                        FATAL("Write error for message "
+                        KC_FATAL("Write error for message "
                               "of %zd bytes at offset %"PRId64"): %s",
                               rkmessage->len, rkmessage->offset,
                               strerror(errno));

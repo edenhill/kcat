@@ -9,3 +9,6 @@ config.h
 Makefile.config
 tmp-bootstrap
 *.offset
+core
+core.*
+vgcore.*

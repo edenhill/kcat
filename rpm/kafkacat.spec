@@ -12,7 +12,7 @@ BuildRequires: zlib-devel gcc >= 4.1 librdkafka-devel
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 %description
-kafkacat is a generic non-JVM producer and consumer for Apache Kafka 0.8,
+kafkacat is a generic non-JVM producer and consumer for Apache Kafka >= 0.8,
 think of it as a netcat for Kafka.
 
 In producer mode kafkacat reads messages from stdin, delimited with a

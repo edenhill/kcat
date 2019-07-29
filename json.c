@@ -47,21 +47,73 @@ void fmt_msg_output_json (FILE *fp, const rd_kafka_message_t *rkmessage) {
         JS_STR(g, "topic");
         JS_STR(g, topic);
 
-
         JS_STR(g, "partition");
         yajl_gen_integer(g, (int)rkmessage->partition);
 
         JS_STR(g, "offset");
         yajl_gen_integer(g, (long long int)rkmessage->offset);
 
+#if RD_KAFKA_VERSION >= 0x000902ff
+        {
+                rd_kafka_timestamp_type_t tstype;
+                int64_t ts = rd_kafka_message_timestamp(rkmessage, &tstype);
+                if (tstype != RD_KAFKA_TIMESTAMP_NOT_AVAILABLE) {
+                        JS_STR(g, "tstype");
+                        if (tstype == RD_KAFKA_TIMESTAMP_CREATE_TIME)
+                                JS_STR(g, "create");
+                        else if (tstype == RD_KAFKA_TIMESTAMP_LOG_APPEND_TIME)
+                                JS_STR(g, "logappend");
+                        else
+                                JS_STR(g, "unknown");
+                        JS_STR(g, "ts");
+                        yajl_gen_integer(g, (long long int)ts);
+                }
+        }
+#endif
+
+
+#if HAVE_HEADERS
+        {
+                rd_kafka_headers_t *hdrs;
+
+                if (!rd_kafka_message_headers(rkmessage, &hdrs)) {
+                        size_t idx = 0;
+                        const char *name;
+                        const void *value;
+                        size_t size;
+
+                        JS_STR(g, "headers");
+                        yajl_gen_array_open(g);
+
+                        while (!rd_kafka_header_get_all(hdrs, idx++, &name,
+                                                        &value, &size)) {
+                                JS_STR(g, name);
+                                if (value)
+                                        yajl_gen_string(g, value, size);
+                                else
+                                        yajl_gen_null(g);
+                        }
+
+                        yajl_gen_array_close(g);
+                }
+        }
+#endif
+
 
         JS_STR(g, "key");
-        yajl_gen_string(g, (const unsigned char *)rkmessage->key,
-                        rkmessage->key_len);
+        if (rkmessage->key)
+                yajl_gen_string(g, (const unsigned char *)rkmessage->key,
+                                rkmessage->key_len);
+        else
+                yajl_gen_null(g);
 
         JS_STR(g, "payload");
-        yajl_gen_string(g, (const unsigned char *)rkmessage->payload,
-                        rkmessage->len);
+        if (rkmessage->payload)
+                yajl_gen_string(g, (const unsigned char *)rkmessage->payload,
+                                rkmessage->len);
+        else
+                yajl_gen_null(g);
+
         yajl_gen_map_close(g);
 
         yajl_gen_get_buf(g, &buf, &len);
@@ -69,7 +121,7 @@ void fmt_msg_output_json (FILE *fp, const rd_kafka_message_t *rkmessage) {
         if (fwrite(buf, len, 1, fp) != 1 ||
             (conf.fmt[0].str_len > 0 &&
              fwrite(conf.fmt[0].str, conf.fmt[0].str_len, 1, fp) != 1))
-                FATAL("Output write error: %s", strerror(errno));
+                KC_FATAL("Output write error: %s", strerror(errno));
 
         yajl_gen_free(g);
 }
@@ -79,7 +131,8 @@ void fmt_msg_output_json (FILE *fp, const rd_kafka_message_t *rkmessage) {
 /**
  * Print metadata information
  */
-void metadata_print_json (const struct rd_kafka_metadata *metadata) {
+void metadata_print_json (const struct rd_kafka_metadata *metadata,
+                          int32_t controllerid) {
         yajl_gen g;
         int i, j, k;
         const unsigned char *buf;
@@ -103,6 +156,9 @@ void metadata_print_json (const struct rd_kafka_metadata *metadata) {
         JS_STR(g, "topic");
         JS_STR(g, conf.topic ? : "*");
         yajl_gen_map_close(g);
+
+        JS_STR(g, "controllerid");
+        yajl_gen_integer(g, (long long int)controllerid);
 
         /* Iterate brokers */
         JS_STR(g, "brokers");
@@ -199,7 +255,7 @@ void metadata_print_json (const struct rd_kafka_metadata *metadata) {
         yajl_gen_get_buf(g, &buf, &len);
 
         if (fwrite(buf, len, 1, stdout) != 1)
-                FATAL("Output write error: %s", strerror(errno));
+                KC_FATAL("Output write error: %s", strerror(errno));
 
         yajl_gen_free(g);
 }
