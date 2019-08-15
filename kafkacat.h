@@ -124,6 +124,10 @@ struct conf {
         char   *fixed_key;
         int32_t fixed_key_len;
         int64_t offset;
+#if RD_KAFKA_VERSION >= 0x00090300
+        int64_t startts;
+        int64_t stopts;
+#endif
         int     exit_eof;
         int64_t msg_cnt;
         char   *null_str;
