@@ -33,6 +33,16 @@ and generic primitive deserializers (see examples below).
 kafkacat is fast and lightweight; statically linked it is no more than 150Kb.
 
 
+## Try it out with docker
+
+```bash
+# List brokers and topics in cluster
+$ docker run -it edenhill/kafkacat:v1.5.0 -b YOUR_BROKER -L
+```
+
+See [Examples](#examples) for usage options, and [Running in Docker](#running-in-docker) for more information on how to properly run docker-based clients with Kafka.
+
+
 ## Install
 
 On recent enough Debian systems:
@@ -216,7 +226,8 @@ Query offset(s) by timestamp(s)
 
 ## Running in Docker
 
-You can find an image for [kafkacat on Docker Hub](https://hub.docker.com/r/confluentinc/cp-kafkacat/).
+The latest kafkacat docker image is `edenhill/kafkacat:v1.5.0`, there's
+also [Confluent's kafkacat docker images on Docker Hub](https://hub.docker.com/r/confluentinc/cp-kafkacat/).
 
 If you are connecting to Kafka brokers also running on Docker you should specify the network name as part of the `docker run` command using the `--network` parameter. For more details of networking with Kafka and Docker [see this post](https://rmoff.net/2018/08/02/kafka-listeners-explained/).
 
