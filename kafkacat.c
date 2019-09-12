@@ -1964,6 +1964,17 @@ int main (int argc, char **argv) {
 	struct timeval tv;
         rd_kafka_topic_partition_list_t *rktparlist = NULL;
 
+        /* Certain Docker images don't have kafkacat as the entry point,
+         * requiring `kafkacat` to be the first argument. As these images
+         * are fixed the examples get outdated and that first argument
+         * will still be passed to the container and thus kafkacat,
+         * so remove it here. */
+        if (argc > 1 && !strcmp(argv[1], "kafkacat")) {
+                if (argc > 2)
+                        memmove(&argv[1], &argv[2], sizeof(*argv) * (argc - 2));
+                argc--;
+        }
+
         signal(SIGINT, term);
         signal(SIGTERM, term);
 #ifdef SIGPIPE
