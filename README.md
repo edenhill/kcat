@@ -37,7 +37,7 @@ kafkacat is fast and lightweight; statically linked it is no more than 150Kb.
 
 ```bash
 # List brokers and topics in cluster
-$ docker run -it edenhill/kafkacat:v1.5.0 -b YOUR_BROKER -L
+$ docker run -it --network=host edenhill/kafkacat:v1.5.0 -b YOUR_BROKER -L
 ```
 
 See [Examples](#examples) for usage options, and [Running in Docker](#running-in-docker) for more information on how to properly run docker-based clients with Kafka.
