@@ -1148,6 +1148,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 " Example:\n"
                 "  -f 'Topic %%t [%%p] at offset %%o: key %%k: %%s\\n'\n"
                 "\n"
+#if ENABLE_JSON
                 "JSON message envelope (on one line) when consuming with -J:\n"
                 " { \"topic\": str, \"partition\": int, \"offset\": int,\n"
                 "   \"tstype\": \"create|logappend|unknown\", \"ts\": int, "
@@ -1158,6 +1159,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 " (note: key_error and payload_error are only included if "
                 "deserialization failed)\n"
                 "\n"
+#endif
                 "Consumer mode (writes messages to stdout):\n"
                 "  kafkacat -b <broker> -t <topic> -p <partition>\n"
                 " or:\n"
