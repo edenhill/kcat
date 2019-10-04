@@ -57,10 +57,6 @@ int query_offsets_by_time (rd_kafka_topic_partition_list_t *offsets) {
 #if RD_KAFKA_VERSION >= 0x00090300
         char errstr[512];
 
-        if (rd_kafka_conf_set(conf.rk_conf, "api.version.request", "true",
-                              errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK)
-                KC_FATAL("Failed to enable api.version.request: %s", errstr);
-
         if (!(conf.rk = rd_kafka_new(RD_KAFKA_PRODUCER, conf.rk_conf,
                                      errstr, sizeof(errstr))))
                 KC_FATAL("Failed to create producer: %s", errstr);
