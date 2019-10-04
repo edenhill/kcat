@@ -4,7 +4,7 @@
 	dh $@
 
 override_dh_auto_configure:
-	dh_auto_configure -- --enable-json --no-download
+	dh_auto_configure -- --enable-json --enable-avro --no-download
 
 override_dh_auto_clean:
 	dh_clean

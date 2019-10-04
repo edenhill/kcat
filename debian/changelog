@@ -1,6 +1,7 @@
 kafkacat (1.5.0-1) UNRELEASED; urgency=medium
 
   * New upstream version.
+  * Enable avro support.
 
  -- Vincent Bernat <bernat@debian.org>  Fri, 04 Oct 2019 17:07:58 +0200
 
