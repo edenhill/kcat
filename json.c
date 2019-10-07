@@ -31,8 +31,8 @@
 #include <yajl/yajl_gen.h>
 
 #define JS_STR(G, STR) do {                                             \
-        const char *_s = (STR);                                         \
-        yajl_gen_string(G, (const unsigned char *)_s, strlen(_s));      \
+                const char *_s = (STR);                                 \
+                yajl_gen_string(G, (const unsigned char *)_s, strlen(_s)); \
         } while (0)
 
 void fmt_msg_output_json (FILE *fp, const rd_kafka_message_t *rkmessage) {

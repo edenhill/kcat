@@ -41,34 +41,34 @@
  */
 
 #ifdef __FreeBSD__
-  #include <sys/endian.h>
+#include <sys/endian.h>
 #elif defined __GLIBC__
-  #include <endian.h>
- #ifndef be64toh
-   /* Support older glibc (<2.9) which lack be64toh */
-  #include <byteswap.h>
-  #if __BYTE_ORDER == __BIG_ENDIAN
-   #define be16toh(x) (x)
-   #define be32toh(x) (x)
-   #define be64toh(x) (x)
-   #define le64toh(x) __bswap_64 (x)
-   #define le32toh(x) __bswap_32 (x)
-  #else
-   #define be16toh(x) __bswap_16 (x)
-   #define be32toh(x) __bswap_32 (x)
-   #define be64toh(x) __bswap_64 (x)
-   #define le64toh(x) (x)
-   #define le32toh(x) (x)
-  #endif
- #endif
+#include <endian.h>
+#ifndef be64toh
+/* Support older glibc (<2.9) which lack be64toh */
+#include <byteswap.h>
+#if __BYTE_ORDER == __BIG_ENDIAN
+#define be16toh(x) (x)
+#define be32toh(x) (x)
+#define be64toh(x) (x)
+#define le64toh(x) __bswap_64 (x)
+#define le32toh(x) __bswap_32 (x)
+#else
+#define be16toh(x) __bswap_16 (x)
+#define be32toh(x) __bswap_32 (x)
+#define be64toh(x) __bswap_64 (x)
+#define le64toh(x) (x)
+#define le32toh(x) (x)
+#endif
+#endif
 
 #elif defined __CYGWIN__
- #include <endian.h>
+#include <endian.h>
 #elif defined __BSD__
-  #include <sys/endian.h>
+#include <sys/endian.h>
 #elif defined __sun
-  #include <sys/byteorder.h>
-  #include <sys/isa_defs.h>
+#include <sys/byteorder.h>
+#include <sys/isa_defs.h>
 #define __LITTLE_ENDIAN 1234
 #define __BIG_ENDIAN 4321
 #ifdef _BIG_ENDIAN
@@ -92,8 +92,8 @@
 #endif /* __sun */
 
 #elif defined __APPLE__
-  #include <machine/endian.h>
-  #include <libkern/OSByteOrder.h>
+#include <machine/endian.h>
+#include <libkern/OSByteOrder.h>
 #if __DARWIN_BYTE_ORDER == __DARWIN_BIG_ENDIAN
 #define be64toh(x) (x)
 #define be32toh(x) (x)
@@ -129,17 +129,17 @@
          (((x) & 0xff00) << 8) |                \
          (((x) & 0xff0000) >> 8) |              \
          (((x) & 0xff000000) >> 24))
-#define le64toh(x)                               \
-        ((((x) & 0x00000000000000ffL) << 56) |   \
-         (((x) & 0x000000000000ff00L) << 40) |   \
-         (((x) & 0x0000000000ff0000L) << 24) |   \
-         (((x) & 0x00000000ff000000L) << 8)  |   \
-         (((x) & 0x000000ff00000000L) >> 8)  |   \
-         (((x) & 0x0000ff0000000000L) >> 24) |   \
-         (((x) & 0x00ff000000000000L) >> 40) |   \
+#define le64toh(x)                              \
+        ((((x) & 0x00000000000000ffL) << 56) |  \
+         (((x) & 0x000000000000ff00L) << 40) |  \
+         (((x) & 0x0000000000ff0000L) << 24) |  \
+         (((x) & 0x00000000ff000000L) << 8)  |  \
+         (((x) & 0x000000ff00000000L) >> 8)  |  \
+         (((x) & 0x0000ff0000000000L) >> 24) |  \
+         (((x) & 0x00ff000000000000L) >> 40) |  \
          (((x) & 0xff00000000000000L) >> 56))
 #else
- #include <endian.h>
+#include <endian.h>
 #endif
 
 

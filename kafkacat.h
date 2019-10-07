@@ -94,7 +94,7 @@ struct conf {
 #define CONF_F_OFFSET     0x4 /* Print offsets */
 #define CONF_F_TEE        0x8 /* Tee output when producing */
 #define CONF_F_NULL       0x10 /* -Z: Send empty messages as NULL */
-#define CONF_F_LINE	  0x20 /* Read files in line mode when producing */
+#define CONF_F_LINE       0x20 /* Read files in line mode when producing */
 #define CONF_F_APIVERREQ  0x40 /* Enable api.version.request=true */
 #define CONF_F_APIVERREQ_USER 0x80 /* User set api.version.request */
 #define CONF_F_NO_CONF_SEARCH 0x100 /* Disable default config file search */
@@ -151,19 +151,19 @@ extern struct conf conf;
 
 
 void RD_NORETURN fatal0 (const char *func, int line,
-                                       const char *fmt, ...);
+                         const char *fmt, ...);
 
 void error0 (int erroronexit, const char *func, int line,
-                                       const char *fmt, ...);
+             const char *fmt, ...);
 
 #define KC_FATAL(.../*fmt*/)  fatal0(__FUNCTION__, __LINE__, __VA_ARGS__)
 
 #define KC_ERROR(.../*fmt*/)  error0(conf.exitonerror, __FUNCTION__, __LINE__, __VA_ARGS__)
 
 /* Info printout */
-#define KC_INFO(VERBLVL,.../*fmt*/) do {                    \
-                if (conf.verbosity >= (VERBLVL))     \
-                        fprintf(stderr, "%% " __VA_ARGS__);  \
+#define KC_INFO(VERBLVL,.../*fmt*/) do {                        \
+                if (conf.verbosity >= (VERBLVL))                \
+                        fprintf(stderr, "%% " __VA_ARGS__);     \
         } while (0)
 
 

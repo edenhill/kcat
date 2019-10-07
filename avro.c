@@ -120,35 +120,35 @@ void kc_avro_term (void) {
  */
 char *kc_avro_to_json (const void *data, size_t data_len,
                        char *errstr, size_t errstr_size) {
-    avro_value_t avro;
-    serdes_schema_t *schema;
-    char *json;
-    serdes_err_t err;
+        avro_value_t avro;
+        serdes_schema_t *schema;
+        char *json;
+        serdes_err_t err;
 
-    err = serdes_deserialize_avro(serdes, &avro, &schema, data, data_len,
-                                  errstr, errstr_size);
-    if (err) {
-            if (err == SERDES_ERR_FRAMING_INVALID ||
-                strstr(errstr, "Invalid CP1 magic byte")) {
-                    static const char badframing[] =
-                            ": message not produced with "
-                            "Schema-Registry Avro framing";
-                    int len = strlen(errstr);
+        err = serdes_deserialize_avro(serdes, &avro, &schema, data, data_len,
+                                      errstr, errstr_size);
+        if (err) {
+                if (err == SERDES_ERR_FRAMING_INVALID ||
+                    strstr(errstr, "Invalid CP1 magic byte")) {
+                        static const char badframing[] =
+                                ": message not produced with "
+                                "Schema-Registry Avro framing";
+                        int len = strlen(errstr);
 
-                    if (len + sizeof(badframing) < errstr_size)
-                            snprintf(errstr+len, errstr_size-len,
-                                     "%s", badframing);
-            }
-            return NULL;
-    }
+                        if (len + sizeof(badframing) < errstr_size)
+                                snprintf(errstr+len, errstr_size-len,
+                                         "%s", badframing);
+                }
+                return NULL;
+        }
 
-    if (avro_value_to_json(&avro, 1/*one-line*/, &json)) {
-            snprintf(errstr, errstr_size, "Failed to encode Avro as JSON");
-            avro_value_decref(&avro);
-            return NULL;
-    }
+        if (avro_value_to_json(&avro, 1/*one-line*/, &json)) {
+                snprintf(errstr, errstr_size, "Failed to encode Avro as JSON");
+                avro_value_decref(&avro);
+                return NULL;
+        }
 
-    avro_value_decref(&avro);
+        avro_value_decref(&avro);
 
-    return json;
+        return json;
 }
