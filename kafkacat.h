@@ -141,6 +141,10 @@ struct conf {
 
         char   *debug;
 
+        char   *oauthbearer_token;
+        int64_t oauthbearer_token_lifetime;
+        const char *oauthbearer_token_principal;
+
 #if ENABLE_AVRO
         serdes_conf_t *srconf;
         char   *schema_registry_url;
@@ -166,6 +170,8 @@ void error0 (int erroronexit, const char *func, int line,
                         fprintf(stderr, "%% " __VA_ARGS__);     \
         } while (0)
 
+
+void set_oauthbearer_token (rd_kafka_t *rk);
 
 
 /*

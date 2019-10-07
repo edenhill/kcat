@@ -48,6 +48,8 @@
 
 typedef SSIZE_T ssize_t;
 
+#define PRIusz "Iu"  /* size_t */
+
 ssize_t getdelim (char **bufptr, size_t *n,
                   int delim, FILE *fp);
 
@@ -79,6 +81,8 @@ int rd_gettimeofday (struct timeval *tv, struct timezone *tz) {
 #define RD_UNUSED __attribute__((unused))
 
 #define _COMPAT(FUNC) FUNC
+
+#define PRIusz "zu"  /* size_t */
 
 #define rd_gettimeofday(tv,tz) gettimeofday(tv,tz)
 #endif

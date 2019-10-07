@@ -79,6 +79,8 @@ int part_stop_cnt = 0;
 int part_stop_thres = 0;
 
 
+static char *read_file (const char *path, size_t max_size, size_t *sizep,
+                        int fatal);
 
 /**
  * Fatal error: print error and exit
@@ -118,6 +120,30 @@ void error0 (int exitonerror, const char *func, int line, const char *fmt, ...) 
                 exit(1);
 }
 
+
+/**
+ * @brief Set oauthbearer token on client instance, if a token
+ *        has been set.
+ */
+void set_oauthbearer_token (rd_kafka_t *rk) {
+#ifdef RD_KAFKA_EVENT_OAUTHBEARER_TOKEN_REFRESH
+        rd_kafka_resp_err_t err;
+        char errstr[512];
+
+        if (!conf.oauthbearer_token)
+                return;
+
+        err = rd_kafka_oauthbearer_set_token(
+                conf.rk,
+                conf.oauthbearer_token,
+                conf.oauthbearer_token_lifetime,
+                conf.oauthbearer_token_principal,
+                NULL, 0, errstr, sizeof(errstr));
+        if (err)
+                KC_FATAL("Failed to set oauthbearer token: %s: %s",
+                         rd_kafka_err2name(err), errstr);
+#endif
+}
 
 
 /**
@@ -291,6 +317,8 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
         if (!(conf.rk = rd_kafka_new(RD_KAFKA_PRODUCER, conf.rk_conf,
                                      errstr, sizeof(errstr))))
                 KC_FATAL("Failed to create producer: %s", errstr);
+
+        set_oauthbearer_token(conf.rk);
 
         if (!conf.debug && conf.verbosity == 0)
                 rd_kafka_set_log_level(conf.rk, 0);
@@ -597,6 +625,8 @@ static void kafkaconsumer_run (FILE *fp, char *const *topics, int topic_cnt) {
                 KC_FATAL("Failed to create consumer: %s", errstr);
         conf.rk_conf  = NULL;
 
+        set_oauthbearer_token(conf.rk);
+
         /* Forward main event queue to consumer queue so we can
          * serve both queues with a single consumer_poll() call. */
         rd_kafka_poll_set_consumer(conf.rk);
@@ -697,6 +727,8 @@ static void consumer_run (FILE *fp) {
         if (!(conf.rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf.rk_conf,
                                      errstr, sizeof(errstr))))
                 KC_FATAL("Failed to create consumer: %s", errstr);
+
+        set_oauthbearer_token(conf.rk);
 
         if (!conf.debug && conf.verbosity == 0)
                 rd_kafka_set_log_level(conf.rk, 0);
@@ -906,6 +938,8 @@ static void metadata_list (void) {
                                      errstr, sizeof(errstr))))
                 KC_FATAL("Failed to create producer: %s", errstr);
 
+        set_oauthbearer_token(conf.rk);
+
         if (!conf.debug && conf.verbosity == 0)
                 rd_kafka_set_log_level(conf.rk, 0);
 
@@ -1027,6 +1061,12 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
 #if ENABLE_AVRO
                 "  -X schema.registry.prop=val Set libserdes configuration property "
                 "for the Avro/Schema-Registry client.\n"
+#endif
+#ifdef RD_KAFKA_EVENT_OAUTHBEARER_TOKEN_REFRESH
+                "  -X oauthbearer.token.file=path OAUTHBEARER token to use for "
+                "authenticating to brokers.\n"
+                "  -X oauthbearer.token.lifetime=milliseconds Token lifetime in milliseconds.\n"
+                "  -X oauthbearer.token.principal=principal OAUTHBEARER principal name associated with the token.\n"
 #endif
                 "  -X dump            Dump configuration and exit.\n"
                 "  -d <dbg1,...>      Enable librdkafka debugging:\n"
@@ -1338,6 +1378,36 @@ static int try_conf_set (const char *name, const char *val,
 #endif
         }
 
+        /*
+         * Special configs
+         */
+
+        if (0) {
+                /* dummy */
+#ifndef RD_KAFKA_EVENT_OAUTHBEARER_TOKEN_REFRESH
+        } else if (!strncmp(name, "oauthbearer.token.",
+                     strlen("oauthbearer.token."))) {
+                snprintf(errstr, errstr_size,
+                         "This build of kafkacat lacks "
+                         "OAUTHBEARER support due to old librdkafka version");
+                return -1;
+#else
+        } else if (!strcmp(name, "oauthbearer.token.file")) {
+                if (conf.oauthbearer_token)
+                        free(conf.oauthbearer_token);
+                conf.oauthbearer_token = read_file(val, 0xffff,
+                                                   NULL, 1/*fatal*/);
+                return 0;
+        } else if (!strcmp(name, "oauthbearer.token.lifetime")) {
+                conf.oauthbearer_token_lifetime =
+                        (time(NULL) * 1000) + atoi(val);
+                return 0;
+        } else if (!strcmp(name, "oauthbearer.token.principal")) {
+                conf.oauthbearer_token_principal = val;
+                return 0;
+#endif
+        }
+
 
         /* Try "topic." prefixed properties on topic
          * conf first, and then fall through to global if
@@ -1408,6 +1478,64 @@ static int try_java_conf_set (const char *name, const char *val,
         }
 
         return 0;
+}
+
+
+/**
+ * @brief Read entire file's content into newly allocated string.
+ */
+static char *read_file (const char *path, size_t max_size, size_t *sizep,
+                        int fatal) {
+        FILE *fp;
+        struct stat st;
+        char *buf;
+
+        if (!(fp = fopen(path, "r"))) {
+                if (fatal)
+                        KC_FATAL("Failed to open %s: %s",
+                                 path, strerror(errno));
+                return NULL;
+        }
+
+        if (fstat(fileno(fp), &st) == -1) {
+                if (fatal)
+                        KC_FATAL("Failed to get size of %s: %s",
+                                 path, strerror(errno));
+                fclose(fp);
+                return NULL;
+        }
+
+        if ((size_t)st.st_size > max_size) {
+                if (fatal)
+                        KC_FATAL("%s file size %"PRIusz" exceeds "
+                                 "maximum allowed size %"PRIusz,
+                                 path, st.st_size, max_size);
+                fclose(fp);
+                return NULL;
+        }
+
+        buf = malloc(st.st_size + 1);
+        if (!buf) {
+                KC_FATAL("Failed to allocate %"PRIusz" to read file %s: %s",
+                         st.st_size, path, strerror(errno));
+                return NULL; /*NOTREACHED*/
+        }
+
+        if (fread(buf, 1, st.st_size, fp) != (size_t)st.st_size) {
+                if (fatal)
+                        KC_FATAL("Failed to read %s: %s",
+                                 path, strerror(errno));
+                fclose(fp);
+                free(buf);
+                return NULL;
+        }
+
+        if (sizep)
+                *sizep = st.st_size;
+
+        fclose(fp);
+
+        return buf;
 }
 
 
@@ -1830,6 +1958,23 @@ static void argparse (int argc, char **argv,
                       "-t <topic>:<partition>:<offset_or_timestamp> missing",
                       0);
 
+#ifdef RD_KAFKA_EVENT_OAUTHBEARER_TOKEN_REFRESH
+        i = !conf.oauthbearer_token + !conf.oauthbearer_token_lifetime +
+                !conf.oauthbearer_token_principal;
+        if (i != 0 && i != 3) {
+                usage(argv[0], 1,
+                      "all three "
+                      "-X oauthbearer.token.{file,lifetime,principal} "
+                      "properties must be set", 0);
+        } else if (i == 0) {
+                if (try_conf_set("sasl.mechanisms", "OAUTHBEARER",
+                                 errstr, sizeof(errstr)) == -1)
+                        KC_FATAL("Failed to set "
+                                 "sasl.mechanisms=OAUTHBEARER: %s",
+                                 errstr);
+        }
+#endif
+
         if (conf.brokers &&
             rd_kafka_conf_set(conf.rk_conf, "metadata.broker.list",
                               conf.brokers, errstr, sizeof(errstr)) !=
@@ -2064,6 +2209,9 @@ int main (int argc, char **argv) {
 
         if (in != stdin)
                 fclose(in);
+
+        if (conf.oauthbearer_token)
+                free(conf.oauthbearer_token);
 
         rd_kafka_wait_destroyed(5000);
 
