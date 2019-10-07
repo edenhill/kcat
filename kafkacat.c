@@ -259,7 +259,7 @@ static ssize_t produce_file (const char *path) {
 
         KC_INFO(4, "Producing file %s (%"PRIdMAX" bytes)\n",
                 path, (intmax_t)st.st_size);
-        produce(ptr, sz, NULL, 0, msgflags);
+        produce(ptr, sz, conf.fixed_key, conf.fixed_key_len, msgflags);
 
         _COMPAT(close)(fd);
 
