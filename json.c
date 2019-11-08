@@ -26,6 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "base64.h"
 #include "kafkacat.h"
 
 #include <yajl/yajl_gen.h>
@@ -34,6 +35,40 @@
                 const char *_s = (STR);                                 \
                 yajl_gen_string(G, (const unsigned char *)_s, strlen(_s)); \
         } while (0)
+
+static void fmt_avro (yajl_gen g, const char *buf, size_t len,
+                      const rd_kafka_message_t *rkmessage, const char *field) {
+        char errstr[256];
+        char *json = kc_avro_to_json(buf, len, errstr, sizeof(errstr));
+        if (!json) {
+                char errfield[16];
+                snprintf(errfield, sizeof(errfield), "%s_error", field);
+                KC_ERROR("Failed to deserialize %s in "
+                         "message in %s [%"PRId32"] at "
+                         "offset %"PRId64": %s",
+                         field,
+                         rd_kafka_topic_name(rkmessage->rkt),
+                         rkmessage->partition,
+                         rkmessage->offset, errstr);
+                yajl_gen_null(g);
+                JS_STR(g, errfield);
+                JS_STR(g, errstr);
+        } else
+                yajl_gen_verbatim(g, json, strlen(json));
+        free(json);
+}
+
+static void fmt_base64 (yajl_gen g, const char *buf, size_t len) {
+        size_t b64_len;
+        char* b64_buf = base64_encode(buf, len, &b64_len);
+        if (b64_buf) {
+                yajl_gen_string(g, (const unsigned char *)b64_buf, b64_len);
+                free(b64_buf);
+        } else {
+                KC_FATAL("Failed to allocate base64 output buffer "
+                         "(%d bytes)\n", base64_encode_alloc_len(len));
+        }
+}
 
 void fmt_msg_output_json (FILE *fp, const rd_kafka_message_t *rkmessage) {
         yajl_gen g;
@@ -116,30 +151,17 @@ void fmt_msg_output_json (FILE *fp, const rd_kafka_message_t *rkmessage) {
         if (rkmessage->key) {
 #if ENABLE_AVRO && YAJL_HAS_GEN_VERBATIM
                 if (conf.flags & CONF_F_FMT_AVRO_KEY) {
-                        char errstr[256];
-                        char *json = kc_avro_to_json(
-                                rkmessage->key,
-                                rkmessage->key_len,
-                                errstr, sizeof(errstr));
-
-                        if (!json) {
-                                KC_ERROR("Failed to deserialize key in "
-                                         "message in %s [%"PRId32"] at "
-                                         "offset %"PRId64": %s",
-                                         rd_kafka_topic_name(rkmessage->rkt),
-                                         rkmessage->partition,
-                                         rkmessage->offset, errstr);
-                                yajl_gen_null(g);
-                                JS_STR(g, "key_error");
-                                JS_STR(g, errstr);
-                        } else
-                                yajl_gen_verbatim(g, json, strlen(json));
-                        free(json);
+                        fmt_avro(g, rkmessage->key, rkmessage->key_len,
+                                 rkmessage, "key");
                 } else
 #endif
+                if (conf.flags & CONF_F_FMT_BASE64_KEY) {
+                        fmt_base64(g, rkmessage->key, rkmessage->key_len);
+                } else {
                         yajl_gen_string(g,
                                         (const unsigned char *)rkmessage->key,
                                         rkmessage->key_len);
+                }
         } else
                 yajl_gen_null(g);
 
@@ -147,31 +169,17 @@ void fmt_msg_output_json (FILE *fp, const rd_kafka_message_t *rkmessage) {
         if (rkmessage->payload) {
 #if ENABLE_AVRO && YAJL_HAS_GEN_VERBATIM
                 if (conf.flags & CONF_F_FMT_AVRO_VALUE) {
-                        char errstr[256];
-                        char *json = kc_avro_to_json(
-                                rkmessage->payload,
-                                rkmessage->len,
-                                errstr, sizeof(errstr));
-
-                        if (!json) {
-                                KC_ERROR("Failed to deserialize value in "
-                                         "message in %s [%"PRId32"] at "
-                                         "offset %"PRId64": %s",
-                                         rd_kafka_topic_name(rkmessage->rkt),
-                                         rkmessage->partition,
-                                         rkmessage->offset, errstr);
-                                yajl_gen_null(g);
-                                JS_STR(g, "payload_error");
-                                JS_STR(g, errstr);
-                        } else
-                                yajl_gen_verbatim(g, json, strlen(json));
-                        free(json);
+                        fmt_avro(g, rkmessage->payload, rkmessage->len,
+                                 rkmessage, "payload");
                 } else
 #endif
+                if (conf.flags & CONF_F_FMT_BASE64_VALUE) {
+                        fmt_base64(g, rkmessage->payload, rkmessage->len);
+                } else {
                         yajl_gen_string(g,
-                                        (const unsigned char *)
-                                        rkmessage->payload,
+                                        (const unsigned char *)rkmessage->payload,
                                         rkmessage->len);
+                }
         } else
                 yajl_gen_null(g);
 

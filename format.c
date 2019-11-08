@@ -29,6 +29,8 @@
 #include "kafkacat.h"
 #include "rdendian.h"
 
+#include "base64.h"
+
 static void fmt_add (fmt_type_t type, const char *str, int len) {
         if (conf.fmt_cnt == KC_FMT_MAX_SIZE)
                 KC_FATAL("Too many formatters & strings (KC_FMT_MAX_SIZE=%i)",
@@ -370,6 +372,52 @@ static int unpack (FILE *fp, const char *what, const char *fmt,
 }
 
 
+/**
+ * @brief Deserialize the Avro data in \p buf to JSON format, and print the
+ *        result to \p fp. If an error occurs during Avro deserialization,
+ *        \p errstr describes the Avro error itself, while \p field_errstr
+ *        indicates which Kafka field (key or message) produced the error.
+ *
+ * @returns The number of chars written on success, or a negative value on error.
+ */
+static int fmt_avro (FILE *fp, const char *buf, size_t len,
+                     char* errstr, size_t errstr_len,
+                     kc_msg_field_t field, const char **field_errstr) {
+#if ENABLE_AVRO
+        static const char* field_errstrs[KC_MSG_FIELD_CNT] = {
+                "Avro/Schema-registry message deserialization",
+                "Avro/Schema-registry key deserialization",
+        };
+        char *json = kc_avro_to_json(buf, len, errstr, errstr_len);
+        if (!json) {
+                *field_errstr = field_errstrs[field];
+                return -1;
+        }
+        int chars_written = fprintf(fp, "%s", json);
+        free(json);
+        return chars_written;
+#else
+        KC_FATAL("NOTREACHED");
+#endif
+}
+
+
+/**
+ * @brief Base64-encode the data in \p buf, and print the result to \p fp.
+ *
+ * @returns The number of chars written on success, or a negative value on error.
+ */
+static int fmt_base64 (FILE *fp, const char *buf, size_t len) {
+        size_t outlen;
+        char* outbuf = base64_encode(buf, len, &outlen);
+        if (!outbuf) {
+                KC_FATAL("Failed to allocate base64 output buffer\n");
+                return 0;
+        }
+        size_t chars_written = fwrite(outbuf, outlen, sizeof(char), fp);
+        free(outbuf);
+        return (int) chars_written;
+}
 
 
 /**
@@ -392,28 +440,16 @@ static void fmt_msg_output_str (FILE *fp,
                 case KC_FMT_OFFSET:
                         r = fprintf(fp, "%"PRId64, rkmessage->offset);
                         break;
-
                 case KC_FMT_KEY:
                         if (rkmessage->key_len) {
                                 if (conf.flags & CONF_F_FMT_AVRO_KEY) {
-#if ENABLE_AVRO
-                                        char *json = kc_avro_to_json(
-                                                rkmessage->key,
-                                                rkmessage->key_len,
-                                                errstr, sizeof(errstr));
-
-                                        if (!json) {
-                                                what_failed =
-                                                        "Avro/Schema-registry "
-                                                        "key deserialization";
+                                        r = fmt_avro(fp, rkmessage->key, rkmessage->key_len,
+                                                     errstr, sizeof(errstr),
+                                                     KC_MSG_FIELD_KEY, &what_failed);
+                                        if (*what_failed)
                                                 goto fail;
-                                        }
-
-                                        r = fprintf(fp, "%s", json);
-                                        free(json);
-#else
-                                        KC_FATAL("NOTREACHED");
-#endif
+                                } else if (conf.flags & CONF_F_FMT_BASE64_KEY) {
+                                        r = fmt_base64(fp, rkmessage->key, rkmessage->key_len);
                                 } else if (conf.pack[KC_MSG_FIELD_KEY]) {
                                         if (unpack(fp,
                                                    "key",
@@ -442,26 +478,13 @@ static void fmt_msg_output_str (FILE *fp,
                 case KC_FMT_PAYLOAD:
                         if (rkmessage->len) {
                                 if (conf.flags & CONF_F_FMT_AVRO_VALUE) {
-#if ENABLE_AVRO
-                                        char *json = kc_avro_to_json(
-                                                rkmessage->payload,
-                                                rkmessage->len,
-                                                errstr,
-                                                sizeof(errstr));
-
-                                        if (!json) {
-                                                what_failed =
-                                                        "Avro/Schema-registry "
-                                                        "message "
-                                                        "deserialization";
+                                        r = fmt_avro(fp, rkmessage->payload, rkmessage->len,
+                                                     errstr, sizeof(errstr),
+                                                     KC_MSG_FIELD_VALUE, &what_failed);
+                                        if (*what_failed)
                                                 goto fail;
-                                        }
-
-                                        r = fprintf(fp, "%s", json);
-                                        free(json);
-#else
-                                        KC_FATAL("NOTREACHED");
-#endif
+                                } else if (conf.flags & CONF_F_FMT_BASE64_VALUE) {
+                                        r = fmt_base64(fp, rkmessage->payload, rkmessage->len);
                                 } else if (conf.pack[KC_MSG_FIELD_VALUE]) {
                                         if (unpack(fp,
                                                    "value",

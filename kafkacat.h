@@ -102,6 +102,8 @@ struct conf {
 #define CONF_F_FMT_AVRO_KEY   0x400 /* Convert key from Avro to JSON */
 #define CONF_F_FMT_AVRO_VALUE 0x800 /* Convert value from Avro to JSON  */
 #define CONF_F_SR_URL_SEEN    0x1000 /* schema.registry.url/-r seen */
+#define CONF_F_FMT_BASE64_KEY   0x2000 /* Convert key to/from Base64 */
+#define CONF_F_FMT_BASE64_VALUE 0x4000 /* Convert value to/from Base64 */
         int     delim;
         int     key_delim;
 
