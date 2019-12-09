@@ -1,3 +1,11 @@
+kafkacat (1.5.0-1.1) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Fix FTCBFS: Export build tools via environment for mklove.
+    Closes: #946445
+
+ -- Helmut Grohne <helmut@subdivi.de>  Sun, 08 Dec 2019 20:00:33 +0100
+
 kafkacat (1.5.0-1) unstable; urgency=medium
 
   * New upstream version.
