@@ -51,6 +51,15 @@ On recent enough Debian systems:
 apt-get install kafkacat
 ````
 
+On recent openSUSE systems:
+
+```
+zypper addrepo https://download.opensuse.org/repositories/network:utilities/openSUSE_Factory/network:utilities.repo
+zypper refresh
+zypper install kafkacat
+```
+(see [this page](https://software.opensuse.org/download/package?package=kafkacat&project=network%3Autilities) for instructions to install with openSUSE LEAP)
+
 And on Mac OS X with homebrew installed:
 
 ````
