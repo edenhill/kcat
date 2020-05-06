@@ -125,6 +125,9 @@ Read messages from Kafka 'syslog' topic, print to stdout
 
     $ kafkacat -b mybroker -t syslog
 
+List topics in secured broker
+
+    $ kafkacat -b mybroker --X security.protocol=sasl_ssl -X sasl.mechanisms=PLAIN -X sasl.username=$USER -X sasl.password=$PASS -L
 
 Produce messages from file (one file is one message)
 
