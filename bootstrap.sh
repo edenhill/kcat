@@ -114,7 +114,7 @@ fi
 export PKG_CONFIG_PATH="$DEST/lib/pkgconfig"
 
 github_download "edenhill/librdkafka" "$LIBRDKAFKA_VERSION" "librdkafka"
-build librdkafka "([ -f config.h ] || ./configure --prefix=$DEST --install-deps --disable-lz4-ext) && make -j && make install" || (echo "Failed to build librdkafka: bootstrap failed" ; false)
+build librdkafka "([ -f config.h ] || ./configure --prefix=$DEST --install-deps --source-deps-only --disable-lz4-ext) && make -j && make install" || (echo "Failed to build librdkafka: bootstrap failed" ; false)
 
 github_download "edenhill/yajl" "edenhill" "libyajl"
 build libyajl "([ -d build ] || ./configure --prefix $DEST) && make install" || (echo "Failed to build libyajl: JSON support will probably be disabled" ; true)
