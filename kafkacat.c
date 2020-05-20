@@ -1110,7 +1110,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "  -O                 Print message offset using -K delimiter\n"
                 "  -c <cnt>           Exit after consuming this number "
                 "of messages\n"
-                "  -Z                 Print NULL values and keys as \"%s\""
+                "  -Z                 Print NULL values and keys as \"%s\" "
                 "instead of empty.\n"
                 "                     For JSON (-J) the nullstr is always null.\n"
                 "  -u                 Unbuffered output\n"
