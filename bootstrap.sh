@@ -26,12 +26,15 @@ function download {
     if which wget 2>&1 > /dev/null; then
         local dl='wget -q -O-'
     else
-        local dl='curl -L'
+        local dl='curl -s -L'
     fi
 
     local tar_args=
 
-    if [[ $(uname -s) == "Darwin" ]]; then
+    # Newer Mac tar's will try to restore metadata/attrs from
+    # certain tar files (avroc in this case), which fails for whatever reason.
+    if [[ $(uname -s) == "Darwin" ]] &&
+           tar --no-mac-metadata -h >/dev/null 2>&1; then
         tar_args="--no-mac-metadata"
     fi
 
@@ -111,7 +114,7 @@ fi
 export PKG_CONFIG_PATH="$DEST/lib/pkgconfig"
 
 github_download "edenhill/librdkafka" "$LIBRDKAFKA_VERSION" "librdkafka"
-build librdkafka "([ -f config.h ] || ./configure --prefix=$DEST --install-deps --disable-lz4-ext --enable-static) && make -j && make install" || (echo "Failed to build librdkafka: bootstrap failed" ; false)
+build librdkafka "([ -f config.h ] || ./configure --prefix=$DEST --install-deps --source-deps-only --disable-lz4-ext) && make -j && make install" || (echo "Failed to build librdkafka: bootstrap failed" ; false)
 
 github_download "edenhill/yajl" "edenhill" "libyajl"
 build libyajl "([ -d build ] || ./configure --prefix $DEST) && make install" || (echo "Failed to build libyajl: JSON support will probably be disabled" ; true)
