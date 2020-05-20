@@ -11,7 +11,7 @@
 
 set -o errexit -o nounset -o pipefail
 
-: "${LIBRDKAFKA_VERSION:=v1.1.0}"
+: "${LIBRDKAFKA_VERSION:=v1.4.2}"
 
 function download {
     local url=$1
@@ -26,12 +26,18 @@ function download {
     if which wget 2>&1 > /dev/null; then
         local dl='wget -q -O-'
     else
-        local dl='curl -s -L'
+        local dl='curl -L'
+    fi
+
+    local tar_args=
+
+    if [[ $(uname -s) == "Darwin" ]]; then
+        tar_args="--no-mac-metadata"
     fi
 
     mkdir -p "$dir"
     pushd "$dir" > /dev/null
-    ($dl "$url" | tar -xzf - --strip-components 1) || exit 1
+    ($dl "$url" | tar -xz $tar_args -f - --strip-components 1) || exit 1
     popd > /dev/null
 }
 
@@ -105,10 +111,10 @@ fi
 export PKG_CONFIG_PATH="$DEST/lib/pkgconfig"
 
 github_download "edenhill/librdkafka" "$LIBRDKAFKA_VERSION" "librdkafka"
-build librdkafka "([ -f config.h ] || ./configure --prefix=$DEST --install-deps --disable-lz4-ext) && make -j && make install" || (echo "Failed to build librdkafka: bootstrap failed" ; false)
+build librdkafka "([ -f config.h ] || ./configure --prefix=$DEST --install-deps --disable-lz4-ext --enable-static) && make -j && make install" || (echo "Failed to build librdkafka: bootstrap failed" ; false)
 
 github_download "edenhill/yajl" "edenhill" "libyajl"
-build libyajl "([ -d build ] || ./configure --prefix $DEST) && make distro && make install" || (echo "Failed to build libyajl: JSON support will probably be disabled" ; true)
+build libyajl "([ -d build ] || ./configure --prefix $DEST) && make install" || (echo "Failed to build libyajl: JSON support will probably be disabled" ; true)
 
 download http://www.digip.org/jansson/releases/jansson-2.12.tar.gz libjansson
 build libjansson "([[ -f config.status ]] || ./configure --enable-static --prefix=$DEST) && make && make install" || (echo "Failed to build libjansson: AVRO support will probably be disabled" ; true)
