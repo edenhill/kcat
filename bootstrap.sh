@@ -128,6 +128,9 @@ build avroc "cd lang/c && mkdir -p build && cd build && cmake -DCMAKE_C_FLAGS=\"
 github_download "confluentinc/libserdes" "master" "libserdes"
 build libserdes "([ -f config.h ] || ./configure  --prefix=$DEST --CFLAGS=-I${DEST}/include --LDFLAGS=-L${DEST}/lib) && make && make install" || (echo "Failed to build libserdes: AVRO support will probably be disabled" ; true)
 
+github_download "facebook/zstd" "v1.4.4" "libzstd"
+build libzstd "make -C lib && make -C programs && make install PREFIX=$DEST LIBDIR=${DEST}/lib" || (echo "Failed to build libzstd"; false)
+
 popd > /dev/null
 
 echo "Building kafkacat"
