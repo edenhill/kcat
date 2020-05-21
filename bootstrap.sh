@@ -141,10 +141,11 @@ export STATIC_LIB_rdkafka="$DEST/lib/librdkafka.a"
 export STATIC_LIB_serdes="$DEST/lib/libserdes.a"
 export STATIC_LIB_yajl="$DEST/lib/libyajl_s.a"
 export STATIC_LIB_jansson="$DEST/lib/libjansson.a"
+export STATIC_LIB_libzstd="$DEST/lib/libzstd.a"
 
 # libserdes does not have a pkg-config file to point out secondary dependencies
 # when linking statically.
-export LIBS="$(pkg_cfg_lib rdkafka) $(pkg_cfg_lib yajl) $STATIC_LIB_avro $STATIC_LIB_jansson -lcurl"
+export LIBS="$(pkg_cfg_lib rdkafka) $(pkg_cfg_lib yajl) $STATIC_LIB_avro $STATIC_LIB_jansson $STATIC_LIB_libzstd -lcurl"
 
 # Remove tinycthread from libserdes b/c same code is also in librdkafka.
 ar dv $DEST/lib/libserdes.a tinycthread.o
