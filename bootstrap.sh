@@ -114,7 +114,7 @@ fi
 export PKG_CONFIG_PATH="$DEST/lib/pkgconfig"
 
 github_download "edenhill/librdkafka" "$LIBRDKAFKA_VERSION" "librdkafka"
-build librdkafka "([ -f config.h ] || ./configure --prefix=$DEST --install-deps --source-deps-only --disable-lz4-ext) && make -j && make install" || (echo "Failed to build librdkafka: bootstrap failed" ; false)
+build librdkafka "([ -f config.h ] || ./configure --prefix=$DEST --install-deps --disable-lz4-ext) && make -j && make install" || (echo "Failed to build librdkafka: bootstrap failed" ; false)
 
 github_download "edenhill/yajl" "edenhill" "libyajl"
 build libyajl "([ -d build ] || ./configure --prefix $DEST) && make install" || (echo "Failed to build libyajl: JSON support will probably be disabled" ; true)
@@ -128,9 +128,6 @@ build avroc "cd lang/c && mkdir -p build && cd build && cmake -DCMAKE_C_FLAGS=\"
 github_download "confluentinc/libserdes" "master" "libserdes"
 build libserdes "([ -f config.h ] || ./configure  --prefix=$DEST --CFLAGS=-I${DEST}/include --LDFLAGS=-L${DEST}/lib) && make && make install" || (echo "Failed to build libserdes: AVRO support will probably be disabled" ; true)
 
-github_download "facebook/zstd" "v1.4.4" "libzstd"
-build libzstd "make -C lib && make -C programs && make install PREFIX=$DEST LIBDIR=${DEST}/lib" || (echo "Failed to build libzstd"; false)
-
 popd > /dev/null
 
 echo "Building kafkacat"
@@ -141,11 +138,10 @@ export STATIC_LIB_rdkafka="$DEST/lib/librdkafka.a"
 export STATIC_LIB_serdes="$DEST/lib/libserdes.a"
 export STATIC_LIB_yajl="$DEST/lib/libyajl_s.a"
 export STATIC_LIB_jansson="$DEST/lib/libjansson.a"
-export STATIC_LIB_libzstd="$DEST/lib/libzstd.a"
 
 # libserdes does not have a pkg-config file to point out secondary dependencies
 # when linking statically.
-export LIBS="$(pkg_cfg_lib rdkafka) $(pkg_cfg_lib yajl) $STATIC_LIB_avro $STATIC_LIB_jansson $STATIC_LIB_libzstd -lcurl"
+export LIBS="$(pkg_cfg_lib rdkafka) $(pkg_cfg_lib yajl) $STATIC_LIB_avro $STATIC_LIB_jansson -lcurl"
 
 # Remove tinycthread from libserdes b/c same code is also in librdkafka.
 ar dv $DEST/lib/libserdes.a tinycthread.o
