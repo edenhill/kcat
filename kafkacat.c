@@ -720,7 +720,7 @@ static void consumer_run (FILE *fp) {
 
 
         /* Query broker for topic + partition information. */
-        if ((err = rd_kafka_metadata(conf.rk, 0, conf.rkt, &metadata, 5000)))
+        if ((err = rd_kafka_metadata(conf.rk, 0, conf.rkt, &metadata, 30000)))
                 KC_FATAL("Failed to query metadata for topic %s: %s",
                          rd_kafka_topic_name(conf.rkt), rd_kafka_err2str(err));
 
