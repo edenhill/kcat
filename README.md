@@ -194,6 +194,11 @@ Enable the idempotent producer, providing exactly-once and strict-ordering
     $ kafkacat -b mybroker -X enable.idempotence=true -P -t mytopic ....
 
 
+Connect to cluster using SSL and SASL PLAIN authentication:
+
+    $ kafkacat -b mybroker -X security.protocol=SASL_SSL -X sasl.mechanism=PLAIN -X sasl.username=myapikey -X sasl.password=myapisecret ...
+
+
 Metadata listing:
 
 ```
