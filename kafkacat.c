@@ -1344,8 +1344,10 @@ static int try_conf_set (const char *name, const char *val,
                 if (!conf.srconf)
                         conf.srconf = serdes_conf_new(NULL, 0, NULL);
 
-                if (!strcmp(name, "schema.registry.url"))
+                if (!strcmp(name, "schema.registry.url")) {
+                        conf.flags |= CONF_F_SR_URL_SEEN;
                         srlen = 0;
+                }
 
                 serr = serdes_conf_set(conf.srconf, name+srlen, val,
                                        errstr, errstr_size);
@@ -1705,6 +1707,7 @@ static void argparse (int argc, char **argv,
                         if (!*optarg)
                                 KC_FATAL("-s url must not be empty");
                         conf.schema_registry_url = optarg;
+                        conf.flags |= CONF_F_SR_URL_SEEN;
 #else
                         KC_FATAL("This build of kafkacat lacks "
                                  "Avro/Schema-Registry support");
@@ -1907,7 +1910,7 @@ static void argparse (int argc, char **argv,
          * Verify and initialize Avro/SR
          */
 #if ENABLE_AVRO
-        if (!!conf.schema_registry_url !=
+        if (!!(conf.flags & CONF_F_SR_URL_SEEN) !=
             !!(conf.flags & (CONF_F_FMT_AVRO_VALUE|CONF_F_FMT_AVRO_KEY)))
                 KC_FATAL("-r requires -s avro and vice-versa");
 

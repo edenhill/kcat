@@ -101,6 +101,7 @@ struct conf {
 #define CONF_F_BROKERS_SEEN   0x200 /* Brokers have been configured */
 #define CONF_F_FMT_AVRO_KEY   0x400 /* Convert key from Avro to JSON */
 #define CONF_F_FMT_AVRO_VALUE 0x800 /* Convert value from Avro to JSON  */
+#define CONF_F_SR_URL_SEEN    0x1000 /* schema.registry.url/-r seen */
         int     delim;
         int     key_delim;
 
