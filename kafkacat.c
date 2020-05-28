@@ -50,6 +50,10 @@
 
 #include "kafkacat.h"
 
+#if RD_KAFKA_VERSION >= 0x01040000
+#define ENABLE_TXNS 1
+#endif
+
 
 struct conf conf = {
         .run = 1,
@@ -285,6 +289,14 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
         size_t  size = 0;
         ssize_t len;
         char    errstr[512];
+        char    tmp[2];
+
+        size = sizeof(tmp);
+        if (rd_kafka_conf_get(conf.rk_conf, "transactional.id",
+                              tmp, &size) == RD_KAFKA_CONF_OK && size > 1) {
+                KC_INFO(1, "Using transactional producer\n");
+                conf.txn = 1;
+        }
 
         /* Assign per-message delivery report callback. */
         rd_kafka_conf_set_dr_msg_cb(conf.rk_conf, dr_msg_cb);
@@ -296,6 +308,23 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
 
         if (!conf.debug && conf.verbosity == 0)
                 rd_kafka_set_log_level(conf.rk, 0);
+
+#if ENABLE_TXNS
+        if (conf.txn) {
+                rd_kafka_error_t *error;
+
+                error = rd_kafka_init_transactions(conf.rk,
+                                                   conf.metadata_timeout*1000);
+                if (error)
+                        KC_FATAL("init_transactions(): %s",
+                                 rd_kafka_error_string(error));
+
+                error = rd_kafka_begin_transaction(conf.rk);
+                if (error)
+                        KC_FATAL("begin_transaction(): %s",
+                                 rd_kafka_error_string(error));
+        }
+#endif
 
         /* Create topic */
         if (!(conf.rkt = rd_kafka_topic_new(conf.rk, conf.topic,
@@ -415,6 +444,34 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                                          strerror(errno));
                 }
         }
+
+#if ENABLE_TXNS
+        if (conf.txn) {
+                rd_kafka_error_t *error;
+                const char *what;
+
+                if (conf.term_sig) {
+                        KC_INFO(0,
+                                "Aborting transaction due to "
+                                "termination signal\n");
+                        what = "abort_transaction()";
+                        error = rd_kafka_abort_transaction(
+                                conf.rk, conf.metadata_timeout * 1000);
+                } else {
+                        KC_INFO(1, "Committing transaction\n");
+                        what = "commit_transaction()";
+                        error = rd_kafka_commit_transaction(
+                                conf.rk, conf.metadata_timeout * 1000);
+                        if (!error)
+                                KC_INFO(1,
+                                        "Transaction successfully committed\n");
+                }
+
+                if (error)
+                        KC_FATAL("%s: %s", what, rd_kafka_error_string(error));
+        }
+#endif
+
 
         /* Wait for all messages to be transmitted */
         conf.run = 1;
@@ -1004,6 +1061,9 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
 #if ENABLE_AVRO
                 "Avro, "
 #endif
+#if ENABLE_TXNS
+                "Transactions, "
+#endif
                 ,
                 rd_kafka_version_str(), features
                 );
@@ -1032,6 +1092,8 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "                     This limits how long kafkacat will block\n"
                 "                     while waiting for initial metadata to be\n"
                 "                     retrieved from the Kafka cluster.\n"
+                "                     It also sets the timeout for the producer's\n"
+                "                     transaction commits, init, aborts, etc.\n"
                 "                     Default: 5 seconds.\n"
                 "  -F <config-file>   Read configuration properties from file,\n"
                 "                     file format is \"property=value\".\n"
@@ -1077,6 +1139,12 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "                     With -l, only one file permitted.\n"
                 "                     Otherwise, the entire file contents will\n"
                 "                     be sent as one single message.\n"
+                "  -X transactional.id=.. Enable transactions and send all\n"
+                "                     messages in a single transaction which\n"
+                "                     is committed when stdin is closed or the\n"
+                "                     input file(s) are fully read.\n"
+                "                     If kafkacat is terminated through Ctrl-C\n"
+                "                     (et.al) the transaction will be aborted.\n"
                 "\n"
                 "Consumer options:\n"
                 "  -o <offset>        Offset to start consuming from:\n"
@@ -1212,6 +1280,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
  */
 static void term (int sig) {
         conf.run = 0;
+        conf.term_sig = sig;
 }
 
 

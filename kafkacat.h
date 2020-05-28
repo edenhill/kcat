@@ -134,6 +134,7 @@ struct conf {
         int     metadata_timeout;
         char   *null_str;
         int     null_str_len;
+        int     txn;
 
         rd_kafka_conf_t       *rk_conf;
         rd_kafka_topic_conf_t *rkt_conf;
@@ -142,6 +143,8 @@ struct conf {
         rd_kafka_topic_t      *rkt;
 
         char   *debug;
+
+        int term_sig;  /**< Termination signal */
 
 #if ENABLE_AVRO
         serdes_conf_t *srconf;
