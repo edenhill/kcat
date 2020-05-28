@@ -2,7 +2,7 @@
 
 # kafkacat
 
-Copyright (c) 2014-2019 Magnus Edenhill
+Copyright (c) 2014-2020 Magnus Edenhill
 
 [https://github.com/edenhill/kafkacat](https://github.com/edenhill/kafkacat)
 
@@ -129,6 +129,12 @@ Read messages from Kafka 'syslog' topic, print to stdout
 Produce messages from file (one file is one message)
 
     $ kafkacat -P -b mybroker -t filedrop -p 0 myfile1.bin /etc/motd thirdfile.tgz
+
+
+Produce messages transactionally (one single transaction for all messages):
+
+    $ kafkacat -B -b mybroker -t mytopic -X transactional.id=myproducerapp
+
 
 Read the last 2000 messages from 'syslog' topic, then exit
 
