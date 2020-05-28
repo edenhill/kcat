@@ -59,6 +59,7 @@ struct conf conf = {
         .msg_size = 1024*1024,
         .null_str = "NULL",
         .fixed_key = NULL,
+        .metadata_timeout = 5,
 };
 
 static struct stats {
@@ -668,7 +669,8 @@ static int64_t *get_offsets(rd_kafka_metadata_topic_t *topic) {
                 if (conf.partition != RD_KAFKA_PARTITION_UA)
                         break;
         }
-        err = rd_kafka_offsets_for_times(conf.rk, rktparlistp, 10*1000);
+        err = rd_kafka_offsets_for_times(conf.rk, rktparlistp,
+                                         conf.metadata_timeout * 1000);
         if (err)
                 KC_FATAL("offsets_for_times failed: %s", rd_kafka_err2str(err));
 
@@ -720,7 +722,8 @@ static void consumer_run (FILE *fp) {
 
 
         /* Query broker for topic + partition information. */
-        if ((err = rd_kafka_metadata(conf.rk, 0, conf.rkt, &metadata, 5000)))
+        if ((err = rd_kafka_metadata(conf.rk, 0, conf.rkt, &metadata,
+                                     conf.metadata_timeout * 1000)))
                 KC_FATAL("Failed to query metadata for topic %s: %s",
                          rd_kafka_topic_name(conf.rkt), rd_kafka_err2str(err));
 
@@ -922,7 +925,7 @@ static void metadata_list (void) {
 
         /* Fetch metadata */
         err = rd_kafka_metadata(conf.rk, conf.rkt ? 0 : 1, conf.rkt,
-                                &metadata, 5000);
+                                &metadata, conf.metadata_timeout * 1000);
         if (err != RD_KAFKA_RESP_ERR_NO_ERROR)
                 KC_FATAL("Failed to acquire metadata: %s", rd_kafka_err2str(err));
 
@@ -1013,6 +1016,11 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "  -E                 Do not exit on non fatal error\n"
                 "  -K <delim>         Key delimiter (same format as -D)\n"
                 "  -c <cnt>           Limit message count\n"
+                "  -m <seconds>       Metadata (et.al.) request timeout.\n"
+                "                     This limits how long kafkacat will block\n"
+                "                     while waiting for initial metadata to be\n"
+                "                     retrieved from the Kafka cluster.\n"
+                "                     Default: 5 seconds.\n"
                 "  -F <config-file>   Read configuration properties from file,\n"
                 "                     file format is \"property=value\".\n"
                 "                     The KAFKACAT_CONFIG=path environment can "
@@ -1573,7 +1581,7 @@ static void argparse (int argc, char **argv,
 
         while ((opt = getopt(argc, argv,
                              ":PCG:LQt:p:b:z:o:eED:K:k:H:Od:qvF:X:c:Tuf:ZlVh"
-                             "s:r:J")) != -1) {
+                             "s:r:Jm:")) != -1) {
                 switch (opt) {
                 case 'P':
                 case 'C':
@@ -1712,6 +1720,9 @@ static void argparse (int argc, char **argv,
                         break;
                 case 'c':
                         conf.msg_cnt = strtoll(optarg, NULL, 10);
+                        break;
+                case 'm':
+                        conf.metadata_timeout = strtoll(optarg, NULL, 10);
                         break;
                 case 'Z':
                         conf.flags |= CONF_F_NULL;

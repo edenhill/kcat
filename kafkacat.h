@@ -130,6 +130,7 @@ struct conf {
 #endif
         int     exit_eof;
         int64_t msg_cnt;
+        int     metadata_timeout;
         char   *null_str;
         int     null_str_len;
 
