@@ -60,6 +60,7 @@ struct conf conf = {
         .null_str = "NULL",
         .fixed_key = NULL,
         .metadata_timeout = 5,
+        .offset = RD_KAFKA_OFFSET_INVALID,
 };
 
 static struct stats {
@@ -562,6 +563,11 @@ static void rebalance_cb (rd_kafka_t *rk, rd_kafka_resp_err_t err,
                         fprintf(stderr, "assigned: ");
                         print_partition_list(1, partitions);
                 }
+                if (conf.offset != RD_KAFKA_OFFSET_INVALID) {
+                        int i;
+                        for (i = 0 ; i < partitions->cnt ; i++)
+                                partitions->elems[i].offset = conf.offset;
+                }
                 rd_kafka_assign(rk, partitions);
                 break;
 
@@ -616,6 +622,8 @@ static void kafkaconsumer_run (FILE *fp, char *const *topics, int topic_cnt) {
         if ((err = rd_kafka_subscribe(conf.rk, topiclist)))
                 KC_FATAL("Failed to subscribe to %d topics: %s\n",
                          topiclist->cnt, rd_kafka_err2str(err));
+
+        KC_INFO(1, "Waiting for group rebalance\n");
 
         rd_kafka_topic_partition_list_destroy(topiclist);
 
@@ -773,7 +781,11 @@ static void consumer_run (FILE *fp) {
 
                 /* Start consumer for this partition */
                 if (rd_kafka_consume_start_queue(conf.rkt, partition,
-                                                 offsets ? offsets[i] : conf.offset,
+                                                 offsets ? offsets[i] :
+                                                 (conf.offset ==
+                                                  RD_KAFKA_OFFSET_INVALID ?
+                                                  RD_KAFKA_OFFSET_BEGINNING :
+                                                  conf.offset),
                                                  rkqu) == -1)
                         KC_FATAL("Failed to start consuming "
                                  "topic %s [%"PRId32"]: %s",
@@ -2042,6 +2054,9 @@ int main (int argc, char **argv) {
 
 #if ENABLE_KAFKACONSUMER
         case 'G':
+                if (conf.stopts || conf.startts)
+                        KC_FATAL("-o ..@ timestamps can't be used "
+                                 "with -G mode\n");
                 kafkaconsumer_run(stdout, &argv[optind], argc-optind);
                 break;
 #endif
