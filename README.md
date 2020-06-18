@@ -66,6 +66,8 @@ And on Mac OS X with homebrew installed:
 brew install kafkacat
 ````
 
+See [this blog](https://rmoff.net/2020/04/20/how-to-install-kafkacat-on-fedora/) for how to install kafkacat on recent Fedora systems. 
+
 Otherwise follow directions below.
 
 
