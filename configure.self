@@ -10,7 +10,7 @@ function checks {
     # Check that librdkafka is available, and allow to link it statically.
     mkl_meta_set "rdkafka" "desc" "librdkafka is available at http://github.com/edenhill/librdkafka. To quickly download all dependencies and build kafkacat try ./bootstrap.sh"
     mkl_meta_set "rdkafka" "deb" "librdkafka-dev"
-    mkl_lib_check --static=-lrdkafka "rdkafka" "" fail CC "-lrdkafka" \
+    mkl_lib_check "rdkafka" "" fail CC "-lrdkafka" \
        "#include <librdkafka/rdkafka.h>"
 
     # Make sure rdkafka is new enough.
@@ -33,7 +33,7 @@ struct rd_kafka_metadata foo;"
     mkl_meta_set "yajl" "deb" "libyajl-dev"
     # Check for JSON library (yajl)
     if [[ $WITH_JSON == y ]] && \
-        mkl_lib_check --static=-lyajl "yajl" HAVE_YAJL disable CC "-lyajl" \
+        mkl_lib_check "yajl" HAVE_YAJL disable CC "-lyajl" \
         "#include  <yajl/yajl_version.h>
 #if YAJL_MAJOR >= 2
 #else
@@ -51,8 +51,8 @@ struct rd_kafka_metadata foo;"
 
     # Check for Avro and Schema-Registry client libs
     if [[ $WITH_AVRO == y ]] &&
-           mkl_lib_check --libname=avro-c --static=-lavro "avroc" "" disable CC "-lavro" "#include <avro.h>" &&
-           mkl_lib_check --static=-lserdes "serdes" HAVE_SERDES disable CC "-lserdes" \
+           mkl_lib_check --libname=avro-c "avroc" "" disable CC "-lavro" "#include <avro.h>" &&
+           mkl_lib_check "serdes" HAVE_SERDES disable CC "-lserdes" \
         "#include <sys/types.h>
         #include  <stdlib.h>
         #include  <libserdes/serdes-avro.h>"; then
