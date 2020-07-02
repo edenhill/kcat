@@ -19,10 +19,10 @@ mkl_option "Cross-compilation" "mk:HOST" "--host=HOST" "Configure to build progr
 mkl_option "Cross-compilation" "mk:BUILD" "--build=BUILD" "Configure for building on BUILD (no-op)"
 mkl_option "Cross-compilation" "mk:TARGET" "--target=TARGET" "Configure for building cross-toolkits for platform TARGET (no-op)"
 
-function checks {
-    # Try to figure out what OS/distro we are running on.
-    mkl_check_begin "distro" "" "no-cache" "OS or distribution"
 
+# Resolve the OS/distro at import time, rather than as a check,
+# so that MKL_DISTRO is available to other modules at import time.
+function resolve_distro {
     solib_ext=.so
 
     # Try lsb_release
@@ -35,6 +35,17 @@ function checks {
             Linux)
                 sys=Linux
                 solib_ext=.so
+
+                if [[ -f /etc/os-release ]]; then
+                    eval $(grep ^ID= /etc/os-release)
+                    if [[ -n $ID ]]; then
+                        sys="$ID"
+                    fi
+                elif [[ -f /etc/centos-release ]]; then
+                    sys=centos
+                elif [[ -f /etc/alpine-release ]]; then
+                    sys=alpine
+                fi
                 ;;
             Darwin)
                 sys=osx
@@ -51,12 +62,23 @@ function checks {
         esac
     fi
 
-    if [[ -z $sys ]]; then
+    # Convert to lower case
+    sys=$(echo $sys | tr '[:upper:]' '[:lower:]')
+    mkl_mkvar_set "distro" "MKL_DISTRO" "$sys"
+    mkl_allvar_set "distro" "SOLIB_EXT" "$solib_ext"
+}
+
+resolve_distro
+
+
+function checks {
+    # Try to figure out what OS/distro we are running on.
+    mkl_check_begin "distro" "" "no-cache" "OS or distribution"
+
+    if [[ -z $MKL_DISTRO ]]; then
         mkl_check_failed "distro" "" "ignore" ""
     else
-        mkl_check_done "distro" "" "ignore" "ok" "$sys"
-        mkl_mkvar_set "distro" "MKL_DISTRO" "$sys"
-        mkl_allvar_set "distro" "SOLIB_EXT" "$solib_ext"
+        mkl_check_done "distro" "" "ignore" "ok" "$MKL_DISTRO"
     fi
 }
 

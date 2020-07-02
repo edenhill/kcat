@@ -22,6 +22,8 @@ mkl_option "Standard" sharedstatedir "--sharedstatedir=PATH" \
     "Modifiable arch-independent data" "\$prefix/com"
 mkl_option "Standard" localstatedir "--localstatedir=PATH" \
     "Modifiable local state data" "\$prefix/var"
+mkl_option "Standard" runstatedir "--runstatedir=PATH" \
+    "Modifiable per-process data" "\$prefix/var/run"
 mkl_option "Standard" libdir "--libdir=PATH" "Libraries" "\$exec_prefix/lib"
 mkl_option "Standard" includedir "--includedir=PATH" "C/C++ header files" \
     "\$prefix/include"
@@ -41,12 +43,18 @@ mkl_option "Configure tool" env:MKL_REPO_URL "--repo-url=URL_OR_PATH" "Override 
 mkl_option "Configure tool" "" "--help" "Show configure usage"
 
 
-mkl_toggle_option "Compatibility" "mk:MKL_MAINT_MODE" "--enable-maintainer-mode" "Maintainer mode (no-op)"
+# These autoconf compatibility options are ignored by mklove
+mkl_toggle_option "Compatibility" "mk:COMPAT_MAINT_MODE" "--enable-maintainer-mode" "Maintainer mode (no-op)"
+mkl_option "Compatibility" "mk:PROGRAM_PREFIX" "--program-prefix=PFX" "Program prefix (no-op)"
+mkl_option "Compatibility" "mk:COMPAT_DISABLE_DEP_TRACK" "--disable-dependency-tracking" "Disable dependency tracking (no-op)"
+mkl_option "Compatibility" "mk:COMPAT_DISABLE_SILENT_RULES" "--disable-silent-rules" "Verbose build output (no-op)"
+mkl_option "Compatibility" "mk:COMPAT_SILENT" "--silent" "Less verbose build output (no-op)"
+mkl_toggle_option "Compatibility" "mk:COMPAT_ENABLE_SHARED" "--enable-shared" "Build shared library (no-op)"
+mkl_toggle_option "Compatibility" "mk:COMPAT_DISABLE_OPT_CHECK" '--enable-option-checking=*' "Disable configure option checking (no-op)"
 
-mkl_option "Configure tool" "mk:PROGRAM_PREFIX" "--program-prefix=PFX" "Program prefix"
 
-mkl_option "Compatibility" "mk:DISABL_DEP_TRACK" "--disable-dependency-tracking" "Disable dependency tracking (no-op)"
-mkl_option "Compatibility" "mk:DISABL_SILENT_RULES" "--disable-silent-rules" "Verbose build output (no-op)"
+mkl_option "Dependency"  env:MKL_INSTALL_DEPS "--install-deps" "Attempt to install missing dependencies"
+mkl_option "Dependency" env:MKL_SOURCE_DEPS_ONLY "--source-deps-only" "Only perform source builds of dependencies, not using any package managers"
 
 
 function checks {
