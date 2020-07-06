@@ -1,7 +1,7 @@
 /*
  * kafkacat - Apache Kafka consumer and producer
  *
- * Copyright (c) 2014-2019, Magnus Edenhill
+ * Copyright (c) 2014-2020, Magnus Edenhill
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1050,7 +1050,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
         fprintf(out,
                 "kafkacat - Apache Kafka producer and consumer tool\n"
                 "https://github.com/edenhill/kafkacat\n"
-                "Copyright (c) 2014-2019, Magnus Edenhill\n"
+                "Copyright (c) 2014-2020, Magnus Edenhill\n"
                 "Version %s (%slibrdkafka %s builtin.features=%s)\n"
                 "\n",
                 KAFKACAT_VERSION,
@@ -1119,7 +1119,8 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "  -h                 Print usage help\n"
                 "\n"
                 "Producer options:\n"
-                "  -z snappy|gzip|lz4 Message compression. Default: none\n"
+                "  -z <comp>          Message compression. Default: none\n"
+                "                     Compressions: gzip, snappy, lz4, zstd\n"
                 "  -p -1              Use random partitioner\n"
                 "  -D <delim>         Delimiter to split input into messages\n"
                 "  -K <delim>         Delimiter to split input key and message\n"
