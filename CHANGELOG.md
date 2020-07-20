@@ -3,9 +3,11 @@
  * Transactional Producer support (see below).
  * Honour `-k <key>` when producing files (#197).
  * Honour `-o <offset>` in `-G` high-level consumer mode (#231).
- * Added `-m <seconds>` argument o set metadata/query/transaction timeouts.
+ * Added `-m <seconds>` argument to set metadata/query/transaction timeouts.
  * Allow `schema.registry.url` to be configured in config file and
    not only by `-r` (#220).
+ * Print broker-id message was produced to (if `-v`),
+   or was consumed from (if `-J`).
 
 ## Apache Kafke EOS / Transactional Producer support
 

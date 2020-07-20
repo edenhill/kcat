@@ -141,8 +141,16 @@ static void dr_msg_cb (rd_kafka_t *rk, const rd_kafka_message_t *rkmessage,
                 return;
         }
 
-        KC_INFO(3, "Message delivered to partition %"PRId32" (offset %"PRId64")\n",
-                rkmessage->partition, rkmessage->offset);
+        KC_INFO(3,
+                "Message delivered to partition %"PRId32" (offset %"PRId64") "
+                "on broker %"PRId32"\n",
+                rkmessage->partition, rkmessage->offset,
+#if RD_KAFKA_VERSION >= 0x010500ff
+                rd_kafka_message_broker_id(rkmessage)
+#else
+                -1
+#endif
+                );
 
         if (rkmessage->offset == 0 && say_once) {
                 KC_INFO(3, "Enable message offset reporting "
@@ -1241,6 +1249,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 " { \"topic\": str, \"partition\": int, \"offset\": int,\n"
                 "   \"tstype\": \"create|logappend|unknown\", \"ts\": int, "
                 "// timestamp in milliseconds since epoch\n"
+                "   \"broker\": int,\n"
                 "   \"headers\": { \"<name>\": str, .. }, // optional\n"
                 "   \"key\": str|json, \"payload\": str|json,\n"
                 "   \"key_error\": str, \"payload_error\": str } //optional\n"
