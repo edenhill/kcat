@@ -37,7 +37,7 @@ kafkacat is fast and lightweight; statically linked it is no more than 150Kb.
 
 ```bash
 # List brokers and topics in cluster
-$ docker run -it --network=host edenhill/kafkacat:1.5.0 -b YOUR_BROKER -L
+$ docker run -it --network=host edenhill/kafkacat:1.6.0 -b YOUR_BROKER -L
 ```
 
 See [Examples](#examples) for usage options, and [Running in Docker](#running-in-docker) for more information on how to properly run docker-based clients with Kafka.
@@ -254,7 +254,7 @@ Consume messages between two timestamps
 
 ## Running in Docker
 
-The latest kafkacat docker image is `edenhill/kafkacat:1.5.0`, there's
+The latest kafkacat docker image is `edenhill/kafkacat:1.6.0`, there's
 also [Confluent's kafkacat docker images on Docker Hub](https://hub.docker.com/r/confluentinc/cp-kafkacat/).
 
 If you are connecting to Kafka brokers also running on Docker you should specify the network name as part of the `docker run` command using the `--network` parameter. For more details of networking with Kafka and Docker [see this post](https://rmoff.net/2018/08/02/kafka-listeners-explained/).
