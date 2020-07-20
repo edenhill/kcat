@@ -133,6 +133,7 @@ void error0 (int exitonerror, const char *func, int line, const char *fmt, ...) 
 static void dr_msg_cb (rd_kafka_t *rk, const rd_kafka_message_t *rkmessage,
                        void *opaque) {
         static int say_once = 1;
+        int32_t broker_id = -1;
 
         if (rkmessage->err) {
                 KC_INFO(1, "Delivery failed for message: %s\n",
@@ -141,16 +142,14 @@ static void dr_msg_cb (rd_kafka_t *rk, const rd_kafka_message_t *rkmessage,
                 return;
         }
 
+#if RD_KAFKA_VERSION >= 0x010500ff
+        broker_id = rd_kafka_message_broker_id(rkmessage);
+#endif
+
         KC_INFO(3,
                 "Message delivered to partition %"PRId32" (offset %"PRId64") "
                 "on broker %"PRId32"\n",
-                rkmessage->partition, rkmessage->offset,
-#if RD_KAFKA_VERSION >= 0x010500ff
-                rd_kafka_message_broker_id(rkmessage)
-#else
-                -1
-#endif
-                );
+                rkmessage->partition, rkmessage->offset, broker_id);
 
         if (rkmessage->offset == 0 && say_once) {
                 KC_INFO(3, "Enable message offset reporting "
