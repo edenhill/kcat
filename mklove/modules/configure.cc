@@ -49,7 +49,7 @@ function checks {
 	    mkl_mkvar_append CPPFLAGS CPPFLAGS "-m$MBITS"
 	    mkl_mkvar_append LDFLAGS LDFLAGS "-m$MBITS"
 	fi
-	if [[ -z "$ARFLAGS" && $MBITS == 64 && $MKL_DISTRO == "SunOS" ]]; then
+	if [[ -z "$ARFLAGS" && $MBITS == 64 && $MKL_DISTRO == "sunos" ]]; then
 	    # Turn on 64-bit archives on SunOS
 	    mkl_mkvar_append ARFLAGS ARFLAGS "S"
 	fi
@@ -57,7 +57,7 @@ function checks {
 
     # Provide prefix and checks for various other build tools.
     local t=
-    for t in LD:ld NM:nm OBJDUMP:objdump STRIP:strip ; do
+    for t in LD:ld NM:nm OBJDUMP:objdump STRIP:strip LIBTOOL:libtool ; do
         local tenv=${t%:*}
         t=${t#*:}
 	local tval="${!tenv}"
@@ -109,7 +109,7 @@ function checks {
 
     # install
     if [ -z "$INSTALL" ]; then
-	if [[ $MKL_DISTRO == "SunOS" ]]; then
+	if [[ $MKL_DISTRO == "sunos" ]]; then
 	    mkl_meta_set ginstall name "GNU install"
 	    if mkl_command_check ginstall "" ignore "ginstall --version"; then
 		INSTALL=ginstall
@@ -154,6 +154,8 @@ function checks {
             # OSX linker can't enable/disable static linking so we'll
             # need to find the .a through STATIC_LIB_libname env var
             mkl_mkvar_set staticlinking HAS_LDFLAGS_STATIC n
+            # libtool -static supported
+            mkl_mkvar_set staticlinking HAS_LIBTOOL_STATIC y
         fi
     fi
 }

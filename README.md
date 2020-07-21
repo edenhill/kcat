@@ -2,7 +2,7 @@
 
 # kafkacat
 
-Copyright (c) 2014-2019 Magnus Edenhill
+Copyright (c) 2014-2020 Magnus Edenhill
 
 [https://github.com/edenhill/kafkacat](https://github.com/edenhill/kafkacat)
 
@@ -37,7 +37,7 @@ kafkacat is fast and lightweight; statically linked it is no more than 150Kb.
 
 ```bash
 # List brokers and topics in cluster
-$ docker run -it --network=host edenhill/kafkacat:1.5.0 -b YOUR_BROKER -L
+$ docker run -it --network=host edenhill/kafkacat:1.6.0 -b YOUR_BROKER -L
 ```
 
 See [Examples](#examples) for usage options, and [Running in Docker](#running-in-docker) for more information on how to properly run docker-based clients with Kafka.
@@ -51,11 +51,22 @@ On recent enough Debian systems:
 apt-get install kafkacat
 ````
 
+On recent openSUSE systems:
+
+```
+zypper addrepo https://download.opensuse.org/repositories/network:utilities/openSUSE_Factory/network:utilities.repo
+zypper refresh
+zypper install kafkacat
+```
+(see [this page](https://software.opensuse.org/download/package?package=kafkacat&project=network%3Autilities) for instructions to install with openSUSE LEAP)
+
 And on Mac OS X with homebrew installed:
 
 ````
 brew install kafkacat
 ````
+
+See [this blog](https://rmoff.net/2020/04/20/how-to-install-kafkacat-on-fedora/) for how to install kafkacat on recent Fedora systems. 
 
 Otherwise follow directions below.
 
@@ -121,6 +132,12 @@ Produce messages from file (one file is one message)
 
     $ kafkacat -P -b mybroker -t filedrop -p 0 myfile1.bin /etc/motd thirdfile.tgz
 
+
+Produce messages transactionally (one single transaction for all messages):
+
+    $ kafkacat -B -b mybroker -t mytopic -X transactional.id=myproducerapp
+
+
 Read the last 2000 messages from 'syslog' topic, then exit
 
     $ kafkacat -C -b mybroker -t syslog -p 0 -o -2000 -e
@@ -185,6 +202,11 @@ Enable the idempotent producer, providing exactly-once and strict-ordering
     $ kafkacat -b mybroker -X enable.idempotence=true -P -t mytopic ....
 
 
+Connect to cluster using SSL and SASL PLAIN authentication:
+
+    $ kafkacat -b mybroker -X security.protocol=SASL_SSL -X sasl.mechanism=PLAIN -X sasl.username=myapikey -X sasl.password=myapisecret ...
+
+
 Metadata listing:
 
 ```
@@ -232,7 +254,7 @@ Consume messages between two timestamps
 
 ## Running in Docker
 
-The latest kafkacat docker image is `edenhill/kafkacat:1.5.0`, there's
+The latest kafkacat docker image is `edenhill/kafkacat:1.6.0`, there's
 also [Confluent's kafkacat docker images on Docker Hub](https://hub.docker.com/r/confluentinc/cp-kafkacat/).
 
 If you are connecting to Kafka brokers also running on Docker you should specify the network name as part of the `docker run` command using the `--network` parameter. For more details of networking with Kafka and Docker [see this post](https://rmoff.net/2018/08/02/kafka-listeners-explained/).

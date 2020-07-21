@@ -31,8 +31,8 @@
 #include <yajl/yajl_gen.h>
 
 #define JS_STR(G, STR) do {                                             \
-        const char *_s = (STR);                                         \
-        yajl_gen_string(G, (const unsigned char *)_s, strlen(_s));      \
+                const char *_s = (STR);                                 \
+                yajl_gen_string(G, (const unsigned char *)_s, strlen(_s)); \
         } while (0)
 
 void fmt_msg_output_json (FILE *fp, const rd_kafka_message_t *rkmessage) {
@@ -74,6 +74,13 @@ void fmt_msg_output_json (FILE *fp, const rd_kafka_message_t *rkmessage) {
         JS_STR(g, "unknown");
         JS_STR(g, "ts");
         yajl_gen_integer(g, 0);
+#endif
+
+        JS_STR(g, "broker");
+#if RD_KAFKA_VERSION >= 0x010500ff
+        yajl_gen_integer(g, (int)rd_kafka_message_broker_id(rkmessage));
+#else
+        yajl_gen_integer(g, -1);
 #endif
 
 
