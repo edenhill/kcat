@@ -1603,17 +1603,13 @@ static int read_conf_file (const char *path, int fatal) {
 
 /**
  * @returns the value for environment variable \p env, or NULL
- *          if it is not set, is empty, or not supported on platform.
+ *          if it is not set or it is empty.
  */
 static const char *kc_getenv (const char *env) {
-#ifdef _MSC_VER
-        return NULL;
-#else
         const char *val;
         if (!(val = getenv(env)) || !*val)
                 return NULL;
         return val;
-#endif
 }
 
 static void read_default_conf_files (void) {
