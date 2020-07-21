@@ -101,6 +101,7 @@ struct conf {
 #define CONF_F_BROKERS_SEEN   0x200 /* Brokers have been configured */
 #define CONF_F_FMT_AVRO_KEY   0x400 /* Convert key from Avro to JSON */
 #define CONF_F_FMT_AVRO_VALUE 0x800 /* Convert value from Avro to JSON  */
+#define CONF_F_SR_URL_SEEN    0x1000 /* schema.registry.url/-r seen */
         int     delim;
         int     key_delim;
 
@@ -130,8 +131,10 @@ struct conf {
 #endif
         int     exit_eof;
         int64_t msg_cnt;
+        int     metadata_timeout;
         char   *null_str;
         int     null_str_len;
+        int     txn;
 
         rd_kafka_conf_t       *rk_conf;
         rd_kafka_topic_conf_t *rkt_conf;
@@ -140,6 +143,8 @@ struct conf {
         rd_kafka_topic_t      *rkt;
 
         char   *debug;
+
+        int term_sig;  /**< Termination signal */
 
 #if ENABLE_AVRO
         serdes_conf_t *srconf;

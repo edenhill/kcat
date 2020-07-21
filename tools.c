@@ -61,7 +61,8 @@ int query_offsets_by_time (rd_kafka_topic_partition_list_t *offsets) {
                                      errstr, sizeof(errstr))))
                 KC_FATAL("Failed to create producer: %s", errstr);
 
-        err = rd_kafka_offsets_for_times(conf.rk, offsets, 10*1000);
+        err = rd_kafka_offsets_for_times(conf.rk, offsets,
+                                         conf.metadata_timeout * 1000);
 #else
         err = RD_KAFKA_RESP_ERR__NOT_IMPLEMENTED;
 #endif

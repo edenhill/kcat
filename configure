@@ -81,7 +81,7 @@ while [[ ! -z $@ ]]; do
     shift
 
     if [[ $opt = *=* ]]; then
-        name="${opt%=*}"
+        name="${opt%%=*}"
         arg="${opt#*=}"
         eqarg=1
     else
@@ -102,10 +102,10 @@ while [[ ! -z $@ ]]; do
     reqarg=$(mkl_meta_get "MKL_OPT_ARGS" "$(mkl_env_esc $name)")
     if [[ ! -z $reqarg ]]; then
         if [[ $eqarg == 0 && -z $arg ]]; then
-            arg=$1
+            arg="$1"
             shift
 
-            if [[ -z $arg ]]; then
+            if [[ -z $arg && $reqarg != '\*' ]]; then
                 mkl_err "Missing argument to option --$name $reqarg"
                 exit 1
             fi
@@ -167,7 +167,7 @@ while [[ ! -z $@ ]]; do
             ;;
 
         *)
-            opt_$safeopt $arg || exit 1
+            opt_$safeopt "$arg" || exit 1
             mkl_var_append MKL_OPTS_SET "$safeopt"
             ;;
     esac

@@ -50,6 +50,10 @@
 
 #include "kafkacat.h"
 
+#if RD_KAFKA_VERSION >= 0x01040000
+#define ENABLE_TXNS 1
+#endif
+
 
 struct conf conf = {
         .run = 1,
@@ -59,6 +63,8 @@ struct conf conf = {
         .msg_size = 1024*1024,
         .null_str = "NULL",
         .fixed_key = NULL,
+        .metadata_timeout = 5,
+        .offset = RD_KAFKA_OFFSET_INVALID,
 };
 
 static struct stats {
@@ -127,6 +133,7 @@ void error0 (int exitonerror, const char *func, int line, const char *fmt, ...) 
 static void dr_msg_cb (rd_kafka_t *rk, const rd_kafka_message_t *rkmessage,
                        void *opaque) {
         static int say_once = 1;
+        int32_t broker_id = -1;
 
         if (rkmessage->err) {
                 KC_INFO(1, "Delivery failed for message: %s\n",
@@ -135,8 +142,14 @@ static void dr_msg_cb (rd_kafka_t *rk, const rd_kafka_message_t *rkmessage,
                 return;
         }
 
-        KC_INFO(3, "Message delivered to partition %"PRId32" (offset %"PRId64")\n",
-                rkmessage->partition, rkmessage->offset);
+#if RD_KAFKA_VERSION >= 0x010500ff
+        broker_id = rd_kafka_message_broker_id(rkmessage);
+#endif
+
+        KC_INFO(3,
+                "Message delivered to partition %"PRId32" (offset %"PRId64") "
+                "on broker %"PRId32"\n",
+                rkmessage->partition, rkmessage->offset, broker_id);
 
         if (rkmessage->offset == 0 && say_once) {
                 KC_INFO(3, "Enable message offset reporting "
@@ -283,6 +296,14 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
         size_t  size = 0;
         ssize_t len;
         char    errstr[512];
+        char    tmp[2];
+
+        size = sizeof(tmp);
+        if (rd_kafka_conf_get(conf.rk_conf, "transactional.id",
+                              tmp, &size) == RD_KAFKA_CONF_OK && size > 1) {
+                KC_INFO(1, "Using transactional producer\n");
+                conf.txn = 1;
+        }
 
         /* Assign per-message delivery report callback. */
         rd_kafka_conf_set_dr_msg_cb(conf.rk_conf, dr_msg_cb);
@@ -294,6 +315,23 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
 
         if (!conf.debug && conf.verbosity == 0)
                 rd_kafka_set_log_level(conf.rk, 0);
+
+#if ENABLE_TXNS
+        if (conf.txn) {
+                rd_kafka_error_t *error;
+
+                error = rd_kafka_init_transactions(conf.rk,
+                                                   conf.metadata_timeout*1000);
+                if (error)
+                        KC_FATAL("init_transactions(): %s",
+                                 rd_kafka_error_string(error));
+
+                error = rd_kafka_begin_transaction(conf.rk);
+                if (error)
+                        KC_FATAL("begin_transaction(): %s",
+                                 rd_kafka_error_string(error));
+        }
+#endif
 
         /* Create topic */
         if (!(conf.rkt = rd_kafka_topic_new(conf.rk, conf.topic,
@@ -413,6 +451,34 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                                          strerror(errno));
                 }
         }
+
+#if ENABLE_TXNS
+        if (conf.txn) {
+                rd_kafka_error_t *error;
+                const char *what;
+
+                if (conf.term_sig) {
+                        KC_INFO(0,
+                                "Aborting transaction due to "
+                                "termination signal\n");
+                        what = "abort_transaction()";
+                        error = rd_kafka_abort_transaction(
+                                conf.rk, conf.metadata_timeout * 1000);
+                } else {
+                        KC_INFO(1, "Committing transaction\n");
+                        what = "commit_transaction()";
+                        error = rd_kafka_commit_transaction(
+                                conf.rk, conf.metadata_timeout * 1000);
+                        if (!error)
+                                KC_INFO(1,
+                                        "Transaction successfully committed\n");
+                }
+
+                if (error)
+                        KC_FATAL("%s: %s", what, rd_kafka_error_string(error));
+        }
+#endif
+
 
         /* Wait for all messages to be transmitted */
         conf.run = 1;
@@ -561,6 +627,11 @@ static void rebalance_cb (rd_kafka_t *rk, rd_kafka_resp_err_t err,
                         fprintf(stderr, "assigned: ");
                         print_partition_list(1, partitions);
                 }
+                if (conf.offset != RD_KAFKA_OFFSET_INVALID) {
+                        int i;
+                        for (i = 0 ; i < partitions->cnt ; i++)
+                                partitions->elems[i].offset = conf.offset;
+                }
                 rd_kafka_assign(rk, partitions);
                 break;
 
@@ -616,6 +687,8 @@ static void kafkaconsumer_run (FILE *fp, char *const *topics, int topic_cnt) {
                 KC_FATAL("Failed to subscribe to %d topics: %s\n",
                          topiclist->cnt, rd_kafka_err2str(err));
 
+        KC_INFO(1, "Waiting for group rebalance\n");
+
         rd_kafka_topic_partition_list_destroy(topiclist);
 
         /* Read messages from Kafka, write to 'fp'. */
@@ -668,7 +741,8 @@ static int64_t *get_offsets(rd_kafka_metadata_topic_t *topic) {
                 if (conf.partition != RD_KAFKA_PARTITION_UA)
                         break;
         }
-        err = rd_kafka_offsets_for_times(conf.rk, rktparlistp, 10*1000);
+        err = rd_kafka_offsets_for_times(conf.rk, rktparlistp,
+                                         conf.metadata_timeout * 1000);
         if (err)
                 KC_FATAL("offsets_for_times failed: %s", rd_kafka_err2str(err));
 
@@ -720,7 +794,8 @@ static void consumer_run (FILE *fp) {
 
 
         /* Query broker for topic + partition information. */
-        if ((err = rd_kafka_metadata(conf.rk, 0, conf.rkt, &metadata, 5000)))
+        if ((err = rd_kafka_metadata(conf.rk, 0, conf.rkt, &metadata,
+                                     conf.metadata_timeout * 1000)))
                 KC_FATAL("Failed to query metadata for topic %s: %s",
                          rd_kafka_topic_name(conf.rkt), rd_kafka_err2str(err));
 
@@ -770,7 +845,11 @@ static void consumer_run (FILE *fp) {
 
                 /* Start consumer for this partition */
                 if (rd_kafka_consume_start_queue(conf.rkt, partition,
-                                                 offsets ? offsets[i] : conf.offset,
+                                                 offsets ? offsets[i] :
+                                                 (conf.offset ==
+                                                  RD_KAFKA_OFFSET_INVALID ?
+                                                  RD_KAFKA_OFFSET_BEGINNING :
+                                                  conf.offset),
                                                  rkqu) == -1)
                         KC_FATAL("Failed to start consuming "
                                  "topic %s [%"PRId32"]: %s",
@@ -922,7 +1001,7 @@ static void metadata_list (void) {
 
         /* Fetch metadata */
         err = rd_kafka_metadata(conf.rk, conf.rkt ? 0 : 1, conf.rkt,
-                                &metadata, 5000);
+                                &metadata, conf.metadata_timeout * 1000);
         if (err != RD_KAFKA_RESP_ERR_NO_ERROR)
                 KC_FATAL("Failed to acquire metadata: %s", rd_kafka_err2str(err));
 
@@ -989,6 +1068,9 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
 #if ENABLE_AVRO
                 "Avro, "
 #endif
+#if ENABLE_TXNS
+                "Transactions, "
+#endif
                 ,
                 rd_kafka_version_str(), features
                 );
@@ -1013,6 +1095,13 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "  -E                 Do not exit on non fatal error\n"
                 "  -K <delim>         Key delimiter (same format as -D)\n"
                 "  -c <cnt>           Limit message count\n"
+                "  -m <seconds>       Metadata (et.al.) request timeout.\n"
+                "                     This limits how long kafkacat will block\n"
+                "                     while waiting for initial metadata to be\n"
+                "                     retrieved from the Kafka cluster.\n"
+                "                     It also sets the timeout for the producer's\n"
+                "                     transaction commits, init, aborts, etc.\n"
+                "                     Default: 5 seconds.\n"
                 "  -F <config-file>   Read configuration properties from file,\n"
                 "                     file format is \"property=value\".\n"
                 "                     The KAFKACAT_CONFIG=path environment can "
@@ -1057,6 +1146,12 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "                     With -l, only one file permitted.\n"
                 "                     Otherwise, the entire file contents will\n"
                 "                     be sent as one single message.\n"
+                "  -X transactional.id=.. Enable transactions and send all\n"
+                "                     messages in a single transaction which\n"
+                "                     is committed when stdin is closed or the\n"
+                "                     input file(s) are fully read.\n"
+                "                     If kafkacat is terminated through Ctrl-C\n"
+                "                     (et.al) the transaction will be aborted.\n"
                 "\n"
                 "Consumer options:\n"
                 "  -o <offset>        Offset to start consuming from:\n"
@@ -1110,7 +1205,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "  -O                 Print message offset using -K delimiter\n"
                 "  -c <cnt>           Exit after consuming this number "
                 "of messages\n"
-                "  -Z                 Print NULL values and keys as \"%s\""
+                "  -Z                 Print NULL values and keys as \"%s\" "
                 "instead of empty.\n"
                 "                     For JSON (-J) the nullstr is always null.\n"
                 "  -u                 Unbuffered output\n"
@@ -1153,6 +1248,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 " { \"topic\": str, \"partition\": int, \"offset\": int,\n"
                 "   \"tstype\": \"create|logappend|unknown\", \"ts\": int, "
                 "// timestamp in milliseconds since epoch\n"
+                "   \"broker\": int,\n"
                 "   \"headers\": { \"<name>\": str, .. }, // optional\n"
                 "   \"key\": str|json, \"payload\": str|json,\n"
                 "   \"key_error\": str, \"payload_error\": str } //optional\n"
@@ -1192,6 +1288,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
  */
 static void term (int sig) {
         conf.run = 0;
+        conf.term_sig = sig;
 }
 
 
@@ -1324,8 +1421,10 @@ static int try_conf_set (const char *name, const char *val,
                 if (!conf.srconf)
                         conf.srconf = serdes_conf_new(NULL, 0, NULL);
 
-                if (!strcmp(name, "schema.registry.url"))
+                if (!strcmp(name, "schema.registry.url")) {
+                        conf.flags |= CONF_F_SR_URL_SEEN;
                         srlen = 0;
+                }
 
                 serr = serdes_conf_set(conf.srconf, name+srlen, val,
                                        errstr, errstr_size);
@@ -1573,7 +1672,7 @@ static void argparse (int argc, char **argv,
 
         while ((opt = getopt(argc, argv,
                              ":PCG:LQt:p:b:z:o:eED:K:k:H:Od:qvF:X:c:Tuf:ZlVh"
-                             "s:r:J")) != -1) {
+                             "s:r:Jm:")) != -1) {
                 switch (opt) {
                 case 'P':
                 case 'C':
@@ -1685,6 +1784,7 @@ static void argparse (int argc, char **argv,
                         if (!*optarg)
                                 KC_FATAL("-s url must not be empty");
                         conf.schema_registry_url = optarg;
+                        conf.flags |= CONF_F_SR_URL_SEEN;
 #else
                         KC_FATAL("This build of kafkacat lacks "
                                  "Avro/Schema-Registry support");
@@ -1712,6 +1812,9 @@ static void argparse (int argc, char **argv,
                         break;
                 case 'c':
                         conf.msg_cnt = strtoll(optarg, NULL, 10);
+                        break;
+                case 'm':
+                        conf.metadata_timeout = strtoll(optarg, NULL, 10);
                         break;
                 case 'Z':
                         conf.flags |= CONF_F_NULL;
@@ -1884,7 +1987,7 @@ static void argparse (int argc, char **argv,
          * Verify and initialize Avro/SR
          */
 #if ENABLE_AVRO
-        if (!!conf.schema_registry_url !=
+        if (!!(conf.flags & CONF_F_SR_URL_SEEN) !=
             !!(conf.flags & (CONF_F_FMT_AVRO_VALUE|CONF_F_FMT_AVRO_KEY)))
                 KC_FATAL("-r requires -s avro and vice-versa");
 
@@ -2031,6 +2134,9 @@ int main (int argc, char **argv) {
 
 #if ENABLE_KAFKACONSUMER
         case 'G':
+                if (conf.stopts || conf.startts)
+                        KC_FATAL("-o ..@ timestamps can't be used "
+                                 "with -G mode\n");
                 kafkaconsumer_run(stdout, &argv[optind], argc-optind);
                 break;
 #endif
