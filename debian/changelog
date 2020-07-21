@@ -1,10 +1,12 @@
-kafkacat (1.6.0-1) UNRELEASED; urgency=medium
+kafkacat (1.6.0-1) unstable; urgency=medium
 
   * New upstream release.
     + Fix FTBFS due to ./configure script not accepting
       --disable-option-checking. Closes: #963440
+  * d/control: bump Standards-Version
+  * d/control: switch to debhelper 13
 
- -- Vincent Bernat <bernat@debian.org>  Tue, 21 Jul 2020 11:00:28 +0200
+ -- Vincent Bernat <bernat@debian.org>  Tue, 21 Jul 2020 11:05:35 +0200
 
 kafkacat (1.5.0-1.1) unstable; urgency=medium
 
