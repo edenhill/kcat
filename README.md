@@ -174,7 +174,17 @@ Decode key as 32-bit signed integer and value as 16-bit signed integer followed 
     $ kafkacat -b mybroker -t mytopic -s key='i$' -s value='hB s'
 
 
-*Hint: see `./kafkacat -h` for all available deserializer options.*
+Encode key and payload in Base64, and output each message as `<key>,<value>` pairs:
+
+    $ kafkacat -b mybroker -t mytopic -S base64 -K,
+
+
+Encode only the payload in Base64, and output each message in a JSON envelope:
+
+    $ kafkacat -b mybroker -t mytopic -S base64 -J
+
+
+*Hint: see `./kafkacat -h` for all available serializer/deserializer options.*
 
 
 Output consumed messages according to format string:
