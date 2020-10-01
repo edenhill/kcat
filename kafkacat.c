@@ -1787,6 +1787,10 @@ static void argparse (int argc, char **argv,
 #endif
                         break;
                 case 'D':
+                        if (strlen(optarg) != 1)
+                                KC_FATAL("Message delimiter -D must be exactly "
+                                         "one byte (no multi-byte unicode "
+                                         "code points)");
                         delim = optarg;
                         break;
                 case 'K':
