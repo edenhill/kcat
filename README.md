@@ -141,7 +141,7 @@ Produce messages from file (one file is one message)
 
 Produce messages transactionally (one single transaction for all messages):
 
-    $ kafkacat -B -b mybroker -t mytopic -X transactional.id=myproducerapp
+    $ kafkacat -P -b mybroker -t mytopic -X transactional.id=myproducerapp
 
 
 Read the last 2000 messages from 'syslog' topic, then exit
