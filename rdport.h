@@ -82,3 +82,12 @@ int rd_gettimeofday (struct timeval *tv, struct timezone *tz) {
 
 #define rd_gettimeofday(tv,tz) gettimeofday(tv,tz)
 #endif
+
+
+#ifndef MAX
+#define MAX(A,B) ((A) > (B) ? (A) : (B))
+#endif
+
+#ifndef MIN
+#define MIN(A,B) ((A) < (B) ? (A) : (B))
+#endif
