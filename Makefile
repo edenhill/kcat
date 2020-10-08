@@ -2,14 +2,14 @@ include Makefile.config
 
 BIN=	kafkacat
 
-SRCS_y=	kafkacat.c format.c tools.c
+SRCS_y=	kafkacat.c format.c tools.c input.c
 SRCS_$(ENABLE_JSON) += json.c
 SRCS_$(ENABLE_AVRO) += avro.c
 OBJS=	$(SRCS_y:.c=.o)
 
 .PHONY:
 
-all: $(BIN)
+all: $(BIN) TAGS
 
 include mklove/Makefile.base
 
@@ -25,5 +25,19 @@ install-man:
 
 
 clean: bin-clean
+
+TAGS: .PHONY
+	@(if which etags >/dev/null 2>&1 ; then \
+		echo "Using etags to generate $@" ; \
+		git ls-tree -r --name-only HEAD | egrep '\.(c|cpp|h)$$' | \
+			etags -f $@.tmp - ; \
+		cmp $@ $@.tmp || mv $@.tmp $@ ; rm -f $@.tmp ; \
+	 elif which ctags >/dev/null 2>&1 ; then \
+		echo "Using ctags to generate $@" ; \
+		git ls-tree -r --name-only HEAD | egrep '\.(c|cpp|h)$$' | \
+			ctags -e -f $@.tmp -L- ; \
+		cmp $@ $@.tmp || mv $@.tmp $@ ; rm -f $@.tmp ; \
+	fi)
+
 
 -include $(DEPS)

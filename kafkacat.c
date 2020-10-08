@@ -1,7 +1,7 @@
 /*
  * kafkacat - Apache Kafka consumer and producer
  *
- * Copyright (c) 2014-2019, Magnus Edenhill
+ * Copyright (c) 2014-2020, Magnus Edenhill
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,6 +49,7 @@
 
 
 #include "kafkacat.h"
+#include "input.h"
 
 #if RD_KAFKA_VERSION >= 0x01040000
 #define ENABLE_TXNS 1
@@ -106,7 +107,8 @@ void RD_NORETURN fatal0 (const char *func, int line,
 /**
  * Print error and exit if needed
  */
-void error0 (int exitonerror, const char *func, int line, const char *fmt, ...) {
+void error0 (int exitonerror, const char *func, int line,
+             const char *fmt, ...) {
         va_list ap;
         char buf[1024];
 
@@ -134,6 +136,10 @@ static void dr_msg_cb (rd_kafka_t *rk, const rd_kafka_message_t *rkmessage,
                        void *opaque) {
         static int say_once = 1;
         int32_t broker_id = -1;
+        struct buf *b = rkmessage->_private;
+
+        if (b)
+                buf_destroy(b);
 
         if (rkmessage->err) {
                 KC_INFO(1, "Delivery failed for message: %s\n",
@@ -165,7 +171,8 @@ static void dr_msg_cb (rd_kafka_t *rk, const rd_kafka_message_t *rkmessage,
  * exits hard on error.
  */
 static void produce (void *buf, size_t len,
-                     const void *key, size_t key_len, int msgflags) {
+                     const void *key, size_t key_len, int msgflags,
+                     void *msg_opaque) {
         rd_kafka_headers_t *hdrs = NULL;
 
         /* Headers are freed on successful producev(), pass a copy. */
@@ -188,6 +195,7 @@ static void produce (void *buf, size_t len,
                         RD_KAFKA_V_VALUE(buf, len),
                         RD_KAFKA_V_KEY(key, key_len),
                         RD_KAFKA_V_HEADERS(hdrs),
+                        RD_KAFKA_V_OPAQUE(msg_opaque),
                         RD_KAFKA_V_END);
 
                 if (!err) {
@@ -272,7 +280,7 @@ static ssize_t produce_file (const char *path) {
 
         KC_INFO(4, "Producing file %s (%"PRIdMAX" bytes)\n",
                 path, (intmax_t)st.st_size);
-        produce(ptr, sz, conf.fixed_key, conf.fixed_key_len, msgflags);
+        produce(ptr, sz, conf.fixed_key, conf.fixed_key_len, msgflags, NULL);
 
         _COMPAT(close)(fd);
 
@@ -287,20 +295,45 @@ static ssize_t produce_file (const char *path) {
 }
 
 
+static char *rd_strnstr (const char *haystack, size_t size,
+                         const char *needle, size_t needle_len) {
+        const char *nend = needle + needle_len - 1;
+        const char *t;
+        size_t of = needle_len - 1;
+
+        while (of < size &&
+               (t = (const char *)memchr((void *)(haystack + of),
+                                         (int)*nend,
+                                         size - of))) {
+                const char *n = nend;
+                const char *p = t;
+
+                do {
+                        n--;
+                        p--;
+                } while (n >= needle && *n == *p);
+
+                if (n < needle)
+                        return (char *)p+1;
+
+                of = (size_t)(t - haystack) + 1;
+        }
+
+        return NULL;
+}
+
+
 /**
  * Run producer, reading messages from 'fp' and producing to kafka.
  * Or if 'pathcnt' is > 0, read messages from files in 'paths' instead.
  */
 static void producer_run (FILE *fp, char **paths, int pathcnt) {
-        char   *sbuf  = NULL;
-        size_t  size = 0;
-        ssize_t len;
         char    errstr[512];
         char    tmp[2];
+        size_t  tsize = sizeof(tmp);
 
-        size = sizeof(tmp);
         if (rd_kafka_conf_get(conf.rk_conf, "transactional.id",
-                              tmp, &size) == RD_KAFKA_CONF_OK && size > 1) {
+                              tmp, &tsize) == RD_KAFKA_CONF_OK && tsize > 1) {
                 KC_INFO(1, "Using transactional producer\n");
                 conf.txn = 1;
         }
@@ -359,40 +392,35 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                                 pathcnt - good, pathcnt);
 
         } else {
+                struct inbuf inbuf;
+                struct buf *b;
+
+                inbuf_init(&inbuf, conf.msg_size, conf.delim, conf.delim_size);
+
                 /* Read messages from input, delimited by conf.delim */
                 while (conf.run &&
-                       (len = getdelim(&sbuf, &size, conf.delim, fp)) != -1) {
+                       inbuf_read_to_delimeter(&inbuf, fp, &b)) {
                         int msgflags = 0;
-                        char *buf = sbuf;
+                        char *buf = b->buf;
                         char *key = NULL;
                         size_t key_len = 0;
-                        size_t orig_len = len;
+                        size_t len = b->size;
 
-                        if (len == 0)
+                        if (len == 0) {
+                                buf_destroy(b);
                                 continue;
-
-                        /* Shave off delimiter */
-                        if ((int)buf[len-1] == conf.delim)
-                                len--;
-
-                        if (len == 0)
-                                continue;
+                        }
 
                         /* Extract key, if desired and found. */
                         if (conf.flags & CONF_F_KEY_DELIM) {
                                 char *t;
-                                if ((t = memchr(buf, conf.key_delim, len))) {
-                                        key_len = (size_t)(t-sbuf);
+                                if ((t = rd_strnstr(buf, len,
+                                                    conf.key_delim,
+                                                    conf.key_delim_size))) {
+                                        key_len = (size_t)(t-buf);
                                         key     = buf;
-                                        buf    += key_len+1;
-                                        len    -= key_len+1;
-
-                                        /* Since buf has been forwarded
-                                         * from its initial allocation point
-                                         * we must make sure we dont tell
-                                         * librdkafka to free it (since the
-                                         * address would be wrong). */
-                                        msgflags |= RD_KAFKA_MSG_F_COPY;
+                                        buf     = t + conf.key_delim_size;
+                                        len    -= key_len + conf.key_delim_size;
 
                                         if (conf.flags & CONF_F_NULL) {
                                                 if (len == 0)
@@ -408,36 +436,27 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                                 key_len = conf.fixed_key_len;
                         }
 
-                        if (!(msgflags & RD_KAFKA_MSG_F_COPY) &&
-                            len > 1024 && !(conf.flags & CONF_F_TEE)) {
-                                /* If message is larger than this arbitrary
+                        if (len < 1024) {
+                                /* If message is smaller than this arbitrary
                                  * threshold it will be more effective to
-                                 * not copy the data but let rdkafka own it
-                                 * instead.
-                                 *
-                                 * Note that CONF_T_TEE must be checked,
-                                 * otherwise a possible race might occur.
-                                 * */
-                                msgflags |= RD_KAFKA_MSG_F_FREE;
-                        } else {
-                                /* For smaller messages a copy is
-                                 * more efficient. */
+                                 * copy the data in librdkafka. */
                                 msgflags |= RD_KAFKA_MSG_F_COPY;
                         }
 
                         /* Produce message */
-                        produce(buf, len, key, key_len, msgflags);
+                        produce(buf, len, key, key_len, msgflags,
+                                (msgflags & RD_KAFKA_MSG_F_COPY) ?
+                                NULL : b);
 
                         if (conf.flags & CONF_F_TEE &&
-                            fwrite(sbuf, orig_len, 1, stdout) != 1)
-                                KC_FATAL("Tee write error for message of %zd bytes: %s",
-                                         orig_len, strerror(errno));
+                            fwrite(b->buf, b->size, 1, stdout) != 1)
+                                KC_FATAL("Tee write error for message "
+                                         "of %zd bytes: %s",
+                                         b->size, strerror(errno));
 
-                        if (msgflags & RD_KAFKA_MSG_F_FREE) {
-                                /* rdkafka owns the allocated buffer
-                                 * memory now. */
-                                sbuf  = NULL;
-                                size = 0;
+                        if (msgflags & RD_KAFKA_MSG_F_COPY) {
+                                /* librdkafka made a copy of the input. */
+                                buf_destroy(b);
                         }
 
                         /* Enforce -c <cnt> */
@@ -487,9 +506,6 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
 
         rd_kafka_topic_destroy(conf.rkt);
         rd_kafka_destroy(conf.rk);
-
-        if (sbuf)
-                free(sbuf);
 
         if (stats.tx_err_dr)
                 conf.exitcode = 1;
@@ -565,13 +581,14 @@ static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
                 int64_t ts = rd_kafka_message_timestamp(rkmessage, NULL);
                 if (ts >= conf.stopts) {
                         stop_partition(rkmessage);
-                        KC_INFO(1, "Reached stop timestamp for topic %s [%"PRId32"] "
+                        KC_INFO(1, "Reached stop timestamp for topic "
+                                "%s [%"PRId32"] "
                                 "at offset %"PRId64"%s\n",
                                 rd_kafka_topic_name(rkmessage->rkt),
                                 rkmessage->partition,
                                 rkmessage->offset,
                                 !conf.run ? ": exiting" : "");
-                        return;                       
+                        return;
                 }
         }
 
@@ -1057,7 +1074,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
         fprintf(out,
                 "kafkacat - Apache Kafka producer and consumer tool\n"
                 "https://github.com/edenhill/kafkacat\n"
-                "Copyright (c) 2014-2019, Magnus Edenhill\n"
+                "Copyright (c) 2014-2020, Magnus Edenhill\n"
                 "Version %s (%slibrdkafka %s builtin.features=%s)\n"
                 "\n",
                 KAFKACAT_VERSION,
@@ -1089,8 +1106,8 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "or list\n"
                 "  -p <partition>     Partition\n"
                 "  -b <brokers,..>    Bootstrap broker(s) (host[:port])\n"
-                "  -D <delim>         Message delimiter character:\n"
-                "                     a-z.. | \\r | \\n | \\t | \\xNN\n"
+                "  -D <delim>         Message delimiter string:\n"
+                "                     a-z | \\r | \\n | \\t | \\xNN ..\n"
                 "                     Default: \\n\n"
                 "  -E                 Do not exit on non fatal error\n"
                 "  -K <delim>         Key delimiter (same format as -D)\n"
@@ -1325,19 +1342,41 @@ static void error_cb (rd_kafka_t *rk, int err,
 
 
 /**
- * Parse delimiter string from command line arguments.
+ * @brief Parse delimiter string from command line arguments and return
+ *        an allocated copy.
  */
-static int parse_delim (const char *str) {
-        int delim;
-        if (!strncmp(str, "\\x", strlen("\\x")))
-                delim = strtoul(str+strlen("\\x"), NULL, 16) & 0xff;
-        else if (!strcmp(str, "\\n"))
-                delim = (int)'\n';
-        else if (!strcmp(str, "\\t"))
-                delim = (int)'\t';
-        else
-                delim = (int)*str & 0xff;
-        return delim;
+static char *parse_delim (const char *instr) {
+        char *str;
+
+        /* Make a copy so we can modify the string. */
+        str = strdup(instr);
+
+        while (1) {
+                size_t skip = 0;
+                char *t;
+
+                if ((t = strstr(str, "\\n"))) {
+                        *t = '\n';
+                        skip = 1;
+                } else if ((t = strstr(str, "\\t"))) {
+                        *t = '\t';
+                        skip = 1;
+                } else if ((t = strstr(str, "\\x"))) {
+                        char *end;
+                        int x;
+                        x = strtoul(t+strlen("\\x"), &end, 16) & 0xff;
+                        if (end == t+strlen("\\x"))
+                                KC_FATAL("Delimiter %s expects hex number", t);
+                        *t = (char)x;
+                        skip = (int)(end - t) - 1;
+                } else
+                        break;
+
+                if (t && skip)
+                        memmove(t+1, t+1+skip, strlen(t+1+skip)+1);
+        }
+
+        return str;
 }
 
 /**
@@ -1624,6 +1663,103 @@ static void read_default_conf_files (void) {
         read_conf_file(path, 0/*not fatal*/);
 }
 
+
+
+static int unittest_strnstr (void) {
+        struct {
+                const char *sep;
+                const char *hay;
+                int offset;
+        } exp[] = {
+                { ";Sep;", ";Sep;Post", 0 },
+                { ";Sep;", ";Sep;", 0 },
+                { ";Sep;", "Pre;Sep;Post", 3 },
+                { ";Sep;", "Pre;Sep;", 3 },
+                { ";Sep;", "Pre;SepPost", -1 },
+                { ";KeyDel;", "Key1;KeyDel;Value1", 4 },
+                { ";", "Is The;", 6 },
+                { NULL },
+        };
+        int i;
+        int fails = 0;
+
+        for (i = 0 ; exp[i].sep ; i++) {
+                const char *t = rd_strnstr(exp[i].hay, strlen(exp[i].hay),
+                                           exp[i].sep, strlen(exp[i].sep));
+                const char *e = exp[i].hay + exp[i].offset;
+                const char *fail = NULL;
+
+                if (exp[i].offset == -1) {
+                        if (t)
+                                fail = "expected no match";
+                } else if (!t) {
+                        fail = "expected match";
+                } else if (t != e)
+                        fail = "invalid match";
+
+                if (!fail)
+                        continue;
+
+                fprintf(stderr,
+                        "%s: FAILED: for hay %d: "
+                        "match is %p '%s' for %p '%s' in %p '%s' "
+                        "(want offset %d, not %d): %s\n",
+                        __FUNCTION__,
+                        i,
+                        t, t,
+                        exp[i].sep, exp[i].sep,
+                        exp[i].hay, exp[i].hay,
+                        exp[i].offset,
+                        t ? (int)(t - exp[i].hay) : -1,
+                        fail);
+                fails++;
+        }
+
+        return fails;
+}
+
+static int unittest_parse_delim (void) {
+        struct {
+                const char *in;
+                const char *exp;
+        } delims[] = {
+                { "", "" },
+                { "\\n", "\n" },
+                { "\\t\\n\\n", "\t\n\n" },
+                { "\\x54!\\x45\\x53T", "T!EST" },
+                { "\\x30", "0" },
+                { NULL }
+        };
+        int i;
+        int fails = 0;
+
+        for (i = 0 ; delims[i].in ; i++) {
+                char *out = parse_delim(delims[i].in);
+                if (strcmp(out, delims[i].exp))
+                        fprintf(stderr, "%s: FAILED: "
+                                "expected '%s' to return '%s', not '%s'\n",
+                                __FUNCTION__, delims[i].in, delims[i].exp, out);
+                free(out);
+        }
+
+        return fails;
+}
+
+
+/**
+ * @brief Run unittests
+ *
+ * @returns the number of failed tests.
+ */
+static int unittest (void) {
+        int r = 0;
+
+        r += unittest_strnstr();
+        r += unittest_parse_delim();
+
+        return r;
+}
+
 /**
  * @brief Add a single header specified as a command line option.
  *
@@ -1668,7 +1804,7 @@ static void argparse (int argc, char **argv,
 
         while ((opt = getopt(argc, argv,
                              ":PCG:LQt:p:b:z:o:eED:K:k:H:Od:qvF:X:c:Tuf:ZlVh"
-                             "s:r:Jm:")) != -1) {
+                             "s:r:Jm:U")) != -1) {
                 switch (opt) {
                 case 'P':
                 case 'C':
@@ -1787,10 +1923,6 @@ static void argparse (int argc, char **argv,
 #endif
                         break;
                 case 'D':
-                        if (strlen(optarg) != 1)
-                                KC_FATAL("Message delimiter -D must be exactly "
-                                         "one byte (no multi-byte unicode "
-                                         "code points)");
                         delim = optarg;
                         break;
                 case 'K':
@@ -1879,6 +2011,13 @@ static void argparse (int argc, char **argv,
                                 KC_FATAL("%s", errstr);
                 }
                 break;
+
+                case 'U':
+                        if (unittest())
+                                exit(1);
+                        else
+                                exit(0);
+                        break;
 
                 case 'V':
                         usage(argv[0], 0, NULL, 1);
@@ -2018,6 +2157,22 @@ static void argparse (int argc, char **argv,
 #endif
 
 
+        if (key_delim) {
+                conf.key_delim = parse_delim(key_delim);
+                conf.key_delim_size = strlen(conf.key_delim);
+        } else {
+                conf.key_delim = "";
+                conf.key_delim_size = 0;
+        }
+
+        if (delim) {
+                conf.delim = parse_delim(delim);
+                conf.delim_size = strlen(conf.delim);
+        } else {
+                conf.delim = "";
+                conf.delim_size = 0;
+        }
+
         if (strchr("GC", conf.mode)) {
                 /* Must be explicitly enabled for librdkafka >= v1.0.0 */
                 rd_kafka_conf_set(conf.rk_conf, "enable.partition.eof", "true",
@@ -2027,15 +2182,15 @@ static void argparse (int argc, char **argv,
                         if ((conf.flags & CONF_F_FMT_JSON)) {
                                 /* For JSON the format string is simply the
                                  * output object delimiter (e.g., newline). */
-                                fmt = delim;
+                                fmt = conf.delim;
                         } else {
-                                if (key_delim)
+                                if (conf.key_delim)
                                         snprintf(tmp_fmt, sizeof(tmp_fmt),
                                                  "%%k%s%%s%s",
-                                                 key_delim, delim);
+                                                 conf.key_delim, conf.delim);
                                 else
                                         snprintf(tmp_fmt, sizeof(tmp_fmt),
-                                                 "%%s%s", delim);
+                                                 "%%s%s", conf.delim);
                                 fmt = tmp_fmt;
                         }
                 }
@@ -2043,9 +2198,9 @@ static void argparse (int argc, char **argv,
                 fmt_parse(fmt);
 
         } else if (conf.mode == 'P') {
-                conf.delim = parse_delim(delim);
-                if (conf.flags & CONF_F_KEY_DELIM)
-                        conf.key_delim = parse_delim(key_delim);
+                if (conf.delim_size == 0)
+                        KC_FATAL("Message delimiter -D must not be empty "
+                                 "when producing");
         }
 
         /* Automatically enable API version requests if needed and
@@ -2079,12 +2234,6 @@ int main (int argc, char **argv) {
                         memmove(&argv[1], &argv[2], sizeof(*argv) * (argc - 2));
                 argc--;
         }
-
-        signal(SIGINT, term);
-        signal(SIGTERM, term);
-#ifdef SIGPIPE
-        signal(SIGPIPE, term);
-#endif
 
         /* Seed rng for random partitioner, jitter, etc. */
         rd_gettimeofday(&tv, NULL);
@@ -2124,6 +2273,12 @@ int main (int argc, char **argv) {
                                       strerror(errno));
                 }
         }
+
+        signal(SIGINT, term);
+        signal(SIGTERM, term);
+#ifdef SIGPIPE
+        signal(SIGPIPE, term);
+#endif
 
         /* Run according to mode */
         switch (conf.mode)
@@ -2167,6 +2322,11 @@ int main (int argc, char **argv) {
 
         if (conf.headers)
                 rd_kafka_headers_destroy(conf.headers);
+
+        if (conf.key_delim)
+                free(conf.key_delim);
+        if (conf.delim)
+                free(conf.delim);
 
         if (in != stdin)
                 fclose(in);
