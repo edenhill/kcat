@@ -5,7 +5,13 @@ compiler:
 os:
   - linux
   - osx
-
+arch:
+  - amd64
+  - ppc64le
+matrix:
+   exclude:
+      - os: osx
+        arch: ppc64le
 before_install:
   - if [[ $TRAVIS_OS_NAME == linux ]]; then sudo apt-get update -qq && sudo apt-get install -y libssl-dev libsasl2-dev libcurl4-openssl-dev libjansson-dev ; fi
   - if [[ $TRAVIS_OS_NAME == osx ]]; then brew install openssl curl jansson ; fi
