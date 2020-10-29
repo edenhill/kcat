@@ -96,7 +96,7 @@ void fmt_msg_output_json (FILE *fp, const rd_kafka_message_t *rkmessage) {
                         size_t size;
 
                         JS_STR(g, "headers");
-                        yajl_gen_array_open(g);
+                        yajl_gen_map_open(g);
 
                         while (!rd_kafka_header_get_all(hdrs, idx++, &name,
                                                         &value, &size)) {
@@ -107,7 +107,7 @@ void fmt_msg_output_json (FILE *fp, const rd_kafka_message_t *rkmessage) {
                                         yajl_gen_null(g);
                         }
 
-                        yajl_gen_array_close(g);
+                        yajl_gen_map_close(g);
                 }
         }
 #endif
