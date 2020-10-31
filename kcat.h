@@ -106,6 +106,7 @@ struct conf {
 #define CONF_F_FMT_AVRO_KEY   0x400 /* Convert key from Avro to JSON */
 #define CONF_F_FMT_AVRO_VALUE 0x800 /* Convert value from Avro to JSON  */
 #define CONF_F_SR_URL_SEEN    0x1000 /* schema.registry.url/-r seen */
+#define CONF_F_HDR_JSON_MAP   0x2000 /* Display headers as map in JSON */
         char   *delim;
         size_t  delim_size;
         char   *key_delim;

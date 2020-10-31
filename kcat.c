@@ -1428,6 +1428,9 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "                     Takes precedence over -D and -K.\n"
 #if ENABLE_JSON
                 "  -J                 Output with JSON envelope\n"
+#if HAVE_HEADERS
+                "  -n                 Display headers as map\n"
+#endif
 #endif
                 "  -s key=<serdes>    Deserialize non-NULL keys using <serdes>.\n"
                 "  -s value=<serdes>  Deserialize non-NULL values using <serdes>.\n"
@@ -2088,7 +2091,7 @@ static void argparse (int argc, char **argv,
 
         while ((opt = getopt(argc, argv,
                              ":PCG:LQM:t:p:b:z:o:eED:K:k:H:Od:qvF:X:c:Tuf:ZlVh"
-                             "s:r:Jm:U")) != -1) {
+                             "s:r:Jnm:U")) != -1) {
                 switch (opt) {
                 case 'P':
                 case 'C':
@@ -2184,6 +2187,13 @@ static void argparse (int argc, char **argv,
                 case 'J':
 #if ENABLE_JSON
                         conf.flags |= CONF_F_FMT_JSON;
+#else
+                        KC_FATAL("This build of kcat lacks JSON support");
+#endif
+                        break;
+                case 'n':
+#if ENABLE_JSON && HAVE_HEADERS
+                        conf.flags |= CONF_F_HDR_JSON_MAP;
 #else
                         KC_FATAL("This build of kcat lacks JSON support");
 #endif
