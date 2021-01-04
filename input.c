@@ -2,7 +2,9 @@
 #include "input.h"
 
 #include <stdlib.h>
+#ifndef _MSC_VER
 #include <sys/mman.h>
+#endif
 
 void buf_destroy (struct buf *b) {
 #ifdef MREMAP_MAYMOVE
