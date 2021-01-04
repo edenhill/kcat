@@ -131,8 +131,11 @@ struct conf {
         int64_t startts;
         int64_t stopts;
 #endif
-        int     exit_eof;
         int64_t msg_cnt;
+        int     exit_eof;
+        int     eof_cnt;  /**< Current number of partitions reached EOF */
+        rd_kafka_topic_partition_list_t *assignment; /**< Current -G consumer
+                                                      *   assignment */
         int     metadata_timeout;
         char   *null_str;
         int     null_str_len;

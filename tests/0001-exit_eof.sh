@@ -27,7 +27,7 @@ timeout 5 $KAFKACAT -t $topic -o beginning && \
 # Balanced: Consume messages without -e, should timeout.
 info "Balanced consumer without -e"
 timeout 10 $KAFKACAT -G $topic -o beginning $topic && \
-    "Balanced consumer without -e should have timed out"
+    FAIL "Balanced consumer without -e should have timed out"
 
 
 # Legacy: Consume messages with -e, must not timeout
@@ -37,12 +37,9 @@ timeout 5 $KAFKACAT -t $topic -o beginning -e || \
 
 
 # Balanced: Consume messages without -e, should timeout.
-# FIXME: -e and -G doesn't currently work.
-if false; then
-    info "Balanced consumer with -e"
-    timeout 10 $KAFKACAT -G ${topic}_new -o beginning -e $topic || \
-        FAIL "Balanced consumer with -e timed out"
-fi
+info "Balanced consumer with -e"
+timeout 10 $KAFKACAT -G ${topic}_new -o beginning -e $topic || \
+    FAIL "Balanced consumer with -e timed out"
 
 PASS
 

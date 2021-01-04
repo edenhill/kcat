@@ -523,7 +523,35 @@ static void stop_partition (rd_kafka_message_t *rkmessage) {
         }
 }
 
-static void handle_partition_eof (rd_kafka_message_t *rkmessage) {
+
+/**
+ * @brief Mark partition as not at EOF
+ */
+static void partition_not_eof (const rd_kafka_message_t *rkmessage) {
+        rd_kafka_topic_partition_t *rktpar;
+
+        if (conf.mode != 'G' || !conf.exit_eof ||
+            !conf.assignment || conf.eof_cnt == 0)
+                return;
+
+        /* Find partition in assignment */
+        rktpar = rd_kafka_topic_partition_list_find(
+                conf.assignment,
+                rd_kafka_topic_name(rkmessage->rkt),
+                rkmessage->partition);
+
+        if (!rktpar || rktpar->err != RD_KAFKA_RESP_ERR__PARTITION_EOF)
+                return;
+
+        rktpar->err = RD_KAFKA_RESP_ERR_NO_ERROR;
+        conf.eof_cnt--;
+}
+
+
+/**
+ * @brief Mark partition as at EOF
+ */
+static void partition_at_eof (rd_kafka_message_t *rkmessage) {
 
         if (conf.mode == 'C') {
                 /* Store EOF offset.
@@ -537,9 +565,22 @@ static void handle_partition_eof (rd_kafka_message_t *rkmessage) {
                         stop_partition(rkmessage);
                 }
 
-        } else if (conf.mode == 'G') {
-                /* FIXME: Not currently handled */
+        } else if (conf.mode == 'G' && conf.exit_eof && conf.assignment) {
+                /* Find partition in assignment */
+                rd_kafka_topic_partition_t *rktpar;
 
+                rktpar = rd_kafka_topic_partition_list_find(
+                        conf.assignment,
+                        rd_kafka_topic_name(rkmessage->rkt),
+                        rkmessage->partition);
+
+                if (rktpar && rktpar->err != RD_KAFKA_RESP_ERR__PARTITION_EOF) {
+                        rktpar->err = RD_KAFKA_RESP_ERR__PARTITION_EOF;
+                        conf.eof_cnt++;
+
+                        if (conf.eof_cnt == conf.assignment->cnt)
+                                conf.run = 0;
+                }
         }
 
         KC_INFO(1, "Reached end of topic %s [%"PRId32"] "
@@ -562,7 +603,7 @@ static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
 
         if (rkmessage->err) {
                 if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
-                        handle_partition_eof(rkmessage);
+                        partition_at_eof(rkmessage);
                         return;
                 }
 
@@ -575,6 +616,8 @@ static void consume_cb (rd_kafka_message_t *rkmessage, void *opaque) {
                         KC_FATAL("Consumer error: %s",
                                  rd_kafka_message_errstr(rkmessage));
 
+        } else {
+                partition_not_eof(rkmessage);
         }
 
         if (conf.stopts) {
@@ -722,12 +765,16 @@ static void kafkaconsumer_run (FILE *fp, char *const *topics, int topic_cnt) {
         }
 
         if ((err = rd_kafka_consumer_close(conf.rk)))
-                KC_FATAL("Failed to close consumer: %s\n", rd_kafka_err2str(err));
+                KC_FATAL("Failed to close consumer: %s\n",
+                         rd_kafka_err2str(err));
 
         /* Wait for outstanding requests to finish. */
         conf.run = 1;
         while (conf.run && rd_kafka_outq_len(conf.rk) > 0)
                 rd_kafka_poll(conf.rk, 50);
+
+        if (conf.assignment)
+                rd_kafka_topic_partition_list_destroy(conf.assignment);
 
         rd_kafka_destroy(conf.rk);
 }
@@ -736,7 +783,7 @@ static void kafkaconsumer_run (FILE *fp, char *const *topics, int topic_cnt) {
 /**
  * Get offsets from conf.startts for consumer_run
  */
-static int64_t *get_offsets(rd_kafka_metadata_topic_t *topic) {
+static int64_t *get_offsets (rd_kafka_metadata_topic_t *topic) {
         int i;
         int64_t *offsets;
         rd_kafka_resp_err_t err;
@@ -751,9 +798,10 @@ static int64_t *get_offsets(rd_kafka_metadata_topic_t *topic) {
                     conf.partition != partition)
                         continue;
 
-                rd_kafka_topic_partition_list_add(rktparlistp,
-                                                  rd_kafka_topic_name(conf.rkt),
-                                                  partition)->offset = conf.startts;
+                rd_kafka_topic_partition_list_add(
+                        rktparlistp,
+                        rd_kafka_topic_name(conf.rkt),
+                        partition)->offset = conf.startts;
 
                 if (conf.partition != RD_KAFKA_PARTITION_UA)
                         break;
@@ -919,6 +967,9 @@ static void consumer_run (FILE *fp) {
         conf.run = 1;
         while (conf.run && rd_kafka_outq_len(conf.rk) > 0)
                 rd_kafka_poll(conf.rk, 50);
+
+        if (conf.assignment)
+                rd_kafka_topic_partition_list_destroy(conf.assignment);
 
         rd_kafka_metadata_destroy(metadata);
         rd_kafka_topic_destroy(conf.rkt);
