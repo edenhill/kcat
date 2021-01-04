@@ -26,6 +26,9 @@ install-man:
 
 clean: bin-clean
 
+test:
+	$(MAKE) -C tests
+
 TAGS: .PHONY
 	@(if which etags >/dev/null 2>&1 ; then \
 		echo "Using etags to generate $@" ; \
