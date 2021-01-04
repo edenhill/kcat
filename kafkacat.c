@@ -55,6 +55,10 @@
 #define ENABLE_TXNS 1
 #endif
 
+#if RD_KAFKA_VERSION >= 0x01060000
+#define ENABLE_INCREMENTAL_ASSIGN 1
+#endif
+
 
 struct conf conf = {
         .run = 1,
@@ -673,9 +677,100 @@ static void print_partition_list (int is_assigned,
         fprintf(stderr, "\n");
 }
 
+
+#if ENABLE_INCREMENTAL_ASSIGN
+static void
+incremental_rebalance_cb (rd_kafka_t *rk, rd_kafka_resp_err_t err,
+                          rd_kafka_topic_partition_list_t *partitions,
+                          void *opaque) {
+        rd_kafka_error_t *error = NULL;
+        int i;
+
+        KC_INFO(1, "Group %s rebalanced: incremental %s of %d partition(s) "
+                "(memberid %s%s, %s rebalance protocol): ",
+                conf.group,
+                err == RD_KAFKA_RESP_ERR__ASSIGN_PARTITIONS ?
+                "assignment" : "revoke",
+                partitions->cnt,
+                rd_kafka_memberid(rk),
+                rd_kafka_assignment_lost(rk) ? ", assignment lost" : "",
+                rd_kafka_rebalance_protocol(rk));
+
+        switch (err)
+        {
+        case RD_KAFKA_RESP_ERR__ASSIGN_PARTITIONS:
+                if (conf.verbosity >= 1)
+                        print_partition_list(1, partitions);
+
+                if (!conf.assignment)
+                        conf.assignment =
+                                rd_kafka_topic_partition_list_new(
+                                        partitions->cnt);
+
+                for (i = 0 ; i < partitions->cnt ; i++) {
+                        rd_kafka_topic_partition_t *rktpar =
+                                &partitions->elems[i];
+
+                        /* Set start offset from -o .. */
+                        if (conf.offset != RD_KAFKA_OFFSET_INVALID)
+                                rktpar->offset = conf.offset;
+
+                        rktpar->offset = conf.offset;
+
+                        rd_kafka_topic_partition_list_add(conf.assignment,
+                                                          rktpar->topic,
+                                                          rktpar->partition);
+                }
+                error = rd_kafka_incremental_assign(rk, partitions);
+                break;
+
+        case RD_KAFKA_RESP_ERR__REVOKE_PARTITIONS:
+                if (conf.verbosity >= 1)
+                        print_partition_list(1, partitions);
+
+                /* Remove partitions from conf.assignment in reverse order
+                 * to minimize array shrink sizes. */
+                for (i = partitions->cnt - 1 ;
+                     conf.assignment && i >= 0 ;
+                     i--) {
+                        rd_kafka_topic_partition_t *rktpar =
+                                &partitions->elems[i];
+
+                        rd_kafka_topic_partition_list_del(conf.assignment,
+                                                          rktpar->topic,
+                                                          rktpar->partition);
+                }
+
+                error = rd_kafka_incremental_unassign(rk, partitions);
+                break;
+
+        default:
+                KC_INFO(0, "failed: %s\n", rd_kafka_err2str(err));
+                break;
+        }
+
+        if (error) {
+                KC_ERROR("Incremental rebalance %s of %d partition(s) "
+                         "failed: %s\n",
+                         err == RD_KAFKA_RESP_ERR__ASSIGN_PARTITIONS ?
+                         "assign" : "unassign",
+                         partitions->cnt, rd_kafka_error_string(error));
+                rd_kafka_error_destroy(error);
+        }
+}
+#endif
+
 static void rebalance_cb (rd_kafka_t *rk, rd_kafka_resp_err_t err,
                           rd_kafka_topic_partition_list_t *partitions,
                           void *opaque) {
+        rd_kafka_resp_err_t ret_err = RD_KAFKA_RESP_ERR_NO_ERROR;
+
+#if ENABLE_INCREMENTAL_ASSIGN
+        if (!strcmp(rd_kafka_rebalance_protocol(rk), "COOPERATIVE")) {
+                incremental_rebalance_cb(rk, err, partitions, opaque);
+                return;
+        }
+#endif
 
         KC_INFO(1, "Group %s rebalanced (memberid %s): ",
                 conf.group, rd_kafka_memberid(rk));
@@ -692,7 +787,13 @@ static void rebalance_cb (rd_kafka_t *rk, rd_kafka_resp_err_t err,
                         for (i = 0 ; i < partitions->cnt ; i++)
                                 partitions->elems[i].offset = conf.offset;
                 }
-                rd_kafka_assign(rk, partitions);
+
+                if (conf.assignment)
+                        rd_kafka_topic_partition_list_destroy(conf.assignment);
+                conf.assignment =
+                        rd_kafka_topic_partition_list_copy(partitions);
+
+                ret_err = rd_kafka_assign(rk, partitions);
                 break;
 
         case RD_KAFKA_RESP_ERR__REVOKE_PARTITIONS:
@@ -700,13 +801,25 @@ static void rebalance_cb (rd_kafka_t *rk, rd_kafka_resp_err_t err,
                         fprintf(stderr, "revoked: ");
                         print_partition_list(1, partitions);
                 }
-                rd_kafka_assign(rk, NULL);
+
+                if (conf.assignment) {
+                        rd_kafka_topic_partition_list_destroy(conf.assignment);
+                        conf.assignment = NULL;
+                }
+
+                ret_err = rd_kafka_assign(rk, NULL);
                 break;
 
         default:
                 KC_INFO(0, "failed: %s\n", rd_kafka_err2str(err));
                 break;
         }
+
+        if (ret_err)
+                KC_ERROR("Rebalance %s of %d partition(s) failed: %s\n",
+                         err == RD_KAFKA_RESP_ERR__ASSIGN_PARTITIONS ?
+                         "assign" : "unassign",
+                         partitions->cnt, rd_kafka_err2str(ret_err));
 }
 
 /**
@@ -1138,6 +1251,9 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
 #endif
 #if ENABLE_TXNS
                 "Transactions, "
+#endif
+#if ENABLE_INCREMENTAL_ASSIGN
+                "IncrementalAssign, "
 #endif
                 ,
                 rd_kafka_version_str(), features
