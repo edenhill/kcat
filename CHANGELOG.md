@@ -1,3 +1,10 @@
+# kafkacat v1.7.0
+
+ * Add support for multibyte delimiters to `-D` and `-K` (#140, #280)
+ * Add support for `-X partition.assignment.strategy=cooperative-sticky` incremental rebalancing.
+ * High-level consumer `-G` now supports exit-on-eof `-e` option (#86)
+
+
 # kafkacat v1.6.0
 
  * Transactional Producer support (see below).

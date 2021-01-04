@@ -2,7 +2,7 @@
 #
 
 mkl_require good_cflags
-mkl_require gitversion as KAFKACAT_VERSION default 1.6.0
+mkl_require gitversion as KAFKACAT_VERSION default 1.7.0
 
 
 function checks {

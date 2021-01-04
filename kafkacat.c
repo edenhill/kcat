@@ -1673,11 +1673,8 @@ static int try_conf_set (const char *name, const char *val,
         if (!strcmp(name, "api.version.request"))
                 conf.flags |= CONF_F_APIVERREQ_USER;
 
-        /* Interception */
 #if RD_KAFKA_VERSION >= 0x00090000
-        if (!strcmp(name, "quota.support.enable"))
-                rd_kafka_conf_set_throttle_cb(conf.rk_conf,
-                                              throttle_cb);
+        rd_kafka_conf_set_throttle_cb(conf.rk_conf, throttle_cb);
 #endif
 
 

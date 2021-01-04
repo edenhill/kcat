@@ -66,7 +66,7 @@ And on Mac OS X with homebrew installed:
 brew install kafkacat
 ````
 
-See [this blog](https://rmoff.net/2020/04/20/how-to-install-kafkacat-on-fedora/) for how to install kafkacat on recent Fedora systems. 
+See [this blog](https://rmoff.net/2020/04/20/how-to-install-kafkacat-on-fedora/) for how to install kafkacat on recent Fedora systems.
 
 Otherwise follow directions below.
 
@@ -265,14 +265,14 @@ also [Confluent's kafkacat docker images on Docker Hub](https://hub.docker.com/r
 
 If you are connecting to Kafka brokers also running on Docker you should specify the network name as part of the `docker run` command using the `--network` parameter. For more details of networking with Kafka and Docker [see this post](https://rmoff.net/2018/08/02/kafka-listeners-explained/).
 
-Here are two short examples of using kafkacat from Docker. See the [Docker Hub listing](https://hub.docker.com/r/confluentinc/cp-kafkacat/) and [kafkacat docs](https://docs.confluent.io/current/app-development/kafkacat-usage.html) for more details: 
+Here are two short examples of using kafkacat from Docker. See the [Docker Hub listing](https://hub.docker.com/r/confluentinc/cp-kafkacat/) and [kafkacat docs](https://docs.confluent.io/current/app-development/kafkacat-usage.html) for more details:
 
 **Send messages using [here doc](http://tldp.org/LDP/abs/html/here-docs.html):**
 
 ```
-docker run --interactive --rm \
-        confluentinc/cp-kafkacat \
-        kafkacat -b kafka-broker:9092 \
+docker run -it --rm \
+        edenhill/kafkacat \
+                -b kafka-broker:9092 \
                 -t test \
                 -K: \
                 -P <<EOF
@@ -286,9 +286,9 @@ EOF
 **Consume messages:**
 
 ```
-docker run --tty --interactive --rm \
-           confluentinc/cp-kafkacat \
-           kafkacat -b kafka-broker:9092 \
+docker run -it --rm \
+        edenhill/kafkacat \
+           -b kafka-broker:9092 \
            -C \
            -f '\nKey (%K bytes): %k\t\nValue (%S bytes): %s\n\Partition: %p\tOffset: %o\n--\n' \
            -t test
