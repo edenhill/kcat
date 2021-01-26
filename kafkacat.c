@@ -124,7 +124,7 @@ void error0 (int exitonerror, const char *func, int line,
                 KC_INFO(2, "Error at %s:%i:\n", func, line);
 
         fprintf(stderr, "%% ERROR: %s%s\n",
-                buf, exitonerror ? " : terminating":"");
+                buf, exitonerror ? ": terminating":"");
 
         if (exitonerror)
                 exit(1);
