@@ -1395,7 +1395,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "                       or: -s avro - both key and value are Avro-serialized\n"
 #endif
 #if ENABLE_AVRO
-                "  -r <url>           Schema registry URL (requires avro deserializer to be used with -s)\n"
+                "  -r <url>           Schema registry URL (when avro deserializer is used with -s)\n"
 #endif
                 "  -D <delim>         Delimiter to separate messages on output\n"
                 "  -K <delim>         Print message keys prefixing the message\n"
@@ -1632,9 +1632,11 @@ static void conf_dump (void) {
 /**
  * @brief Try setting a config property. Provides "topic." fallthru.
  *
+ * @remark \p val may be truncated by this function.
+ *
  * @returns -1 on failure or 0 on success.
  */
-static int try_conf_set (const char *name, const char *val,
+static int try_conf_set (const char *name, char *val,
                          char *errstr, size_t errstr_size) {
         rd_kafka_conf_res_t res = RD_KAFKA_CONF_UNKNOWN;
         size_t srlen = strlen("schema.registry.");
@@ -1648,6 +1650,19 @@ static int try_conf_set (const char *name, const char *val,
                         conf.srconf = serdes_conf_new(NULL, 0, NULL);
 
                 if (!strcmp(name, "schema.registry.url")) {
+                        char *t;
+
+                        /* Trim trailing slashes from URL to avoid 404 */
+                        for (t = val + strlen(val) - 1;
+                             t >= val && *t == '/'; t--)
+                                *t = '\0';
+
+                        if (!*t) {
+                                snprintf(errstr, errstr_size,
+                                         "schema.registry.url is empty");
+                                return -1;
+                        }
+
                         conf.flags |= CONF_F_SR_URL_SEEN;
                         srlen = 0;
                 }
@@ -2098,9 +2113,11 @@ static void argparse (int argc, char **argv,
                 case 'r':
 #if ENABLE_AVRO
                         if (!*optarg)
-                                KC_FATAL("-s url must not be empty");
-                        conf.schema_registry_url = optarg;
-                        conf.flags |= CONF_F_SR_URL_SEEN;
+                                KC_FATAL("-r url must not be empty");
+
+                        if (try_conf_set("schema.registry.url", optarg,
+                                         errstr, sizeof(errstr)) == -1)
+                                KC_FATAL("%s", errstr);
 #else
                         KC_FATAL("This build of kafkacat lacks "
                                  "Avro/Schema-Registry support");
@@ -2310,30 +2327,14 @@ static void argparse (int argc, char **argv,
          * Verify and initialize Avro/SR
          */
 #if ENABLE_AVRO
-        if (!!(conf.flags & CONF_F_SR_URL_SEEN) !=
-            !!(conf.flags & (CONF_F_FMT_AVRO_VALUE|CONF_F_FMT_AVRO_KEY)))
-                KC_FATAL("-r requires -s avro and vice-versa");
+        if (conf.flags & (CONF_F_FMT_AVRO_VALUE|CONF_F_FMT_AVRO_KEY)) {
 
-        if (conf.schema_registry_url) {
-                char *t;
+                if (!(conf.flags & CONF_F_SR_URL_SEEN))
+                        KC_FATAL("-s avro requires -r <sr_url>");
 
                 if (!strchr("GC", conf.mode))
-                        KC_FATAL("Schema-registry support is only available "
-                                 "in the consumer");
-
-                /* Trim trailing slashes from URL to avoid 404 */
-                t = &conf.schema_registry_url[strlen(conf.
-                                                     schema_registry_url)-1];
-                while (t >= conf.schema_registry_url && *t == '/') {
-                        *t = '\0';
-                        t--;
-                }
-
-                if (try_conf_set("schema.registry.url",
-                                 conf.schema_registry_url,
-                                 errstr, sizeof(errstr)) == -1)
-                        KC_FATAL("%s", errstr);
-
+                        KC_FATAL("Avro and Schema-registry support is "
+                                 "currently only available in the consumer");
 
                 /* Initialize Avro/Schema-Registry client */
                 kc_avro_init(NULL, NULL, NULL, NULL);
