@@ -395,86 +395,169 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                         KC_INFO(1, "Failed to produce from %i/%i files\n",
                                 pathcnt - good, pathcnt);
 
-        } else {
-                struct inbuf inbuf;
-                struct buf *b;
-
-                inbuf_init(&inbuf, conf.msg_size, conf.delim, conf.delim_size);
-
-                /* Read messages from input, delimited by conf.delim */
-                while (conf.run &&
-                       inbuf_read_to_delimeter(&inbuf, fp, &b)) {
-                        int msgflags = 0;
-                        char *buf = b->buf;
-                        char *key = NULL;
-                        size_t key_len = 0;
-                        size_t len = b->size;
-
-                        if (len == 0) {
-                                buf_destroy(b);
-                                continue;
-                        }
-
-                        /* Extract key, if desired and found. */
-                        if (conf.flags & CONF_F_KEY_DELIM) {
-                                char *t;
-                                if ((t = rd_strnstr(buf, len,
-                                                    conf.key_delim,
-                                                    conf.key_delim_size))) {
-                                        key_len = (size_t)(t-buf);
-                                        key     = buf;
-                                        buf     = t + conf.key_delim_size;
-                                        len    -= key_len + conf.key_delim_size;
-
-                                        if (conf.flags & CONF_F_NULL) {
-                                                if (len == 0)
-                                                        buf = NULL;
-                                                if (key_len == 0)
-                                                        key = NULL;
-                                        }
-                                }
-                        }
-
-                        if (!key && conf.fixed_key) {
-                                key = conf.fixed_key;
-                                key_len = conf.fixed_key_len;
-                        }
-
-                        if (len < 1024) {
-                                /* If message is smaller than this arbitrary
-                                 * threshold it will be more effective to
-                                 * copy the data in librdkafka. */
-                                msgflags |= RD_KAFKA_MSG_F_COPY;
-                        }
-
-                        /* Produce message */
-                        produce(buf, len, key, key_len, msgflags,
-                                (msgflags & RD_KAFKA_MSG_F_COPY) ?
-                                NULL : b);
-
-                        if (conf.flags & CONF_F_TEE &&
-                            fwrite(b->buf, b->size, 1, stdout) != 1)
-                                KC_FATAL("Tee write error for message "
-                                         "of %zd bytes: %s",
-                                         b->size, strerror(errno));
-
-                        if (msgflags & RD_KAFKA_MSG_F_COPY) {
-                                /* librdkafka made a copy of the input. */
-                                buf_destroy(b);
-                        }
-
-                        /* Enforce -c <cnt> */
-                        if (stats.tx == (uint64_t)conf.msg_cnt)
-                                conf.run = 0;
-                }
-
-                if (conf.run) {
-                        if (!feof(fp))
-                                KC_FATAL("Unable to read message: %s",
-                                         strerror(errno));
-                }
         }
+        else if (conf.flags & CONF_F_FMT_JSON) {
+#ifndef ENABLE_JSON
+            KC_FATAL("This build lacks json support. It's is a bug to run here");
+#else
+            struct inbuf inbuf;
+            struct buf *b;
 
+            inbuf_init(&inbuf, conf.msg_size, conf.delim, conf.delim_size);
+
+            /* Read messages from input, delimited by conf.delim */
+            while (conf.run &&
+                    parse_json_message(&inbuf, fp, &b)) {
+                int msgflags = 0;
+                char *buf = b->buf;
+                char *key = NULL;
+                size_t key_len = 0;
+                size_t len = b->size;
+
+                if (len == 0) {
+                    buf_destroy(b);
+                    continue;
+                }
+
+                /* Extract key, if desired and found. */
+                if (conf.flags & CONF_F_KEY_DELIM) {
+                    char *t;
+                    if ((t = rd_strnstr(buf, len,
+                                        conf.key_delim,
+                                        conf.key_delim_size))) {
+                        key_len = (size_t)(t-buf);
+                        key     = buf;
+                        buf     = t + conf.key_delim_size;
+                        len    -= key_len + conf.key_delim_size;
+
+                        if (conf.flags & CONF_F_NULL) {
+                            if (len == 0)
+                                buf = NULL;
+                            if (key_len == 0)
+                                key = NULL;
+                        }
+                    }
+                }
+
+                if (!key && conf.fixed_key) {
+                    key = conf.fixed_key;
+                    key_len = conf.fixed_key_len;
+                }
+
+                if (len < 1024) {
+                    /* If message is smaller than this arbitrary
+                     * threshold it will be more effective to
+                     * copy the data in librdkafka. */
+                    msgflags |= RD_KAFKA_MSG_F_COPY;
+                }
+
+                /* Produce message */
+                produce(buf, len, key, key_len, msgflags,
+                        (msgflags & RD_KAFKA_MSG_F_COPY) ?
+                        NULL : b);
+
+                if (conf.flags & CONF_F_TEE &&
+                    fwrite(b->buf, b->size, 1, stdout) != 1)
+                    KC_FATAL("Tee write error for message "
+                             "of %zd bytes: %s",
+                             b->size, strerror(errno));
+
+                if (msgflags & RD_KAFKA_MSG_F_COPY) {
+                    /* librdkafka made a copy of the input. */
+                    buf_destroy(b);
+                }
+
+                /* Enforce -c <cnt> */
+                if (stats.tx == (uint64_t)conf.msg_cnt)
+                    conf.run = 0;
+            }
+
+            if (conf.run) {
+                if (!feof(fp))
+                    KC_FATAL("Unable to read message: %s",
+                             strerror(errno));
+            }
+#endif
+        }
+        else {
+            struct inbuf inbuf;
+            struct buf *b;
+
+            inbuf_init(&inbuf, conf.msg_size, conf.delim, conf.delim_size);
+
+            /* Read messages from input, delimited by conf.delim */
+            while (conf.run &&
+                   inbuf_read_to_delimeter(&inbuf, fp, &b)) {
+                int msgflags = 0;
+                char *buf = b->buf;
+                char *key = NULL;
+                size_t key_len = 0;
+                size_t len = b->size;
+
+                if (len == 0) {
+                    buf_destroy(b);
+                    continue;
+                }
+
+                /* Extract key, if desired and found. */
+                if (conf.flags & CONF_F_KEY_DELIM) {
+                    char *t;
+                    if ((t = rd_strnstr(buf, len,
+                                        conf.key_delim,
+                                        conf.key_delim_size))) {
+                        key_len = (size_t)(t-buf);
+                        key     = buf;
+                        buf     = t + conf.key_delim_size;
+                        len    -= key_len + conf.key_delim_size;
+
+                        if (conf.flags & CONF_F_NULL) {
+                            if (len == 0)
+                                buf = NULL;
+                            if (key_len == 0)
+                                key = NULL;
+                        }
+                    }
+                }
+
+                if (!key && conf.fixed_key) {
+                    key = conf.fixed_key;
+                    key_len = conf.fixed_key_len;
+                }
+
+                if (len < 1024) {
+                    /* If message is smaller than this arbitrary
+                     * threshold it will be more effective to
+                     * copy the data in librdkafka. */
+                    msgflags |= RD_KAFKA_MSG_F_COPY;
+                }
+
+                /* Produce message */
+                produce(buf, len, key, key_len, msgflags,
+                        (msgflags & RD_KAFKA_MSG_F_COPY) ?
+                        NULL : b);
+
+                if (conf.flags & CONF_F_TEE &&
+                    fwrite(b->buf, b->size, 1, stdout) != 1)
+                    KC_FATAL("Tee write error for message "
+                             "of %zd bytes: %s",
+                             b->size, strerror(errno));
+
+                if (msgflags & RD_KAFKA_MSG_F_COPY) {
+                    /* librdkafka made a copy of the input. */
+                    buf_destroy(b);
+                }
+
+                /* Enforce -c <cnt> */
+                if (stats.tx == (uint64_t)conf.msg_cnt)
+                    conf.run = 0;
+            }
+
+            if (conf.run) {
+                if (!feof(fp))
+                    KC_FATAL("Unable to read message: %s",
+                             strerror(errno));
+            }
+        }
 #if ENABLE_TXNS
         if (conf.txn) {
                 rd_kafka_error_t *error;
@@ -1336,6 +1419,9 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "                     input file(s) are fully read.\n"
                 "                     If kafkacat is terminated through Ctrl-C\n"
                 "                     (et.al) the transaction will be aborted.\n"
+#if ENABLE_JSON
+                "  -J                 Parse JSON envelope\n"
+#endif
                 "\n"
                 "Consumer options:\n"
                 "  -o <offset>        Offset to start consuming from:\n"

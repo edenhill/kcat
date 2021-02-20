@@ -33,7 +33,7 @@
 #include <stdlib.h>
 
 #include <librdkafka/rdkafka.h>
-
+#include "input.h"
 #include "rdport.h"
 
 #ifdef _MSC_VER
@@ -204,6 +204,7 @@ void partition_list_print_json (const rd_kafka_topic_partition_list_t *parts,
 void fmt_init_json (void);
 void fmt_term_json (void);
 int  json_can_emit_verbatim (void);
+void parse_json_message (struct inbuf *inbuf, FILE *fp, struct buf **outbuf);
 #endif
 
 #if ENABLE_AVRO
