@@ -8,3 +8,5 @@ set -e
 source helpers.sh
 
 $KAFKACAT -U
+
+PASS

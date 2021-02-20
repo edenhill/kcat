@@ -415,31 +415,6 @@ int json_can_emit_verbatim (void) {
 
 #include <assert.h>
 
-/*
- * {"topic":"sorted","partition":0,"offset":247,"tstype":"create","ts":1613826867904,"broker":0,"key":"","payload":""}
- */
-typedef enum {
-  noval, topic, partition, offset, tstype, ts, broker, key, payload
-} lasKey;
-
-typedef struct
-{
-    char *topic;
-    size_t topic_len;
-    int partition;
-    int offset;
-    char *tstype;
-    size_t tstype_len;
-    unsigned long long ts;
-    int broker;
-    char *key;
-    size_t key_len;
-    char *payload;
-    size_t payload_len;
-    int finished;
-    lastKey last;
-} kafkacatMessageContext;
-
 static void yajlTestFree(void *ctx, void * ptr) {
     free(ptr);
 }
@@ -455,9 +430,11 @@ static void * yajlTestRealloc(void *ctx, void *ptr, size_t sz) {
 
 #define BUF_SIZE 2048
 
-static int parse_string(void *ctx, const unsigned char *stringVal,
+static int parse_string(void *ctx_, const unsigned char *stringVal,
                             size_t stringLen) {
-    switch (ctx->last) {
+    kafkacatMessageContext *ctx = (kafkacatMessageContext *)ctx_;
+
+    switch (ctx->lastkey) {
         case topic:
             ctx->topic = stringVal;
             ctx->topic_len = stringLen;
@@ -475,19 +452,20 @@ static int parse_string(void *ctx, const unsigned char *stringVal,
             KC_ERROR("Has not read key");
             break;
         default:
-            KC_ERROR("Last key should not be string: %s", stringVal); // TODO better error message
+            KC_ERROR("Last key should not be string: %d", ctx->lastkey); // TODO better error message
             break;
     }
     return 1;
 }
 
-static int parse_map_key(void *ctx, const unsigned char *stringVal, size_t stringLen) {
-#define check_key(key) if (strncmp(#key, (char *)stringVal, stringLen) == 0) { ctx->last = key; return 1;}
+static int parse_map_key(void *ctx_, const unsigned char *stringVal, size_t stringLen) {
+    kafkacatMessageContext *ctx = (kafkacatMessageContext *)ctx_;
+#define check_key(key) if (strncmp(#key, (char *)stringVal, stringLen) == 0) { ctx->lastkey = key; printf("matched "#key"\n"); return 1;}
     check_key(topic)
     check_key(partition)
     check_key(offset)
-    check_key(tstype)
     check_key(ts)
+    check_key(tstype)
     check_key(broker)
     check_key(key)
     check_key(payload)
@@ -497,36 +475,39 @@ static int parse_map_key(void *ctx, const unsigned char *stringVal, size_t strin
 }
 
 static int parse_integer(void *ctx_, long long integerVal) {
+    printf("parse integer %lld\n", integerVal);
     kafkacatMessageContext *ctx = (kafkacatMessageContext *)ctx_;
-    switch (ctx->last) {
+    switch (ctx->lastkey) {
         case partition:
-            ctx->partition = stringVal;
+            ctx->partition = integerVal;
         case offset:
-            ctx->offset = stringVal;
+            ctx->offset = integerVal;
         case ts:
-            ctx->ts = stringVal;
+            ctx->ts = integerVal;
         case broker:
-            ctx->broker = stringVal;
+            ctx->broker = integerVal;
             break;
         case noval:
             KC_ERROR("Has not read key");
             break;
         default:
-            KC_ERROR("Last key should not be string: %s", integerVal); // TODO better error message
+            KC_ERROR("Last key should not be integer: %d", ctx->lastkey); // TODO better error message
             break;
     }
     return 1;
 }
 
 static int start_map(void *ctx) {
+    printf("start map\n");
     memset(ctx, 0, sizeof(kafkacatMessageContext));
     return 1;
 }
 
-static int end_map(void *ctx) {
+static int end_map(void *ctx_) {
+    printf("end map\n");
     kafkacatMessageContext *ctx = (kafkacatMessageContext *)ctx_;
     ctx->finished = 1;
-    return 0;
+    return 1;
 }
 
 static yajl_callbacks callbacks = {
@@ -543,32 +524,17 @@ static yajl_callbacks callbacks = {
         NULL
 };
 
+extern struct conf conf;
 
 /**
- * @brief Read up to delimiter and then return accumulated data in *inbuf.
+ * @brief Read json to eof.
  *
- * Call with *inbuf as NULL.
- *
- * @returns 0 on eof/error, else 1 inbuf is valid.
  */
-int parse_json_message (struct inbuf *inbuf, FILE *fp,
-                             struct buf **outbuf) {
-    /*
-     * 1. Make sure there is enough output buffer room for read_size.
-     * 2. Read up to read_size from input stream.
-     * 3. Scan output buffer from current scan position for delimiter using
-     *    Boyer-Moore (searched right-to-left).
-     * 4. If delimiter is not found, go to 1.
-     * 5. Skip delimiter and copy remaining buffer to new buffer.
-     * 6. Return original buffer to caller.
-     */
+void parse_json_message (FILE *fp, int (callback)(void *ctx, kafkacatMessageContext *msg), void *ctx2) {
+    static unsigned char fileData[65536];
 
-    if (!inbuf->buf)
-        return 0;  /* Previous EOF encountered, see below. */
-
-    size_t bufSize = BUF_SIZE;
     yajl_status stat;
-    size_t rd;
+    size_t rd = 0;
 
     kafkacatMessageContext ctx = { 0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0 , 0};
 
@@ -579,91 +545,41 @@ int parse_json_message (struct inbuf *inbuf, FILE *fp,
             (void *) NULL
     };
 
-    yajl_handle hand = yajl_alloc(&callbacks, &allocFuncs, NULL);
+    yajl_handle hand = yajl_alloc(&callbacks, &allocFuncs, &ctx);
 
     yajl_config(hand, yajl_allow_trailing_garbage, 1);
     yajl_config(hand, yajl_allow_multiple_values, 1);
     yajl_config(hand, yajl_allow_partial_values, 1);
 
 
-    while (1) {
-        size_t r;
-        size_t dof;
-        int delim_found;
-
-        inbuf_ensure(inbuf, read_size);
-
-        r = fread(inbuf->buf+inbuf->len, 1, read_size, fp);
-        if (r == 0 && inbuf->len == 0) {
-            /* EOF with no accumulated data */
-            inbuf_destroy(inbuf);
-            return 0;
+    while (conf.run) {
+        rd = fread((void *) fileData, 1, sizeof(fileData) - 1, stdin);
+        if (rd == 0) {
+            if (!feof(stdin)) {
+                KC_FATAL("error on file read: %s\n", strerror(errno));
+            }
+            break;
         }
+        fileData[rd] = 0;
 
-        inbuf->len += r;
-
-
-        if (delim_found) {
-            char *buf;
-            size_t size;
-
-            /* Delimiter found, split and return. */
-            inbuf_split(inbuf, dof, &buf, &size);
-
-            *outbuf = buf_new(buf, size);
-            return 1;
-
-        } else if (r == 0) {
-            /* EOF but we have accumulated data, return what
-             * we have. */
-            dof = inbuf->len;
-            *outbuf = buf_new(inbuf->buf, inbuf->len);
-            inbuf->buf = NULL;
-            return 1;
-        }
-    }
-
-    return 0; /* NOTREACHED */
-}
-
-
-int parse_message(int argc, char ** argv)
-{
-    size_t bufSize = BUF_SIZE;
-    yajl_status stat;
-    size_t rd;
-
-    kafkacatMessageContext ctx = { 0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0 , 0};
-
-    yajl_alloc_funcs allocFuncs = {
-            yajlTestMalloc,
-            yajlTestRealloc,
-            yajlTestFree,
-            (void *) NULL
-    };
-
-    yajl_handle hand = yajl_alloc(&callbacks, &allocFuncs, NULL);
-
-    yajl_config(hand, yajl_allow_trailing_garbage, 1);
-    yajl_config(hand, yajl_allow_multiple_values, 1);
-    yajl_config(hand, yajl_allow_partial_values, 1);
-
-    for (;;) {
-        /* read file data, now pass to parser */
         stat = yajl_parse(hand, fileData, rd);
 
         if (stat != yajl_status_ok) break;
+
+        if (ctx.finished && !ctx.processed) {
+            callback(ctx2, &ctx);
+            ctx.processed = 1;
+        }
     }
+
 
     stat = yajl_complete_parse(hand);
     if (stat != yajl_status_ok)
     {
-        unsigned char * str = yajl_get_error(hand, 0, fileData, rd);
-        fflush(stdout);
-        fprintf(stderr, "%s", (char *) str);
+        unsigned char *str = yajl_get_error(hand, 0, fileData, rd);
+        KC_ERROR("Error when parsing json %s", str);
         yajl_free_error(hand, str);
     }
 
     yajl_free(hand);
-    return 0;
 }
