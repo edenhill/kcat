@@ -26,7 +26,7 @@ install-man:
 
 clean: bin-clean
 
-test:
+test: all
 	$(MAKE) -C tests
 
 TAGS: .PHONY

@@ -193,6 +193,30 @@ void fmt_term (void);
 
 
 #if ENABLE_JSON
+
+typedef enum {
+    noval, topic, partition, offset, tstype, ts, broker, key, payload
+} lastKey;
+
+typedef struct
+{
+    const unsigned char *topic;
+    size_t topic_len;
+    int partition;
+    int offset;
+    const unsigned char *tstype;
+    size_t tstype_len;
+    unsigned long long ts;
+    int broker;
+    const unsigned char *key;
+    size_t key_len;
+    const unsigned char *payload;
+    size_t payload_len;
+    int finished;
+    int processed;
+    lastKey lastkey;
+} kafkacatMessageContext;
+
 /*
  * json.c
  */
@@ -204,7 +228,7 @@ void partition_list_print_json (const rd_kafka_topic_partition_list_t *parts,
 void fmt_init_json (void);
 void fmt_term_json (void);
 int  json_can_emit_verbatim (void);
-void parse_json_message (FILE *fp, int (callback)(void *ctx, kafkacatMessageContext *msg), void *ctx2);
+void parse_json_message (const unsigned char *buf, size_t len, kafkacatMessageContext *ctx);
 #endif
 
 #if ENABLE_AVRO

@@ -15,7 +15,7 @@ TEST_NAME=$(basename $0 | sed -e 's/\.sh$//')
 
 function make_topic_name {
     local name=$1
-    echo "kafkacat_test_$$_${RANDOM}_${TEST_NAME}name"
+    echo "kafkacat_test_$$_${RANDOM}_${TEST_NAME}"
 }
 
 

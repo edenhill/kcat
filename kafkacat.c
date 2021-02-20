@@ -326,35 +326,6 @@ static char *rd_strnstr (const char *haystack, size_t size,
         return NULL;
 }
 
-static int produce_message(void *ctx, kafkacatMessageContext *msg) {
-    int msgflags = 0;
-//    if (msg->payload_len < 1024) {
-        /* we always copy since msg type is not buf
-         * TODO use pointer when dealing with large messages */
-        msgflags |= RD_KAFKA_MSG_F_COPY;
-//    }
-
-    /* Produce message */
-    produce((void *)msg->payload, msg->payload_len, msg->key, msg->key_len, msgflags,
-            (msgflags & RD_KAFKA_MSG_F_COPY) ?
-            NULL : msg);
-
-    if (conf.flags & CONF_F_TEE &&
-        fwrite(msg->payload, msg->payload_len, 1, stdout) != 1)
-        KC_FATAL("Tee write error for message "
-                 "of %zd bytes: %s",
-                 msg->payload_len, strerror(errno));
-
-    if (msgflags & RD_KAFKA_MSG_F_COPY) {
-        // we do nothing since memory is managed by yajl
-    }
-
-    /* Enforce -c <cnt> */
-    if (stats.tx == (uint64_t)conf.msg_cnt)
-        conf.run = 0;
-
-    return 0; // does not have effects yet;
-}
 /**
  * Run producer, reading messages from 'fp' and producing to kafka.
  * Or if 'pathcnt' is > 0, read messages from files in 'paths' instead.
@@ -428,7 +399,62 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
 #ifndef ENABLE_JSON
             KC_FATAL("This build lacks json support. It's is a bug to run here");
 #else
-            parse_json_message(fp, produce_message, NULL);
+            struct inbuf inbuf;
+            struct buf *b;
+
+            inbuf_init(&inbuf, conf.msg_size, "\"}", 2);
+
+            /* Read messages from input, delimited by conf.delim */
+            while (conf.run &&
+                   inbuf_read_to_delimeter(&inbuf, fp, &b)) {
+                int msgflags = 0;
+
+                if (b->size == 0) {
+                    buf_destroy(b);
+                    continue;
+                }
+
+                kafkacatMessageContext msg;
+                memset(&msg, 0, sizeof(kafkacatMessageContext));
+
+                parse_json_message(b->buf, b->size + 2, &msg);
+                const unsigned char *buf = msg.payload;
+                size_t len = msg.payload_len;
+                const unsigned char *key = msg.key;
+                size_t key_len = msg.key_len;
+                // TODO memory
+                if (!key && conf.fixed_key) {
+                    key = (const unsigned char*)conf.fixed_key;
+                    key_len = conf.fixed_key_len;
+                }
+
+                if (len < 1024) {
+                    /* If message is smaller than this arbitrary
+                     * threshold it will be more effective to
+                     * copy the data in librdkafka. */
+                    msgflags |= RD_KAFKA_MSG_F_COPY;
+                }
+
+                /* Produce message */
+                produce((char *)buf, len, key, key_len, msgflags,
+                        (msgflags & RD_KAFKA_MSG_F_COPY) ?
+                        NULL : b);
+
+                if (conf.flags & CONF_F_TEE &&
+                    fwrite(b->buf, b->size, 1, stdout) != 1)
+                    KC_FATAL("Tee write error for message "
+                             "of %zd bytes: %s",
+                             b->size, strerror(errno));
+
+                if (msgflags & RD_KAFKA_MSG_F_COPY) {
+                    /* librdkafka made a copy of the input. */
+                    buf_destroy(b);
+                }
+
+                /* Enforce -c <cnt> */
+                if (stats.tx == (uint64_t)conf.msg_cnt)
+                    conf.run = 0;
+            }
 
             if (conf.run) {
                 if (!feof(fp))

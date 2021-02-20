@@ -460,7 +460,7 @@ static int parse_string(void *ctx_, const unsigned char *stringVal,
 
 static int parse_map_key(void *ctx_, const unsigned char *stringVal, size_t stringLen) {
     kafkacatMessageContext *ctx = (kafkacatMessageContext *)ctx_;
-#define check_key(key) if (strncmp(#key, (char *)stringVal, stringLen) == 0) { ctx->lastkey = key; printf("matched "#key"\n"); return 1;}
+#define check_key(key) if (strncmp(#key, (char *)stringVal, stringLen) == 0) { ctx->lastkey = key; /*printf("matched "#key"\n"); */ return 1;}
     check_key(topic)
     check_key(partition)
     check_key(offset)
@@ -475,7 +475,6 @@ static int parse_map_key(void *ctx_, const unsigned char *stringVal, size_t stri
 }
 
 static int parse_integer(void *ctx_, long long integerVal) {
-    printf("parse integer %lld\n", integerVal);
     kafkacatMessageContext *ctx = (kafkacatMessageContext *)ctx_;
     switch (ctx->lastkey) {
         case partition:
@@ -498,13 +497,11 @@ static int parse_integer(void *ctx_, long long integerVal) {
 }
 
 static int start_map(void *ctx) {
-    printf("start map\n");
     memset(ctx, 0, sizeof(kafkacatMessageContext));
     return 1;
 }
 
 static int end_map(void *ctx_) {
-    printf("end map\n");
     kafkacatMessageContext *ctx = (kafkacatMessageContext *)ctx_;
     ctx->finished = 1;
     return 1;
@@ -530,53 +527,28 @@ extern struct conf conf;
  * @brief Read json to eof.
  *
  */
-void parse_json_message (FILE *fp, int (callback)(void *ctx, kafkacatMessageContext *msg), void *ctx2) {
-    static unsigned char fileData[65536];
+void parse_json_message (const unsigned char *buf, size_t len, kafkacatMessageContext *ctx) {
+    static yajl_status stat;
 
-    yajl_status stat;
-    size_t rd = 0;
-
-    kafkacatMessageContext ctx = { 0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0 , 0};
-
-    yajl_alloc_funcs allocFuncs = {
+    static yajl_alloc_funcs allocFuncs = {
             yajlTestMalloc,
             yajlTestRealloc,
             yajlTestFree,
             (void *) NULL
     };
 
-    yajl_handle hand = yajl_alloc(&callbacks, &allocFuncs, &ctx);
+
+    yajl_handle hand = yajl_alloc(&callbacks, &allocFuncs, ctx);
 
     yajl_config(hand, yajl_allow_trailing_garbage, 1);
-    yajl_config(hand, yajl_allow_multiple_values, 1);
-    yajl_config(hand, yajl_allow_partial_values, 1);
+    // yajl_config(hand, yajl_allow_multiple_values, 1);
+    // yajl_config(hand, yajl_allow_partial_values, 1);
 
-
-    while (conf.run) {
-        rd = fread((void *) fileData, 1, sizeof(fileData) - 1, stdin);
-        if (rd == 0) {
-            if (!feof(stdin)) {
-                KC_FATAL("error on file read: %s\n", strerror(errno));
-            }
-            break;
-        }
-        fileData[rd] = 0;
-
-        stat = yajl_parse(hand, fileData, rd);
-
-        if (stat != yajl_status_ok) break;
-
-        if (ctx.finished && !ctx.processed) {
-            callback(ctx2, &ctx);
-            ctx.processed = 1;
-        }
-    }
-
-
+    stat = yajl_parse(hand, buf, len);
     stat = yajl_complete_parse(hand);
     if (stat != yajl_status_ok)
     {
-        unsigned char *str = yajl_get_error(hand, 0, fileData, rd);
+        unsigned char *str = yajl_get_error(hand, 0, buf, len);
         KC_ERROR("Error when parsing json %s", str);
         yajl_free_error(hand, str);
     }
