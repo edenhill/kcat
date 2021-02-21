@@ -45,8 +45,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-
-
+#include "base64.h"
 
 #include "kafkacat.h"
 #include "input.h"
@@ -402,7 +401,7 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
             struct inbuf inbuf;
             struct buf *b;
 
-            inbuf_init(&inbuf, conf.msg_size, "\"}", 2);
+            inbuf_init(&inbuf, conf.msg_size, "\n", 1);
 
             /* Read messages from input, delimited by conf.delim */
             while (conf.run &&
@@ -422,7 +421,20 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                 size_t len = msg.payload_len;
                 const unsigned char *key = msg.key;
                 size_t key_len = msg.key_len;
-                // TODO memory
+
+                if (conf.flags & CONF_F_FMT_KEY_BASE64) {
+                    unsigned char *new_key = base64_dec_malloc((char *)key, key_len, &key_len);
+                    // FIXME copy and ref & memory leakage
+                    key = new_key;
+                }
+
+                if (conf.flags & CONF_F_FMT_VALUE_BASE64) {
+                    unsigned char *new_buf = base64_dec_malloc((char *)buf, len, &len);
+                    // FIXME copy and ref & memory leakage
+                    buf = new_buf;
+                }
+
+
                 if (!key && conf.fixed_key) {
                     key = (const unsigned char*)conf.fixed_key;
                     key_len = conf.fixed_key_len;
@@ -506,6 +518,24 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                 if (!key && conf.fixed_key) {
                     key = conf.fixed_key;
                     key_len = conf.fixed_key_len;
+                }
+
+                if (conf.flags & CONF_F_FMT_KEY_BASE64) {
+                    unsigned char *new_key = base64_dec_malloc((char *)key, key_len, &key_len);
+                    if (!new_key) {
+                        KC_ERROR("Decoding base64 failed");
+                    }
+                    // FIXME copy and ref & memory leakage
+                    key = (char *)new_key;
+                }
+
+                if (conf.flags & CONF_F_FMT_VALUE_BASE64) {
+                    unsigned char *new_buf = base64_dec_malloc((char *)buf, len, &len);
+                    if (!new_buf) {
+                        KC_ERROR("Decoding base64 failed");
+                    }
+                    // FIXME copy and ref & memory leakage
+                    buf = (char *)new_buf;
                 }
 
                 if (len < 1024) {
@@ -1449,8 +1479,6 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "                       avro       - Avro-formatted with schema in Schema-Registry (requires -r)\n"
                 "                     E.g.: -s key=i -s value=avro - key is 32-bit integer, value is Avro.\n"
                 "                       or: -s avro - both key and value are Avro-serialized\n"
-#endif
-#if ENABLE_AVRO
                 "  -r <url>           Schema registry URL (requires avro deserializer to be used with -s)\n"
 #endif
                 "  -D <delim>         Delimiter to separate messages on output\n"
@@ -1498,7 +1526,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "  -f 'Topic %%t [%%p] at offset %%o: key %%k: %%s\\n'\n"
                 "\n"
 #if ENABLE_JSON
-                "JSON message envelope (on one line) when consuming with -J:\n"
+                "JSON message envelope (on one line) when producing or consuming with -J:\n"
                 " { \"topic\": str, \"partition\": int, \"offset\": int,\n"
                 "   \"tstype\": \"create|logappend|unknown\", \"ts\": int, "
                 "// timestamp in milliseconds since epoch\n"
@@ -1510,6 +1538,9 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "deserialization failed)\n"
                 "\n"
 #endif
+                "  -B k               Parse base64 format for key\n"
+                "  -B v               Parse base64 format for payload\n"
+                "  -B a               Parse base64 format for both key and payload\n"
                 "Consumer mode (writes messages to stdout):\n"
                 "  kafkacat -b <broker> -t <topic> -p <partition>\n"
                 " or:\n"
@@ -2037,7 +2068,7 @@ static void argparse (int argc, char **argv,
         int i;
 
         while ((opt = getopt(argc, argv,
-                             ":PCG:LQt:p:b:z:o:eED:K:k:H:Od:qvF:X:c:Tuf:ZlVh"
+                             ":PCG:LQt:p:b:B:z:o:eED:K:k:H:Od:qvF:X:c:Tuf:ZlVh"
                              "s:r:Jm:U")) != -1) {
                 switch (opt) {
                 case 'P':
@@ -2118,7 +2149,14 @@ static void argparse (int argc, char **argv,
                         KC_FATAL("This build of kafkacat lacks JSON support");
 #endif
                         break;
-
+                case 'B':
+                        if (strcmp("a", optarg) == 0)
+                            conf.flags |= CONF_F_FMT_KEY_BASE64 | CONF_F_FMT_VALUE_BASE64;
+                        if (strcmp("k", optarg) == 0)
+                            conf.flags |= CONF_F_FMT_KEY_BASE64;
+                        else if (strcmp("v", optarg) == 0)
+                            conf.flags |= CONF_F_FMT_VALUE_BASE64;
+                        break;
                 case 's':
                 {
                         int field = -1;
@@ -2565,3 +2603,4 @@ int main (int argc, char **argv) {
 
         exit(conf.exitcode);
 }
+
