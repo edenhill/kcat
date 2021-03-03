@@ -175,12 +175,25 @@ static void dr_msg_cb (rd_kafka_t *rk, const rd_kafka_message_t *rkmessage,
  */
 static void produce (void *buf, size_t len,
                      const void *key, size_t key_len, int msgflags,
-                     void *msg_opaque) {
+                     void *msg_opaque, rd_kafka_headers_t* headers) {
         rd_kafka_headers_t *hdrs = NULL;
 
         /* Headers are freed on successful producev(), pass a copy. */
         if (conf.headers)
                 hdrs = rd_kafka_headers_copy(conf.headers);
+
+		if (headers) {
+				if (!hdrs) hdrs = rd_kafka_headers_new(8);
+				volatile size_t header_idx = 0;
+				const char *namep;
+                const void *valuep;
+                size_t sizep;
+                rd_kafka_resp_err_t err;
+				while((err = rd_kafka_header_get_all(headers, header_idx, &namep, &valuep, &sizep)) == RD_KAFKA_RESP_ERR_NO_ERROR) {
+					rd_kafka_header_add(hdrs, namep, -1, valuep, sizep);
+					header_idx++;
+				}
+		}
 
         /* Produce message: keep trying until it succeeds. */
         do {
@@ -283,7 +296,7 @@ static ssize_t produce_file (const char *path) {
 
         KC_INFO(4, "Producing file %s (%"PRIdMAX" bytes)\n",
                 path, (intmax_t)st.st_size);
-        produce(ptr, sz, conf.fixed_key, conf.fixed_key_len, msgflags, NULL);
+        produce(ptr, sz, conf.fixed_key, conf.fixed_key_len, msgflags, NULL, NULL);
 
         _COMPAT(close)(fd);
 
@@ -450,7 +463,12 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                 /* Produce message */
                 produce((char *)buf, len, key, key_len, msgflags,
                         (msgflags & RD_KAFKA_MSG_F_COPY) ?
-                        NULL : b);
+                        NULL : b, msg.headers);
+                        
+                if (msg.headers) {
+					rd_kafka_headers_destroy(msg.headers);
+					msg.headers = 0;
+                }
 
                 if (conf.flags & CONF_F_TEE &&
                     fwrite(b->buf, b->size, 1, stdout) != 1)
@@ -548,7 +566,7 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                 /* Produce message */
                 produce(buf, len, key, key_len, msgflags,
                         (msgflags & RD_KAFKA_MSG_F_COPY) ?
-                        NULL : b);
+                        NULL : b, NULL);
 
                 if (conf.flags & CONF_F_TEE &&
                     fwrite(b->buf, b->size, 1, stdout) != 1)

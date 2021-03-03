@@ -197,7 +197,7 @@ void fmt_term (void);
 #if ENABLE_JSON
 
 typedef enum {
-    noval, topic, partition, offset, tstype, ts, broker, key, payload
+    noval, topic, partition, offset, tstype, ts, broker, key, payload, headers
 } lastKey;
 
 typedef struct
@@ -217,6 +217,9 @@ typedef struct
     int finished;
     int processed;
     lastKey lastkey;
+    rd_kafka_headers_t *headers;
+    const unsigned char *last_header_name;
+    size_t last_header_name_len;
 } kafkacatMessageContext;
 
 /*
