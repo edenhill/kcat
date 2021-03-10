@@ -141,8 +141,19 @@ static void dr_msg_cb (rd_kafka_t *rk, const rd_kafka_message_t *rkmessage,
         int32_t broker_id = -1;
         struct buf *b = rkmessage->_private;
 
-        if (b)
-                buf_destroy(b);
+        if (b) {
+        		if (conf.flags & CONF_F_FMT_JSON) {
+        				json_buffer_t* buffer = (json_buffer_t*) b;
+        				buf_destroy(buffer->buf);
+        				if (buffer->hand) {
+        						json_free(buffer->hand);
+        				}
+        				free(buffer);
+		        } else {
+        	    		buf_destroy(b);
+        	    }
+        }
+                
 
         if (rkmessage->err) {
                 KC_INFO(1, "Delivery failed for message: %s\n",
@@ -409,7 +420,7 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
         }
         else if (conf.flags & CONF_F_FMT_JSON) {
 #ifndef ENABLE_JSON
-            KC_FATAL("This build lacks json support. It's is a bug to run here");
+            KC_FATAL("This build lacks json support. It is a bug to run here");
 #else
             struct inbuf inbuf;
             struct buf *b;
@@ -446,8 +457,7 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                     // FIXME copy and ref & memory leakage
                     buf = new_buf;
                 }
-
-
+                
                 if (!key && conf.fixed_key) {
                     key = (const unsigned char*)conf.fixed_key;
                     key_len = conf.fixed_key_len;
@@ -459,11 +469,16 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                      * copy the data in librdkafka. */
                     msgflags |= RD_KAFKA_MSG_F_COPY;
                 }
+                
+                json_buffer_t* buffer = NULL;
+                if (!(msgflags & RD_KAFKA_MSG_F_COPY)) {
+	                buffer = malloc(sizeof(json_buffer_t));
+	                buffer->hand = msg.hand;
+	                buffer->buf = b;
+                }
 
                 /* Produce message */
-                produce((char *)buf, len, key, key_len, msgflags,
-                        (msgflags & RD_KAFKA_MSG_F_COPY) ?
-                        NULL : b, msg.headers);
+                produce((char *)buf, len, key, key_len, msgflags, buffer, msg.headers);
                         
                 if (msg.headers) {
 					rd_kafka_headers_destroy(msg.headers);
@@ -479,6 +494,10 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                 if (msgflags & RD_KAFKA_MSG_F_COPY) {
                     /* librdkafka made a copy of the input. */
                     buf_destroy(b);
+                    if (msg.hand) {
+        				json_free(msg.hand);
+                    	msg.hand = 0;
+                    }
                 }
 
                 /* Enforce -c <cnt> */
