@@ -217,7 +217,15 @@ typedef struct
     int finished;
     int processed;
     lastKey lastkey;
+    void* hand;
 } kafkacatMessageContext;
+
+typedef struct
+{
+		struct buf * buf;
+		void* hand;
+} json_buffer_t;
+
 
 /*
  * json.c
@@ -231,6 +239,7 @@ void fmt_init_json (void);
 void fmt_term_json (void);
 int  json_can_emit_verbatim (void);
 void parse_json_message (const unsigned char *buf, size_t len, kafkacatMessageContext *ctx);
+void json_free (void*);
 #endif
 
 #if ENABLE_AVRO
