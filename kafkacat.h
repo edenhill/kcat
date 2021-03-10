@@ -33,7 +33,7 @@
 #include <stdlib.h>
 
 #include <librdkafka/rdkafka.h>
-
+#include "input.h"
 #include "rdport.h"
 
 #ifdef _MSC_VER
@@ -102,6 +102,8 @@ struct conf {
 #define CONF_F_FMT_AVRO_KEY   0x400 /* Convert key from Avro to JSON */
 #define CONF_F_FMT_AVRO_VALUE 0x800 /* Convert value from Avro to JSON  */
 #define CONF_F_SR_URL_SEEN    0x1000 /* schema.registry.url/-r seen */
+#define CONF_F_FMT_KEY_BASE64  0x2000
+#define CONF_F_FMT_VALUE_BASE64  0x4000
         char   *delim;
         size_t  delim_size;
         char   *key_delim;
@@ -193,6 +195,41 @@ void fmt_term (void);
 
 
 #if ENABLE_JSON
+
+typedef enum {
+    noval, topic, partition, offset, tstype, ts, broker, key, payload, headers
+} lastKey;
+
+typedef struct
+{
+    const unsigned char *topic;
+    size_t topic_len;
+    int partition;
+    int offset;
+    const unsigned char *tstype;
+    size_t tstype_len;
+    unsigned long long ts;
+    int broker;
+    const unsigned char *key;
+    size_t key_len;
+    const unsigned char *payload;
+    size_t payload_len;
+    int finished;
+    int processed;
+    lastKey lastkey;
+    rd_kafka_headers_t *headers;
+    const unsigned char *last_header_name;
+    size_t last_header_name_len;
+    void* hand;
+} kafkacatMessageContext;
+
+typedef struct
+{
+		struct buf * buf;
+		void* hand;
+} json_buffer_t;
+
+
 /*
  * json.c
  */
@@ -204,6 +241,8 @@ void partition_list_print_json (const rd_kafka_topic_partition_list_t *parts,
 void fmt_init_json (void);
 void fmt_term_json (void);
 int  json_can_emit_verbatim (void);
+void parse_json_message (const unsigned char *buf, size_t len, kafkacatMessageContext *ctx);
+void json_free (void*);
 #endif
 
 #if ENABLE_AVRO

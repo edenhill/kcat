@@ -27,6 +27,7 @@
  */
 
 #include "kafkacat.h"
+#include "base64.h"
 
 #include <yajl/yajl_gen.h>
 
@@ -137,9 +138,17 @@ void fmt_msg_output_json (FILE *fp, const rd_kafka_message_t *rkmessage) {
                         free(json);
                 } else
 #endif
-                        yajl_gen_string(g,
-                                        (const unsigned char *)rkmessage->key,
-                                        rkmessage->key_len);
+                if(conf.flags & CONF_F_FMT_KEY_BASE64) {
+                    char *new_key = base64_enc_malloc(rkmessage->key, rkmessage->key_len);
+                    yajl_gen_string(g,
+                                    (const unsigned char *) new_key,
+                                    strlen(new_key));
+                    free(new_key);
+                } else {
+                    yajl_gen_string(g,
+                                    (const unsigned char *) rkmessage->key,
+                                    rkmessage->key_len);
+                }
         } else
                 yajl_gen_null(g);
 
@@ -168,10 +177,18 @@ void fmt_msg_output_json (FILE *fp, const rd_kafka_message_t *rkmessage) {
                         free(json);
                 } else
 #endif
+            if(conf.flags & CONF_F_FMT_KEY_BASE64) {
+                char *new_payload = base64_enc_malloc(rkmessage->payload, rkmessage->len);
+                yajl_gen_string(g,
+                                (const unsigned char *) new_payload,
+                                strlen(new_payload));
+                free(new_payload);
+            } else {
                         yajl_gen_string(g,
                                         (const unsigned char *)
                                         rkmessage->payload,
                                         rkmessage->len);
+            }
         } else
                 yajl_gen_null(g);
 
@@ -404,4 +421,182 @@ int json_can_emit_verbatim (void) {
 #else
         return 0;
 #endif
+}
+
+#include <yajl/yajl_parse.h>
+#include <yajl/yajl_gen.h>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <assert.h>
+
+static void yajlTestFree(void *ctx, void * ptr) {
+    free(ptr);
+}
+
+static void * yajlTestMalloc(void *ctx, size_t sz) {
+    return malloc(sz);
+}
+
+static void * yajlTestRealloc(void *ctx, void *ptr, size_t sz) {
+    return realloc(ptr, sz);
+}
+
+
+#define BUF_SIZE 2048
+
+static int parse_string(void *ctx_, const unsigned char *stringVal,
+                            size_t stringLen) {
+    kafkacatMessageContext *ctx = (kafkacatMessageContext *)ctx_;
+
+    switch (ctx->lastkey) {
+        case topic:
+            ctx->topic = stringVal;
+            ctx->topic_len = stringLen;
+        case tstype:
+            ctx->tstype = stringVal;
+            ctx->tstype_len = stringLen;
+        case key:
+            ctx->key = stringVal;
+            ctx->key_len = stringLen;
+        case payload:
+            ctx->payload = stringVal;
+            ctx->payload_len = stringLen;
+            break;
+        case headers:
+        	if (!ctx->headers) {
+        		ctx->headers = rd_kafka_headers_new(8);
+        	}
+        	if (ctx->last_header_name) {
+        		rd_kafka_header_add(ctx->headers, (const char *)ctx->last_header_name, ctx->last_header_name_len, stringVal, stringLen);
+        		ctx->last_header_name = 0;
+        	} else {
+        		ctx->last_header_name = stringVal;
+        		ctx->last_header_name_len = stringLen;
+        	}
+        	break;
+        case noval:
+            KC_ERROR("Has not read key");
+            break;
+        default:
+            KC_ERROR("Last key should not be string: %d", ctx->lastkey); // TODO better error message
+            break;
+    }
+    return 1;
+}
+
+static int parse_map_key(void *ctx_, const unsigned char *stringVal, size_t stringLen) {
+    kafkacatMessageContext *ctx = (kafkacatMessageContext *)ctx_;
+#define check_key(key) if (strncmp(#key, (char *)stringVal, stringLen) == 0) { ctx->lastkey = key; /*printf("matched "#key"\n"); */ return 1;}
+    check_key(topic)
+    check_key(partition)
+    check_key(offset)
+    check_key(ts)
+    check_key(tstype)
+    check_key(broker)
+    check_key(key)
+    check_key(payload)
+    check_key(headers)
+#undef check_key
+    KC_ERROR("Does not matching anything for key: %s", stringVal);
+    return 1;
+}
+
+static int parse_integer(void *ctx_, long long integerVal) {
+    kafkacatMessageContext *ctx = (kafkacatMessageContext *)ctx_;
+    switch (ctx->lastkey) {
+        case partition:
+            ctx->partition = integerVal;
+        case offset:
+            ctx->offset = integerVal;
+        case ts:
+            ctx->ts = integerVal;
+        case broker:
+            ctx->broker = integerVal;
+            break;
+        case noval:
+            KC_ERROR("Has not read key");
+            break;
+        default:
+            KC_ERROR("Last key should not be integer: %d", ctx->lastkey); // TODO better error message
+            break;
+    }
+    return 1;
+}
+
+static int start_map(void *ctx) {
+    memset(ctx, 0, sizeof(kafkacatMessageContext));
+    return 1;
+}
+
+static int end_map(void *ctx_) {
+    kafkacatMessageContext *ctx = (kafkacatMessageContext *)ctx_;
+    ctx->finished = 1;
+    return 1;
+}
+
+static yajl_callbacks callbacks = {
+        NULL,
+        NULL,
+        parse_integer,
+        NULL,
+        NULL,
+        parse_string,
+        start_map,
+        parse_map_key,
+        end_map,
+        NULL,
+        NULL
+};
+
+extern struct conf conf;
+
+/**
+ * @brief Read json to eof.
+ *
+ */
+void parse_json_message (const unsigned char *buf, size_t len, kafkacatMessageContext *ctx) {
+    static yajl_status stat;
+
+    static yajl_alloc_funcs allocFuncs = {
+            yajlTestMalloc,
+            yajlTestRealloc,
+            yajlTestFree,
+            (void *) NULL
+    };
+
+
+	yajl_handle hand = yajl_alloc(&callbacks, &allocFuncs, ctx);
+    ctx->hand = hand;
+    if (!hand) {
+    	KC_ERROR("Cannot allocate JSON parser.");
+    	return;
+    }
+
+    yajl_config(hand, yajl_allow_trailing_garbage, 1);
+    // yajl_config(ctx->hand, yajl_allow_multiple_values, 1);
+    // yajl_config(ctx->hand, yajl_allow_partial_values, 1);
+
+    stat = yajl_parse(hand, buf, len);
+    if (stat != yajl_status_ok)
+    {
+        unsigned char *str = yajl_get_error(hand, 0, buf, len);
+        KC_ERROR("Error when parsing json %s", str);
+        yajl_free_error(hand, str);
+        return;
+    }
+    stat = yajl_complete_parse(hand);
+    if (stat != yajl_status_ok)
+    {
+        unsigned char *str = yajl_get_error(hand, 0, buf, len);
+        KC_ERROR("Error when parsing json %s", str);
+        yajl_free_error(hand, str);
+        return;
+    }
+}
+
+void json_free(void* hand) {
+	yajl_free((yajl_handle)hand);
 }
