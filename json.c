@@ -465,6 +465,18 @@ static int parse_string(void *ctx_, const unsigned char *stringVal,
             ctx->payload = stringVal;
             ctx->payload_len = stringLen;
             break;
+        case headers:
+        	if (!ctx->headers) {
+        		ctx->headers = rd_kafka_headers_new(8);
+        	}
+        	if (ctx->last_header_name) {
+        		rd_kafka_header_add(ctx->headers, (const char *)ctx->last_header_name, ctx->last_header_name_len, stringVal, stringLen);
+        		ctx->last_header_name = 0;
+        	} else {
+        		ctx->last_header_name = stringVal;
+        		ctx->last_header_name_len = stringLen;
+        	}
+        	break;
         case noval:
             KC_ERROR("Has not read key");
             break;
@@ -486,6 +498,7 @@ static int parse_map_key(void *ctx_, const unsigned char *stringVal, size_t stri
     check_key(broker)
     check_key(key)
     check_key(payload)
+    check_key(headers)
 #undef check_key
     KC_ERROR("Does not matching anything for key: %s", stringVal);
     return 1;
