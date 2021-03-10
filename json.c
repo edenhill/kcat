@@ -555,20 +555,35 @@ void parse_json_message (const unsigned char *buf, size_t len, kafkacatMessageCo
     };
 
 
-    yajl_handle hand = yajl_alloc(&callbacks, &allocFuncs, ctx);
+	yajl_handle hand = yajl_alloc(&callbacks, &allocFuncs, ctx);
+    ctx->hand = hand;
+    if (!hand) {
+    	KC_ERROR("Cannot allocate JSON parser.");
+    	return;
+    }
 
     yajl_config(hand, yajl_allow_trailing_garbage, 1);
-    // yajl_config(hand, yajl_allow_multiple_values, 1);
-    // yajl_config(hand, yajl_allow_partial_values, 1);
+    // yajl_config(ctx->hand, yajl_allow_multiple_values, 1);
+    // yajl_config(ctx->hand, yajl_allow_partial_values, 1);
 
     stat = yajl_parse(hand, buf, len);
+    if (stat != yajl_status_ok)
+    {
+        unsigned char *str = yajl_get_error(hand, 0, buf, len);
+        KC_ERROR("Error when parsing json %s", str);
+        yajl_free_error(hand, str);
+        return;
+    }
     stat = yajl_complete_parse(hand);
     if (stat != yajl_status_ok)
     {
         unsigned char *str = yajl_get_error(hand, 0, buf, len);
         KC_ERROR("Error when parsing json %s", str);
         yajl_free_error(hand, str);
+        return;
     }
+}
 
-    yajl_free(hand);
+void json_free(void* hand) {
+	yajl_free((yajl_handle)hand);
 }
