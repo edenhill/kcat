@@ -1,3 +1,31 @@
+/*
+ * kafkacat - Apache Kafka consumer and producer
+ *
+ * Copyright (c) 2020-2021, Magnus Edenhill
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
 #include "kafkacat.h"
 #include "input.h"
 
@@ -5,6 +33,8 @@
 #ifndef _MSC_VER
 #include <sys/mman.h>
 #endif
+
+#include <assert.h>
 
 void buf_destroy (struct buf *b) {
 #ifdef MREMAP_MAYMOVE
@@ -277,7 +307,7 @@ static void inbuf_split (struct inbuf *inbuf, size_t dof,
  */
 int inbuf_read_to_delimeter (struct inbuf *inbuf, FILE *fp,
                              struct buf **outbuf) {
-        const int read_size = 128;
+        int read_size = MIN(1024, inbuf->max_size);
 
         /*
          * 1. Make sure there is enough output buffer room for read_size.
@@ -297,17 +327,6 @@ int inbuf_read_to_delimeter (struct inbuf *inbuf, FILE *fp,
                 size_t dof;
                 int delim_found;
 
-                inbuf_ensure(inbuf, read_size);
-
-                r = fread(inbuf->buf+inbuf->len, 1, read_size, fp);
-                if (r == 0 && inbuf->len == 0) {
-                        /* EOF with no accumulated data */
-                        inbuf_destroy(inbuf);
-                        return 0;
-                }
-
-                inbuf->len += r;
-
                 /* Scan for delimiter */
                 delim_found = inbuf_scan(inbuf, &dof);
 
@@ -320,15 +339,28 @@ int inbuf_read_to_delimeter (struct inbuf *inbuf, FILE *fp,
 
                         *outbuf = buf_new(buf, size);
                         return 1;
-
-                } else if (r == 0) {
-                        /* EOF but we have accumulated data, return what
-                         * we have. */
-                        dof = inbuf->len;
-                        *outbuf = buf_new(inbuf->buf, inbuf->len);
-                        inbuf->buf = NULL;
-                        return 1;
                 }
+
+                inbuf_ensure(inbuf, read_size);
+
+                r = fread(inbuf->buf+inbuf->len, 1, read_size, fp);
+                if (r == 0) {
+                        if (inbuf->len == 0) {
+                                /* EOF with no accumulated data */
+                                inbuf_destroy(inbuf);
+                                return 0;
+                        } else {
+                                /* EOF but we have accumulated data, return what
+                                 * we have. */
+                                dof = inbuf->len;
+                                *outbuf = buf_new(inbuf->buf, inbuf->len);
+                                inbuf->buf = NULL;
+                                return 1;
+                        }
+                }
+
+                inbuf->len += r;
+
         }
 
         return 0; /* NOTREACHED */
