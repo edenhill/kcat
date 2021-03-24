@@ -333,13 +333,22 @@ static char *rd_strnstr (const char *haystack, size_t size,
  */
 static void producer_run (FILE *fp, char **paths, int pathcnt) {
         char    errstr[512];
-        char    tmp[2];
+        char    tmp[16];
         size_t  tsize = sizeof(tmp);
 
         if (rd_kafka_conf_get(conf.rk_conf, "transactional.id",
                               tmp, &tsize) == RD_KAFKA_CONF_OK && tsize > 1) {
                 KC_INFO(1, "Using transactional producer\n");
                 conf.txn = 1;
+        }
+
+        tsize = sizeof(tmp);
+        if (rd_kafka_conf_get(conf.rk_conf, "message.max.bytes",
+                              tmp, &tsize) == RD_KAFKA_CONF_OK && tsize > 1) {
+                int msg_max_bytes = atoi(tmp);
+                KC_INFO(3, "Setting producer input buffer max size to "
+                        "message.max.bytes value %d\n", msg_max_bytes);
+                conf.msg_size = msg_max_bytes;
         }
 
         /* Assign per-message delivery report callback. */
