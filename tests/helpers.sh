@@ -2,6 +2,7 @@ set -e
 
 CLR_BGRED="\033[37;41m"
 CLR_BGGREEN="\033[37;42m"
+CLR_YELLOW="\033[33m"
 CLR_INFO="\033[34m"
 CLR="\033[0m"
 
@@ -18,6 +19,17 @@ function make_topic_name {
     echo "kafkacat_test_$$_${RANDOM}_${TEST_NAME}name"
 }
 
+function create_topic {
+    local topic=$1
+    local partitions=$2
+    info "Creating topic $topic with $partitions partition(s)"
+    $KAFKA_PATH/bin/kafka-topics.sh \
+        --bootstrap-server $BROKERS \
+        --create \
+        --topic "$topic" \
+        --partitions $partitions \
+        --replication-factor 1
+}
 
 
 function info {
@@ -34,4 +46,11 @@ function FAIL {
 function PASS {
     local str=$1
     echo -e "${CLR_BGGREEN}${TEST_NAME} | TEST PASSED: $str${CLR}"
+}
+
+
+function SKIP {
+    local str=$1
+    echo -e "${CLR_YELLOW}${TEST_NAME} | TEST SKIPPED: $str${CLR}"
+    exit 0
 }

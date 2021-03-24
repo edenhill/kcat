@@ -34,6 +34,7 @@
                 const char *_s = (STR);                                 \
                 yajl_gen_string(G, (const unsigned char *)_s, strlen(_s)); \
         } while (0)
+#define JS_INT(G, INT) yajl_gen_integer(g, INT)
 
 void fmt_msg_output_json (FILE *fp, const rd_kafka_message_t *rkmessage) {
         yajl_gen g;
@@ -117,9 +118,11 @@ void fmt_msg_output_json (FILE *fp, const rd_kafka_message_t *rkmessage) {
 #if ENABLE_AVRO && YAJL_HAS_GEN_VERBATIM
                 if (conf.flags & CONF_F_FMT_AVRO_KEY) {
                         char errstr[256];
+                        int schema_id = -1;
                         char *json = kc_avro_to_json(
                                 rkmessage->key,
                                 rkmessage->key_len,
+                                &schema_id,
                                 errstr, sizeof(errstr));
 
                         if (!json) {
@@ -132,8 +135,11 @@ void fmt_msg_output_json (FILE *fp, const rd_kafka_message_t *rkmessage) {
                                 yajl_gen_null(g);
                                 JS_STR(g, "key_error");
                                 JS_STR(g, errstr);
-                        } else
+                        } else {
                                 yajl_gen_verbatim(g, json, strlen(json));
+                                JS_STR(g, "key_schema_id");
+                                JS_INT(g, schema_id);
+                        }
                         free(json);
                 } else
 #endif
@@ -148,9 +154,11 @@ void fmt_msg_output_json (FILE *fp, const rd_kafka_message_t *rkmessage) {
 #if ENABLE_AVRO && YAJL_HAS_GEN_VERBATIM
                 if (conf.flags & CONF_F_FMT_AVRO_VALUE) {
                         char errstr[256];
+                        int schema_id = -1;
                         char *json = kc_avro_to_json(
                                 rkmessage->payload,
                                 rkmessage->len,
+                                &schema_id,
                                 errstr, sizeof(errstr));
 
                         if (!json) {
@@ -163,8 +171,12 @@ void fmt_msg_output_json (FILE *fp, const rd_kafka_message_t *rkmessage) {
                                 yajl_gen_null(g);
                                 JS_STR(g, "payload_error");
                                 JS_STR(g, errstr);
-                        } else
+                        } else {
                                 yajl_gen_verbatim(g, json, strlen(json));
+                                JS_STR(g, "value_schema_id");
+                                JS_INT(g, schema_id);
+                        }
+
                         free(json);
                 } else
 #endif

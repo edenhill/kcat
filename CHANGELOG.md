@@ -3,6 +3,7 @@
  * Add support for multibyte delimiters to `-D` and `-K` (#140, #280)
  * Add support for `-X partition.assignment.strategy=cooperative-sticky` incremental rebalancing.
  * High-level consumer `-G` now supports exit-on-eof `-e` option (#86)
+ * Avro consumer with -J will now emit `key_schema_id` and `value_schema_id`.
 
 
 # kafkacat v1.6.0

@@ -118,7 +118,7 @@ void kc_avro_term (void) {
  *
  * @returns newly allocated JSON string, or NULL on error.
  */
-char *kc_avro_to_json (const void *data, size_t data_len,
+char *kc_avro_to_json (const void *data, size_t data_len, int *schema_idp,
                        char *errstr, size_t errstr_size) {
         avro_value_t avro;
         serdes_schema_t *schema;
@@ -147,6 +147,9 @@ char *kc_avro_to_json (const void *data, size_t data_len,
                 avro_value_decref(&avro);
                 return NULL;
         }
+
+        if (schema && schema_idp)
+                *schema_idp = serdes_schema_id(schema);
 
         avro_value_decref(&avro);
 
