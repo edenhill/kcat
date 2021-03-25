@@ -8,7 +8,6 @@ os:
 
 before_install:
   - if [[ $TRAVIS_OS_NAME == linux ]]; then sudo apt-get update -qq && sudo apt-get install -y libssl-dev libsasl2-dev libcurl4-openssl-dev libjansson-dev ; fi
-  - if [[ $TRAVIS_OS_NAME == osx ]]; then git -C /usr/local/Homebrew/Library/Taps/homebrew/homebrew-core fetch --unshallow ; git -C /usr/local/Homebrew/Library/Taps/homebrew/homebrew-cask fetch --unshallow ; fi
   - if [[ $TRAVIS_OS_NAME == osx ]]; then brew update && brew install openssl curl jansson ; fi
 
 script:
