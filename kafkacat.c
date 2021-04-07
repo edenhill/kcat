@@ -1298,7 +1298,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "  -F <config-file>   Read configuration properties from file,\n"
                 "                     file format is \"property=value\".\n"
                 "                     The KAFKACAT_CONFIG=path environment can "
-                "also be used, but -F takes preceedence.\n"
+                "also be used, but -F takes precedence.\n"
                 "                     The default configuration file is "
                 "$HOME/.config/kafkacat.conf\n"
                 "  -X list            List available librdkafka configuration "
