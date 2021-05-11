@@ -2,6 +2,9 @@ language: c
 compiler:
   - gcc
   - clang
+env:
+   global:
+     - HOMEBREW_NO_AUTO_UPDATE=1
 os:
   - linux
   - osx
