@@ -13,6 +13,28 @@ set -o errexit -o nounset -o pipefail
 
 : "${LIBRDKAFKA_VERSION:=v1.7.0}"
 
+lrk_install_deps="--install-deps"
+lrk_static="--enable-static"
+
+for opt in $*; do
+    case $opt in
+        --no-install-deps)
+            lrk_install_deps=""
+            ;;
+
+        --no-enable-static)
+            lrk_static=""
+            ;;
+
+        *)
+            echo "Unknown option: $opt"
+            exit 1
+            ;;
+    esac
+    shift
+done
+
+
 function download {
     local url=$1
     local dir=$2
@@ -114,7 +136,7 @@ fi
 export PKG_CONFIG_PATH="$DEST/lib/pkgconfig"
 
 github_download "edenhill/librdkafka" "$LIBRDKAFKA_VERSION" "librdkafka"
-build librdkafka "([ -f config.h ] || ./configure --prefix=$DEST --install-deps --disable-lz4-ext) && make -j && make install" || (echo "Failed to build librdkafka: bootstrap failed" ; false)
+build librdkafka "([ -f config.h ] || ./configure --prefix=$DEST $lrk_install_deps $lrk_static --disable-lz4-ext) && make -j && make install" || (echo "Failed to build librdkafka: bootstrap failed" ; false)
 
 github_download "edenhill/yajl" "edenhill" "libyajl"
 build libyajl "([ -d build ] || ./configure --prefix $DEST) && make install" || (echo "Failed to build libyajl: JSON support will probably be disabled" ; true)
