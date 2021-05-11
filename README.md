@@ -84,7 +84,7 @@ On Ubuntu or Debian: `sudo apt-get install librdkafka-dev libyajl-dev`
     ./configure <usual-configure-options>
     make
     sudo make install
-    
+
 ### Build for Windows
 
     cd win32

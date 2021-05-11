@@ -1193,7 +1193,12 @@ static void metadata_list (void) {
         err = rd_kafka_metadata(conf.rk, conf.rkt ? 0 : 1, conf.rkt,
                                 &metadata, conf.metadata_timeout * 1000);
         if (err != RD_KAFKA_RESP_ERR_NO_ERROR)
-                KC_FATAL("Failed to acquire metadata: %s", rd_kafka_err2str(err));
+                KC_FATAL("Failed to acquire metadata: %s%s",
+                         rd_kafka_err2str(err),
+                         err == RD_KAFKA_RESP_ERR__TRANSPORT ?
+                         " (Are the brokers reachable? "
+                         "Also try increasing the metadata timeout with "
+                         "-m <timeout>?)" : "");
 
 #if HAVE_CONTROLLERID
         controllerid = rd_kafka_controllerid(conf.rk, 0);
