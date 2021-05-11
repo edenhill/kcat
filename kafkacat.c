@@ -2341,10 +2341,17 @@ static void argparse (int argc, char **argv,
 #endif
 
 
-        conf.key_delim = parse_delim(key_delim ? key_delim : "");
-        conf.key_delim_size = strlen(conf.key_delim);
+        /* If avro key is to be deserialized, set up an delimiter so that
+         * the key is actually emitted. */
+        if ((conf.flags & CONF_F_FMT_AVRO_KEY) && !key_delim)
+                key_delim = "";
 
-        conf.delim = parse_delim(delim ? delim : "");
+        if (key_delim) {
+                conf.key_delim = parse_delim(key_delim);
+                conf.key_delim_size = strlen(conf.key_delim);
+        }
+
+        conf.delim = parse_delim(delim);
         conf.delim_size = strlen(conf.delim);
 
         if (strchr("GC", conf.mode)) {
