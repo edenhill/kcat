@@ -1252,7 +1252,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
         fprintf(out,
                 "kafkacat - Apache Kafka producer and consumer tool\n"
                 "https://github.com/edenhill/kafkacat\n"
-                "Copyright (c) 2014-2020, Magnus Edenhill\n"
+                "Copyright (c) 2014-2021, Magnus Edenhill\n"
                 "Version %s (%slibrdkafka %s builtin.features=%s)\n"
                 "\n",
                 KAFKACAT_VERSION,
@@ -1290,7 +1290,6 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "  -D <delim>         Message delimiter string:\n"
                 "                     a-z | \\r | \\n | \\t | \\xNN ..\n"
                 "                     Default: \\n\n"
-                "  -E                 Do not exit on non fatal error\n"
                 "  -K <delim>         Key delimiter (same format as -D)\n"
                 "  -c <cnt>           Limit message count\n"
                 "  -m <seconds>       Metadata (et.al.) request timeout.\n"
@@ -1320,6 +1319,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "                     " RD_KAFKA_DEBUG_CONTEXTS "\n"
                 "  -q                 Be quiet (verbosity set to 0)\n"
                 "  -v                 Increase verbosity\n"
+                "  -E                 Do not exit on non-fatal error\n"
                 "  -V                 Print version\n"
                 "  -h                 Print usage help\n"
                 "\n"
