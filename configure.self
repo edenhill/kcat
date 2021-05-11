@@ -10,8 +10,11 @@ function checks {
     # Check that librdkafka is available, and allow to link it statically.
     mkl_meta_set "rdkafka" "desc" "librdkafka is available at http://github.com/edenhill/librdkafka. To quickly download all dependencies and build kafkacat try ./bootstrap.sh"
     mkl_meta_set "rdkafka" "deb" "librdkafka-dev"
-    mkl_lib_check "rdkafka" "" fail CC "-lrdkafka" \
-       "#include <librdkafka/rdkafka.h>"
+    # Try static librdkafka first
+    mkl_lib_check "rdkafka-static" "" disable CC "-lrdkafka" \
+                  "#include <librdkafka/rdkafka.h>" ||
+        mkl_lib_check "rdkafka" "" fail CC "-lrdkafka" \
+                  "#include <librdkafka/rdkafka.h>"
 
     # Make sure rdkafka is new enough.
     mkl_meta_set "librdkafkaver" "name" "librdkafka metadata API"
