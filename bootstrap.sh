@@ -11,7 +11,7 @@
 
 set -o errexit -o nounset -o pipefail
 
-: "${LIBRDKAFKA_VERSION:=v1.5.0}"
+: "${LIBRDKAFKA_VERSION:=v1.7.0}"
 
 function download {
     local url=$1
