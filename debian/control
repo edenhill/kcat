@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Vincent Bernat <bernat@debian.org>
 Uploaders: Faidon Liambotis <paravoid@debian.org>
 Build-Depends: librdkafka-dev (>= 0.9.0),
-               libavro-dev,
+               libavro-c-dev,
                dpkg-dev,
                pkg-config,
                zlib1g-dev,

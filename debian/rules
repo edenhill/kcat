@@ -15,3 +15,6 @@ override_dh_auto_clean:
 override_dh_auto_build:
 	make clean
 	dh_auto_build
+
+override_dh_auto_test:
+	true
