@@ -3,7 +3,7 @@ Section: net
 Priority: optional
 Maintainer: Vincent Bernat <bernat@debian.org>
 Uploaders: Faidon Liambotis <paravoid@debian.org>
-Build-Depends: debhelper-compat (= 13),
+Build-Depends: debhelper-compat,
                librdkafka-dev (>= 0.9.0),
                libavro-dev,
                dpkg-dev,

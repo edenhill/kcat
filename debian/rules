@@ -1,7 +1,7 @@
 #!/usr/bin/make -f
 
 DPKG_EXPORT_BUILDTOOLS=1
-include /usr/share/dpkg/buildtools.mk
+#include /usr/share/dpkg/buildtools.mk
 
 %:
 	dh $@
