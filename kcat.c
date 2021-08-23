@@ -1253,7 +1253,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "kcat - Apache Kafka producer and consumer tool\n"
                 "https://github.com/edenhill/kcat\n"
                 "Copyright (c) 2014-2021, Magnus Edenhill\n"
-                "Version %s (%slibrdkafka %s builtin.features=%s)\n"
+                "Version %s (%s%slibrdkafka %s builtin.features=%s)\n"
                 "\n",
                 KCAT_VERSION,
                 ""
@@ -1270,6 +1270,11 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "IncrementalAssign, "
 #endif
                 ,
+#if ENABLE_JSON
+                json_can_emit_verbatim() ? "JSONVerbatim, " : "",
+#else
+                "",
+#endif
                 rd_kafka_version_str(), features
                 );
 
