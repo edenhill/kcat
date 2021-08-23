@@ -11,7 +11,7 @@ function checks {
     mkl_meta_set "rdkafka" "desc" "librdkafka is available at http://github.com/edenhill/librdkafka. To quickly download all dependencies and build kcat try ./bootstrap.sh"
     mkl_meta_set "rdkafka" "deb" "librdkafka-dev"
     # Try static librdkafka first
-    mkl_lib_check "rdkafka-static" "" disable CC "-lrdkafka" \
+    mkl_lib_check --libname=rdkafka-static "rdkafkastatic" "" disable CC "-lrdkafka" \
                   "#include <librdkafka/rdkafka.h>" ||
         mkl_lib_check "rdkafka" "" fail CC "-lrdkafka" \
                   "#include <librdkafka/rdkafka.h>"
