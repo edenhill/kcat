@@ -2,10 +2,10 @@
 #
 # This script provides a quick build alternative:
 # * Dependencies are downloaded and built automatically
-# * kafkacat is built automatically.
-# * kafkacat is linked statically to avoid runtime dependencies.
+# * kcat is built automatically.
+# * kcat is linked statically to avoid runtime dependencies.
 #
-# While this might not be the preferred method of building kafkacat, it
+# While this might not be the preferred method of building kcat, it
 # is the easiest and quickest way.
 #
 
@@ -152,7 +152,7 @@ build libserdes "([ -f config.h ] || ./configure  --prefix=$DEST --CFLAGS=-I${DE
 
 popd > /dev/null
 
-echo "Building kafkacat"
+echo "Building kcat"
 ./configure --clean
 export CPPFLAGS="${CPPFLAGS:-} -I$DEST/include"
 export STATIC_LIB_avro="$DEST/lib/libavro.a"
@@ -172,7 +172,7 @@ ar dv $DEST/lib/libserdes.a tinycthread.o
 make
 
 echo ""
-echo "Success! kafkacat is now built"
+echo "Success! kcat is now built"
 echo ""
 
-./kafkacat -h
+./kcat -h

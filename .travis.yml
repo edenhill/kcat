@@ -1,27 +1,26 @@
 language: c
-compiler:
-  - gcc
-  - clang
-env:
-   global:
-     - HOMEBREW_NO_AUTO_UPDATE=1
-os:
-  - linux
-  - osx
 dist: bionic
-arch:
-  - amd64
-  - ppc64le
 matrix:
-   exclude:
-      - os: osx
-        arch: ppc64le
+  include:
+    - name: "Linux x64 GCC"
+      os: linux
+      compiler: gcc
+      arch: amd64
+    - name: "Linux ppc64le Clang"
+      os: linux
+      arch: ppc64le
+      compiler: clang
+    - name: "MacOSX x64 Clang"
+      os: osx
+      compiler: clang
+      env: HOMEBREW_NO_AUTO_UPDATE=1
+
 before_install:
   - if [[ $TRAVIS_OS_NAME == linux ]]; then sudo apt-get update -qq && sudo apt-get install -y libssl-dev libsasl2-dev libcurl4-openssl-dev libjansson-dev ; fi
   - if [[ $TRAVIS_OS_NAME == osx ]]; then brew install openssl curl jansson ; fi
 
 script:
   - ./bootstrap.sh
-  - if [[ $TRAVIS_OS_NAME == osx ]]; then otool -L kafkacat ; else ldd kafkacat ; fi
-  - ./kafkacat -U
+  - if [[ $TRAVIS_OS_NAME == osx ]]; then otool -L kcat ; else ldd kcat ; fi
+  - ./kcat -U
 

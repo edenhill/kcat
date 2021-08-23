@@ -1,5 +1,5 @@
 /*
- * kafkacat - Apache Kafka consumer and producer
+ * kcat - Apache Kafka consumer and producer
  *
  * Copyright (c) 2019, Magnus Edenhill
  * All rights reserved.
@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "kafkacat.h"
+#include "kcat.h"
 #include <libserdes/serdes-avro.h>
 
 static serdes_t *serdes;

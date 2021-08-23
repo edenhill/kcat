@@ -34,10 +34,12 @@ _UNAME_S := $(shell uname -s)
 ifeq ($(_UNAME_S),Darwin)
 	LIBFILENAME=$(LIBNAME).$(LIBVER)$(SOLIB_EXT)
 	LIBFILENAMELINK=$(LIBNAME)$(SOLIB_EXT)
+	LIBFILENAMEDBG=$(LIBNAME)-dbg.$(LIBVER)$(SOLIB_EXT)
 	LDD_PRINT="otool -L"
 else
 	LIBFILENAME=$(LIBNAME)$(SOLIB_EXT).$(LIBVER)
 	LIBFILENAMELINK=$(LIBNAME)$(SOLIB_EXT)
+	LIBFILENAMEDBG=$(LIBNAME)-dbg$(SOLIB_EXT).$(LIBVER)
 	LDD_PRINT="ldd"
 endif
 
@@ -106,22 +108,33 @@ $(LIBNAME_LDS):
 $(LIBFILENAME): $(OBJS) $(LIBNAME_LDS)
 	@printf "$(MKL_YELLOW)Creating shared library $@$(MKL_CLR_RESET)\n"
 	$(CC_LD) $(LDFLAGS) $(LIB_LDFLAGS) $(OBJS) -o $@ $(LIBS)
+ifeq ($(WITH_STRIP),y)
+	cp $@ $(LIBFILENAMEDBG)
+	$(STRIP) -S $@
+endif
 
 $(LIBNAME).a:	$(OBJS)
 	@printf "$(MKL_YELLOW)Creating static library $@$(MKL_CLR_RESET)\n"
 	$(AR) rcs$(ARFLAGS) $@ $(OBJS)
+ifeq ($(WITH_STRIP),y)
+	cp $@ $(LIBNAME)-dbg.a
+	$(STRIP) -S $@
+	$(RANLIB) $@
+endif
 
 ifeq ($(MKL_NO_SELFCONTAINED_STATIC_LIB),y)
+_STATIC_FILENAME=$(LIBNAME).a
 $(LIBNAME)-static.a:
-else ifneq ($(WITH_STATIC_LINKING),y)
-$(LIBNAME)-static.a:
-else
-$(LIBNAME)-static.a: $(LIBNAME).a
+
+else # MKL_NO_SELFCONTAINED_STATIC_LIB
+
 ifneq ($(MKL_STATIC_LIBS),)
+_STATIC_FILENAME=$(LIBNAME)-static.a
+$(LIBNAME)-static.a: $(LIBNAME).a
 	@printf "$(MKL_YELLOW)Creating self-contained static library $@$(MKL_CLR_RESET)\n"
 ifeq ($(HAS_LIBTOOL_STATIC),y)
 	$(LIBTOOL) -static -o $@ - $(LIBNAME).a $(MKL_STATIC_LIBS)
-else
+else # HAS_LIBTOOL_STATIC
 	(_tmp=$$(mktemp arstaticXXXXXX) ; \
 	echo "CREATE $@" > $$_tmp ; \
 	for _f in $(LIBNAME).a $(MKL_STATIC_LIBS) ; do \
@@ -132,18 +145,24 @@ else
 	cat $$_tmp ; \
 	ar -M < $$_tmp || exit 1 ; \
 	rm $$_tmp)
-endif
+endif # HAS_LIBTOOL_STATIC
 	cp $@ $(LIBNAME)-static-dbg.a
-	strip -S $@
-	ranlib $@
+# The self-contained static library is always stripped, regardless
+# of --enable-strip, since otherwise it would become too big.
+	$(STRIP) -S $@
+	$(RANLIB) $@
+
 ifneq ($(MKL_DYNAMIC_LIBS),)
 	@printf "$(MKL_RED)WARNING:$(MKL_YELLOW) $@: The following libraries were not available as static libraries and need to be linked dynamically: $(MKL_DYNAMIC_LIBS)$(MKL_CLR_RESET)\n"
-endif
-else
-	@printf "$(MKL_RED)WARNING:$(MKL_YELLOW) $@: Not creating self-contained static library $@: no static libraries available/enabled$(MKL_CLR_RESET)\n"
-endif
-endif
+endif # MKL_DYNAMIC_LIBS
 
+else # MKL_STATIC_LIBS is empty
+_STATIC_FILENAME=$(LIBNAME).a
+$(LIBNAME)-static.a:
+	@printf "$(MKL_RED)WARNING:$(MKL_YELLOW) $@: Not creating self-contained static library $@: no static libraries available/enabled$(MKL_CLR_RESET)\n"
+endif # MKL_STATIC_LIBS
+
+endif # MKL_NO_SELFCONTAINED_STATIC_LIB
 
 $(LIBFILENAMELINK): $(LIBFILENAME)
 	@printf "$(MKL_YELLOW)Creating $@ symlink$(MKL_CLR_RESET)\n"
@@ -160,9 +179,10 @@ includedir=$(includedir)
 Name: $(LIBNAME)
 Description: $(MKL_APP_DESC_ONELINE)
 Version: $(MKL_APP_VERSION)
+Requires.private: $(MKL_PKGCONFIG_REQUIRES_PRIVATE)
 Cflags: -I$${includedir}
 Libs: -L$${libdir} -l$(LIBNAME0)
-Libs.private: $(LIBS)
+Libs.private: $(MKL_PKGCONFIG_LIBS_PRIVATE)
 endef
 
 export _PKG_CONFIG_DEF
@@ -175,8 +195,9 @@ includedir=$(includedir)
 Name: $(LIBNAME)-static
 Description: $(MKL_APP_DESC_ONELINE) (static)
 Version: $(MKL_APP_VERSION)
+Requires: $(MKL_PKGCONFIG_REQUIRES:rdkafka=rdkafka-static)
 Cflags: -I$${includedir}
-Libs: -L$${libdir} $${libdir}/$(LIBNAME)-static.a $(MKL_DYNAMIC_LIBS)
+Libs: -L$${libdir} $${pc_sysrootdir}$${libdir}/$(_STATIC_FILENAME) $(MKL_PKGCONFIG_LIBS_PRIVATE)
 endef
 
 export _PKG_CONFIG_STATIC_DEF
@@ -267,7 +288,7 @@ lib-uninstall:
 bin-install:
 	@printf "$(MKL_YELLOW)Install $(BIN) to $$DESTDIR$(prefix)$(MKL_CLR_RESET)\n"
 	$(INSTALL) -d $$DESTDIR$(bindir) && \
-	$(INSTALL) $(BIN) $$DESTDIR$(bindir) 
+	$(INSTALL) $(BIN) $$DESTDIR$(bindir)
 
 bin-uninstall:
 	@printf "$(MKL_YELLOW)Uninstall $(BIN) from $$DESTDIR$(prefix)$(MKL_CLR_RESET)\n"
@@ -288,8 +309,8 @@ generic-clean:
 	rm -f $(OBJS) $(DEPS)
 
 lib-clean: generic-clean lib-clean-pkg-config
-	rm -f $(LIBNAME)*.a $(LIBFILENAME) $(LIBFILENAMELINK) \
-		$(LIBNAME_LDS)
+	rm -f $(LIBNAME)*.a $(LIBFILENAME) $(LIBFILENAMEDBG) \
+		$(LIBFILENAMELINK) $(LIBNAME_LDS)
 
 bin-clean: generic-clean
 	rm -f $(BIN)

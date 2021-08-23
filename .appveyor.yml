@@ -1,0 +1,23 @@
+version: 1.7.0-pre-{build}
+image: Visual Studio 2015
+configuration: Release
+environment:
+  runtime: v140
+  matrix:
+  - platform: x64
+    arch: x64
+  - platform: win32
+    arch: x86
+before_build:
+- cmd: nuget restore win32/kcat.sln
+build:
+  project: win32\kcat.sln
+  verbosity: detailed
+test: off
+artifacts:
+- path: '**\*.exe'
+  name: Exe
+- path: '**\*.dll'
+  name: DLLs
+- path: '**\*.dll'
+  name: DLLs

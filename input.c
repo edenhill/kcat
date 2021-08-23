@@ -1,5 +1,5 @@
 /*
- * kafkacat - Apache Kafka consumer and producer
+ * kcat - Apache Kafka consumer and producer
  *
  * Copyright (c) 2020-2021, Magnus Edenhill
  * All rights reserved.
@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "kafkacat.h"
+#include "kcat.h"
 #include "input.h"
 
 #include <stdlib.h>
@@ -76,17 +76,19 @@ void inbuf_destroy (struct inbuf *inbuf) {
  */
 static size_t inbuf_get_alloc_size (const struct inbuf *inbuf,
                                     size_t min_size) {
-        if (inbuf->max_size < min_size)
-                KC_FATAL("Invalid allocation size: %"PRIu64,
-                         (uint64_t)min_size);
-
-        return MAX(min_size,
+        const size_t max_size =
 #ifdef MREMAP_MAYMOVE
                    4096
 #else
                    1024
 #endif
-                );
+                ;
+
+        if (inbuf->max_size < min_size)
+                KC_FATAL("Invalid allocation size: %"PRIu64,
+                         (uint64_t)min_size);
+
+        return MAX(min_size, max_size);
 }
 
 

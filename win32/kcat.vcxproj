@@ -112,7 +112,7 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\kafkacat.h" />
+    <ClInclude Include="..\kcat.h" />
     <ClInclude Include="..\rdport.h" />
     <ClInclude Include="..\input.h" />
     <ClInclude Include="win32_config.h" />
@@ -121,7 +121,7 @@
   <ItemGroup>
     <ClCompile Include="..\tools.c" />
     <ClCompile Include="..\format.c" />
-    <ClCompile Include="..\kafkacat.c" />
+    <ClCompile Include="..\kcat.c" />
     <ClCompile Include="..\input.c" />
     <ClCompile Include="getdelim.c" />
     <ClCompile Include="wingetopt.c" />
