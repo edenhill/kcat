@@ -2,13 +2,13 @@
 #
 
 mkl_require good_cflags
-mkl_require gitversion as KAFKACAT_VERSION default 1.7.0
+mkl_require gitversion as KCAT_VERSION default 1.7.0
 
 
 function checks {
 
     # Check that librdkafka is available, and allow to link it statically.
-    mkl_meta_set "rdkafka" "desc" "librdkafka is available at http://github.com/edenhill/librdkafka. To quickly download all dependencies and build kafkacat try ./bootstrap.sh"
+    mkl_meta_set "rdkafka" "desc" "librdkafka is available at http://github.com/edenhill/librdkafka. To quickly download all dependencies and build kcat try ./bootstrap.sh"
     mkl_meta_set "rdkafka" "deb" "librdkafka-dev"
     # Try static librdkafka first
     mkl_lib_check "rdkafka-static" "" disable CC "-lrdkafka" \
@@ -64,5 +64,5 @@ struct rd_kafka_metadata foo;"
 }
 
 
-mkl_toggle_option "kafkacat" WITH_JSON --enable-json "JSON support (requires libyajl2)" y
-mkl_toggle_option "kafkacat" WITH_AVRO --enable-avro "Avro/Schema-Registry support (requires libserdes)" y
+mkl_toggle_option "kcat" WITH_JSON --enable-json "JSON support (requires libyajl2)" y
+mkl_toggle_option "kcat" WITH_AVRO --enable-avro "Avro/Schema-Registry support (requires libserdes)" y

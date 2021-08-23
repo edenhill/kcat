@@ -22,6 +22,6 @@ before_install:
 
 script:
   - ./bootstrap.sh
-  - if [[ $TRAVIS_OS_NAME == osx ]]; then otool -L kafkacat ; else ldd kafkacat ; fi
-  - ./kafkacat -U
+  - if [[ $TRAVIS_OS_NAME == osx ]]; then otool -L kcat ; else ldd kcat ; fi
+  - ./kcat -U
 

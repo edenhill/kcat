@@ -7,4 +7,4 @@
 set -e
 source helpers.sh
 
-$KAFKACAT -U
+$KCAT -U
