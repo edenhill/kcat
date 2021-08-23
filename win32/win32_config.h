@@ -1,3 +1,3 @@
 #pragma once
 
-#define KAFKACAT_VERSION "1.4.0" /* Manually updated */
+#define KCAT_VERSION "1.7.0" /* Manually updated */

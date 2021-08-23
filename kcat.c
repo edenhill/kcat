@@ -1,7 +1,7 @@
 /*
- * kafkacat - Apache Kafka consumer and producer
+ * kcat - Apache Kafka consumer and producer
  *
- * Copyright (c) 2014-2020, Magnus Edenhill
+ * Copyright (c) 2014-2021, Magnus Edenhill
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,7 +48,7 @@
 
 
 
-#include "kafkacat.h"
+#include "kcat.h"
 #include "input.h"
 
 #if RD_KAFKA_VERSION >= 0x01040000
@@ -1250,12 +1250,12 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
         rd_kafka_conf_destroy(tmpconf);
 
         fprintf(out,
-                "kafkacat - Apache Kafka producer and consumer tool\n"
-                "https://github.com/edenhill/kafkacat\n"
+                "kcat - Apache Kafka producer and consumer tool\n"
+                "https://github.com/edenhill/kcat\n"
                 "Copyright (c) 2014-2021, Magnus Edenhill\n"
                 "Version %s (%slibrdkafka %s builtin.features=%s)\n"
                 "\n",
-                KAFKACAT_VERSION,
+                KCAT_VERSION,
                 ""
 #if ENABLE_JSON
                 "JSON, "
@@ -1293,7 +1293,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "  -K <delim>         Key delimiter (same format as -D)\n"
                 "  -c <cnt>           Limit message count\n"
                 "  -m <seconds>       Metadata (et.al.) request timeout.\n"
-                "                     This limits how long kafkacat will block\n"
+                "                     This limits how long kcat will block\n"
                 "                     while waiting for initial metadata to be\n"
                 "                     retrieved from the Kafka cluster.\n"
                 "                     It also sets the timeout for the producer's\n"
@@ -1301,10 +1301,10 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "                     Default: 5 seconds.\n"
                 "  -F <config-file>   Read configuration properties from file,\n"
                 "                     file format is \"property=value\".\n"
-                "                     The KAFKACAT_CONFIG=path environment can "
+                "                     The KCAT_CONFIG=path environment can "
                 "also be used, but -F takes precedence.\n"
                 "                     The default configuration file is "
-                "$HOME/.config/kafkacat.conf\n"
+                "$HOME/.config/kcat.conf\n"
                 "  -X list            List available librdkafka configuration "
                 "properties\n"
                 "  -X prop=val        Set librdkafka configuration property.\n"
@@ -1348,7 +1348,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "                     messages in a single transaction which\n"
                 "                     is committed when stdin is closed or the\n"
                 "                     input file(s) are fully read.\n"
-                "                     If kafkacat is terminated through Ctrl-C\n"
+                "                     If kcat is terminated through Ctrl-C\n"
                 "                     (et.al) the transaction will be aborted.\n"
                 "\n"
                 "Consumer options:\n"
@@ -1461,25 +1461,25 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "\n"
 #endif
                 "Consumer mode (writes messages to stdout):\n"
-                "  kafkacat -b <broker> -t <topic> -p <partition>\n"
+                "  kcat -b <broker> -t <topic> -p <partition>\n"
                 " or:\n"
-                "  kafkacat -C -b ...\n"
+                "  kcat -C -b ...\n"
                 "\n"
 #if ENABLE_KAFKACONSUMER
                 "High-level KafkaConsumer mode:\n"
-                "  kafkacat -b <broker> -G <group-id> topic1 top2 ^aregex\\d+\n"
+                "  kcat -b <broker> -G <group-id> topic1 top2 ^aregex\\d+\n"
                 "\n"
 #endif
                 "Producer mode (reads messages from stdin):\n"
-                "  ... | kafkacat -b <broker> -t <topic> -p <partition>\n"
+                "  ... | kcat -b <broker> -t <topic> -p <partition>\n"
                 " or:\n"
-                "  kafkacat -P -b ...\n"
+                "  kcat -P -b ...\n"
                 "\n"
                 "Metadata listing:\n"
-                "  kafkacat -L -b <broker> [-t <topic>]\n"
+                "  kcat -L -b <broker> [-t <topic>]\n"
                 "\n"
                 "Query offset by timestamp:\n"
-                "  kafkacat -Q -b broker -t <topic>:<partition>:<timestamp>\n"
+                "  kcat -Q -b broker -t <topic>:<partition>:<timestamp>\n"
                 "\n",
                 conf.null_str
                 );
@@ -1672,7 +1672,7 @@ static int try_conf_set (const char *name, char *val,
                 return serr == SERDES_ERR_OK ? 0 : -1;
 #else
                 snprintf(errstr, errstr_size,
-                         "This build of kafkacat lacks "
+                         "This build of kcat lacks "
                          "Avro/Schema-Registry support");
                 return -1;
 #endif
@@ -1851,15 +1851,25 @@ static const char *kc_getenv (const char *env) {
 }
 
 static void read_default_conf_files (void) {
-        char path[512];
+        char kpath[512], kpath2[512];
         const char *home;
 
         if (!(home = kc_getenv("HOME")))
                 return;
 
-        snprintf(path, sizeof(path), "%s/.config/kafkacat.conf", home);
+        snprintf(kpath, sizeof(kpath), "%s/.config/kcat.conf", home);
 
-        read_conf_file(path, 0/*not fatal*/);
+        if (read_conf_file(kpath, 0/*not fatal*/) == 0)
+                return;
+
+        snprintf(kpath2, sizeof(kpath2), "%s/.config/kafkacat.conf", home);
+
+        if (read_conf_file(kpath2, 0/*not fatal*/) == 0) {
+                KC_INFO(1,
+                        "Configuration filename kafkacat.conf is "
+                        "deprecated!\n");
+                KC_INFO(1, "Rename %s to %s\n", kpath2, kpath);
+        }
 }
 
 
@@ -2080,7 +2090,7 @@ static void argparse (int argc, char **argv,
 #if ENABLE_JSON
                         conf.flags |= CONF_F_FMT_JSON;
 #else
-                        KC_FATAL("This build of kafkacat lacks JSON support");
+                        KC_FATAL("This build of kcat lacks JSON support");
 #endif
                         break;
 
@@ -2119,7 +2129,7 @@ static void argparse (int argc, char **argv,
                                          errstr, sizeof(errstr)) == -1)
                                 KC_FATAL("%s", errstr);
 #else
-                        KC_FATAL("This build of kafkacat lacks "
+                        KC_FATAL("This build of kcat lacks "
                                  "Avro/Schema-Registry support");
 #endif
                         break;
@@ -2236,8 +2246,14 @@ static void argparse (int argc, char **argv,
 
 
         if (conf_files_read == 0) {
-                const char *cpath = kc_getenv("KAFKACAT_CONFIG");
+                const char *cpath = kc_getenv("KCAT_CONFIG");
                 if (cpath) {
+                        conf.flags |= CONF_F_NO_CONF_SEARCH;
+                        read_conf_file(cpath, 1/*fatal errors*/);
+
+                } else if ((cpath = kc_getenv("KAFKACAT_CONFIG"))) {
+                        KC_INFO(1, "KAFKA_CONFIG is deprecated!\n");
+                        KC_INFO(1, "Rename KAFKA_CONFIG to KCAT_CONFIG\n");
                         conf.flags |= CONF_F_NO_CONF_SEARCH;
                         read_conf_file(cpath, 1/*fatal errors*/);
                 }
@@ -2295,7 +2311,7 @@ static void argparse (int argc, char **argv,
 
                 if (conf.pack[i] && !strcmp(conf.pack[i], "avro")) {
 #if !ENABLE_AVRO
-                        KC_FATAL("This build of kafkacat lacks "
+                        KC_FATAL("This build of kcat lacks "
                                  "Avro/Schema-Registry support");
 #endif
 #if ENABLE_JSON
@@ -2305,12 +2321,12 @@ static void argparse (int argc, char **argv,
                          * but my own fork of yajl does. */
                         if (conf.flags & CONF_F_FMT_JSON &&
                             !json_can_emit_verbatim())
-                                KC_FATAL("This build of kafkacat lacks "
+                                KC_FATAL("This build of kcat lacks "
                                          "support for emitting "
                                          "JSON-formatted "
                                          "message keys and values: "
                                          "try without -J or build "
-                                         "kafkacat with yajl from "
+                                         "kcat with yajl from "
                                          "https://github.com/edenhill/yajl");
 #endif
 
@@ -2406,12 +2422,13 @@ int main (int argc, char **argv) {
         struct timeval tv;
         rd_kafka_topic_partition_list_t *rktparlist = NULL;
 
-        /* Certain Docker images don't have kafkacat as the entry point,
-         * requiring `kafkacat` to be the first argument. As these images
+        /* Certain Docker images don't have kcat as the entry point,
+         * requiring `kcat` to be the first argument. As these images
          * are fixed the examples get outdated and that first argument
-         * will still be passed to the container and thus kafkacat,
+         * will still be passed to the container and thus kcat,
          * so remove it here. */
-        if (argc > 1 && !strcmp(argv[1], "kafkacat")) {
+        if (argc > 1 && (!strcmp(argv[1], "kcat") ||
+                         !strcmp(argv[1], "kafkacat"))) {
                 if (argc > 2)
                         memmove(&argv[1], &argv[2], sizeof(*argv) * (argc - 2));
                 argc--;

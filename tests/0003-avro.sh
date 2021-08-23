@@ -15,8 +15,8 @@ if [[ -z $SR_URL ]]; then
     SKIP "No schema-registry available (SR_URL env not set)"
 fi
 
-if ! $KAFKACAT -V | grep -q ^Version.*Avro.*builtin\.features; then
-    SKIP "Kafkacat not built with Avro support"
+if ! $KCAT -V | grep -q ^Version.*Avro.*builtin\.features; then
+    SKIP "kcat not built with Avro support"
 fi
 
 topic=$(make_topic_name)
@@ -51,7 +51,7 @@ echo "$key:$value" |
 
 
 info "Reading Avro messages without key deserializer"
-output=$($KAFKACAT -C -r $SR_URL -t $topic -o beginning -e -D\; -s value=avro)
+output=$($KCAT -C -r $SR_URL -t $topic -o beginning -e -D\; -s value=avro)
 exp="$value;$value;"
 if [[ $output != $exp ]]; then
     echo "FAIL: Expected '$exp', not '$output'"
@@ -59,7 +59,7 @@ if [[ $output != $exp ]]; then
 fi
 
 info "Reading Avro messages with key deserializer"
-output=$($KAFKACAT -C -r $SR_URL -t $topic -o beginning -e -D\; -s value=avro -s key=avro)
+output=$($KCAT -C -r $SR_URL -t $topic -o beginning -e -D\; -s value=avro -s key=avro)
 exp="$value;$key$value;"
 if [[ $output != $exp ]]; then
     echo "FAIL: Expected '$exp', not '$output'"
@@ -68,7 +68,7 @@ fi
 
 
 info "Verifying first message's JSON with jq"
-output=$($KAFKACAT -C -r $SR_URL -t $topic -o beginning -c 1 -s value=avro | \
+output=$($KCAT -C -r $SR_URL -t $topic -o beginning -c 1 -s value=avro | \
              jq -r '(.name + "=" + (.number | tostring))')
 exp="TestName=63"
 
