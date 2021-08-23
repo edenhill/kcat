@@ -28,7 +28,7 @@ info "Producing Avro message to $topic"
 value='{"number": 63, "name": "TestName"}'
 echo $value | \
     docker run --network=host -i \
-           confluentinc/cp-schema-registry:6.0.0 \
+           confluentinc/cp-schema-registry:6.1.0 \
            kafka-avro-console-producer \
            --bootstrap-server $BROKERS \
            --topic $topic \
@@ -39,7 +39,7 @@ info "Producing keyed Avro message to $topic"
 key='"An Avro Key"'
 echo "$key:$value" |
     docker run --network=host -i \
-           confluentinc/cp-schema-registry:6.0.0 \
+           confluentinc/cp-schema-registry:6.1.0 \
            kafka-avro-console-producer \
            --bootstrap-server $BROKERS \
            --topic $topic \
