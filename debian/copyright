@@ -1,7 +1,7 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: kafkacat
+Upstream-Name: kcat
 Upstream-Contact: Magnus Edenhill <magnus@edenhill.se>
-Source: https://github.com/edenhill/kafkacat/
+Source: https://github.com/edenhill/kcat/
 
 Files: *
 Copyright: (c) 2014, Magnus Edenhill
