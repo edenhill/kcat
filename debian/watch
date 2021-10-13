@@ -1,0 +1,3 @@
+version=3
+opts=filenamemangle=s/.+\/v?(\d\S*)\.tar\.gz/kcat-$1.tar.gz/ \
+  https://github.com/edenhill/kcat/releases .*/v?(\d[^-]*)\.tar\.gz
