@@ -71,6 +71,7 @@ typedef enum {
         KC_FMT_TOPIC,
         KC_FMT_PARTITION,
         KC_FMT_TIMESTAMP,
+        KC_FMT_FORMATTED_TIMESTAMP,
         KC_FMT_HEADERS
 } fmt_type_t;
 
