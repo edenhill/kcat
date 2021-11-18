@@ -71,7 +71,7 @@ zypper install kafkacat
 ### On Mac OS X with homebrew installed:
 
 ````
-brew install kafkacat
+brew install kcat
 ````
 
 ### On Fedora
