@@ -21,7 +21,7 @@
         "libz-dev"
       ],
       "buildcmd": [
-          "./bootstrap.sh"
+          "./bootstrap.sh --no-enable-static"
       ]
     },
 
@@ -44,7 +44,6 @@
         "libkrb5-dev",
         "libldap-dev",
         "libz-dev"
-
       ],
       "buildcmd": [
           "./bootstrap.sh"
