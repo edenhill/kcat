@@ -45,7 +45,7 @@ Apart from the name, nothing else was changed.
 
 ```bash
 # List brokers and topics in cluster
-$ docker run -it --network=host edenhill/kcat:1.7.0 -b YOUR_BROKER -L
+$ docker run -it --network=host edenhill/kcat:1.7.1 -b YOUR_BROKER -L
 ```
 
 See [Examples](#examples) for usage options, and [Running in Docker](#running-in-docker) for more information on how to properly run docker-based clients with Kafka.
@@ -279,7 +279,7 @@ Consume messages between two timestamps
 
 ## Running in Docker
 
-The latest kcat docker image is `edenhill/kcat:1.7.0`, there's
+The latest kcat docker image is `edenhill/kcat:1.7.1`, there's
 also [Confluent's kafkacat docker images on Docker Hub](https://hub.docker.com/r/confluentinc/cp-kafkacat/).
 
 If you are connecting to Kafka brokers also running on Docker you should specify the network name as part of the `docker run` command using the `--network` parameter. For more details of networking with Kafka and Docker [see this post](https://rmoff.net/2018/08/02/kafka-listeners-explained/).

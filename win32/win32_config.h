@@ -1,3 +1,3 @@
 #pragma once
 
-#define KCAT_VERSION "1.7.0" /* Manually updated */
+#define KCAT_VERSION "1.7.1" /* Manually updated */

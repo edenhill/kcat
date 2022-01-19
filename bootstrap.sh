@@ -11,7 +11,7 @@
 
 set -o errexit -o nounset -o pipefail
 
-: "${LIBRDKAFKA_VERSION:=v1.7.0}"
+: "${LIBRDKAFKA_VERSION:=v1.8.2}"
 
 lrk_install_deps="--install-deps"
 lrk_static="--enable-static"

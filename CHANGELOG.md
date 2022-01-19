@@ -1,3 +1,8 @@
+# kcat v1.7.1
+
+The edenhill/kcat image has been updated to librdkafka v1.8.2.
+
+
 # kcat v1.7.0
 
 **kafkacat has been renamed to kcat** to adhere to the

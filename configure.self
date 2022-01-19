@@ -2,7 +2,7 @@
 #
 
 mkl_require good_cflags
-mkl_require gitversion as KCAT_VERSION default 1.7.0
+mkl_require gitversion as KCAT_VERSION default 1.7.1
 
 
 function checks {
