@@ -213,7 +213,7 @@ Produce a tombstone (a "delete" for compacted topics) for key "abc" by providing
 
 Produce with headers:
 
-    $ echo "hello there" | kcat -b mybroker -H "header1=header value" -H "nullheader" -H "emptyheader=" -H "header1=duplicateIsOk"
+    $ echo "hello there" | kcat -b mybroker -P -t mytopic -H "header1=header value" -H "nullheader" -H "emptyheader=" -H "header1=duplicateIsOk"
 
 
 Print headers in consumer:
