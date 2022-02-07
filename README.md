@@ -108,6 +108,8 @@ On Ubuntu or Debian: `sudo apt-get install librdkafka-dev libyajl-dev`
     nuget restore
     msbuild
 
+**NOTE**: Requires `Build Tools for Visual Studio 2017` with components `Windows 8.1 SDK` and `VC++ 2015.3 v14.00 (v140) toolset` to be installed.
+
 ## Quick build
 
 The bootstrap.sh build script will download and build the required dependencies,
