@@ -1,3 +1,11 @@
+kafkacat (1.6.0-2) UNRELEASED; urgency=medium
+
+  * Remove constraints unnecessary since buster:
+    + Build-Depends: Drop versioned constraint on librdkafka-dev and
+      libyajl-dev.
+
+ -- Debian Janitor <janitor@jelmer.uk>  Fri, 18 Feb 2022 16:00:55 -0000
+
 kafkacat (1.6.0-1) unstable; urgency=medium
 
   * New upstream release.
