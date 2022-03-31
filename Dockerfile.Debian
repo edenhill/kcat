@@ -12,7 +12,7 @@ RUN apt-get update && \
   rm -rf tmp-bootstrap && \
   echo "Source versions:" && \
   grep ^github_download ./bootstrap.sh && \
-  ./bootstrap.sh && \
+  ./bootstrap.sh --no-enable-static && \
   mv kcat /usr/bin/ ; \
   echo "Cleaning up" ; \
   cd / ; \
