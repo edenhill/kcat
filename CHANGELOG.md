@@ -1,3 +1,10 @@
+# kcat v1.8.0
+
+ * Producer: Fix stdin buffering: no messages would be produced
+   until Ctrl-D or at least 1024 bytes had accumulated (#343).
+
+
+
 # kcat v1.7.1
 
 The edenhill/kcat image has been updated to librdkafka v1.8.2.
