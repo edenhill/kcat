@@ -142,7 +142,6 @@ void error0 (int exitonerror, const char *func, int line,
  */
 static void dr_msg_cb (rd_kafka_t *rk, const rd_kafka_message_t *rkmessage,
                        void *opaque) {
-        static int say_once = 1;
         int32_t broker_id = -1;
         struct buf *b = rkmessage->_private;
 
@@ -165,11 +164,15 @@ static void dr_msg_cb (rd_kafka_t *rk, const rd_kafka_message_t *rkmessage,
                 "on broker %"PRId32"\n",
                 rkmessage->partition, rkmessage->offset, broker_id);
 
+#if RD_KAFKA_VERSION < 0x01000000
         if (rkmessage->offset == 0 && say_once) {
+                static int say_once = 1;
                 KC_INFO(3, "Enable message offset reporting "
                         "with '-X topic.produce.offset.report=true'\n");
                 say_once = 0;
         }
+#endif
+
         stats.tx_delivered++;
 }
 
