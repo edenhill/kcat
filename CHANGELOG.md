@@ -1,5 +1,9 @@
 # kcat v1.8.0
 
+ * Added new mock cluster mode
+   `kcat -M <broker-cnt>` spins up a mock cluster that applications
+   can produce to and consume from.
+ * Mixing modes is now prohibited (e.g., `-P .. -C`).
  * Producer: Fix stdin buffering: no messages would be produced
    until Ctrl-D or at least 1024 bytes had accumulated (#343).
 

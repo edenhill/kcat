@@ -330,3 +330,42 @@ Partition: 0    Offset: 2
 --
 % Reached end of topic test [0] at offset 3
 ```
+
+
+## Run a mock Kafka cluster
+
+With kcat you can spin up an ephemeral in-memory mock Kafka cluster
+that you you can connect your Kafka applications to for quick
+testing.
+The mock cluster supports a reasonable subset of the Kafka
+protocol, such as:
+
+ * Producer
+ * Idempotent Producer
+ * Transactional Producer
+ * Low-level consumer
+ * High-level balanced consumer groups with offset commits
+ * Topic Metadata and auto creation
+
+
+Spin the cluster by running kcat in the `-M` (for mock) mode:
+
+```bash
+
+# Create mock cluster with 3 brokers
+$ kcat -M 3
+...
+BROKERS=localhost:12345,localhost:46346,localhost:23599
+...
+```
+
+While kcat runs, let your Kafka applications connect to the mock cluster
+by configuring them with the `bootstrap.servers` emitted in the `BROKERS`
+line above.
+
+Let kcat run for as long as you need the cluster, then terminate it by
+pressing `Ctrl-D`.
+
+
+Since the cluster runs all in memory, with no disk IO, it is quite suitable
+for performance testing.
