@@ -77,7 +77,7 @@ brew install kcat
 ### On Fedora
 
 ```
-# dnf copr enable bvn13/kafkacat
+# dnf copr enable bvn13/kcat
 # dnf update
 # dnf install kafkacat
 ```
