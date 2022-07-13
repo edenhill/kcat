@@ -28,6 +28,7 @@
 
 #include "kcat.h"
 #include "rdendian.h"
+#include <time.h>
 
 static void fmt_add (fmt_type_t type, const char *str, int len) {
         if (conf.fmt_cnt == KC_FMT_MAX_SIZE)
@@ -203,7 +204,7 @@ static int print_headers (FILE *fp, const rd_kafka_headers_t *hdrs) {
  */
 void pack_check (const char *what, const char *fmt) {
         const char *f = fmt;
-        static const char *valid = " <>bBhHiIqQcs$";
+        static const char *valid = " :,<>bBhHiIqQcsSUvCt$";
 
         if (!*fmt)
                 KC_FATAL("%s pack-format must not be empty", what);
@@ -242,7 +243,7 @@ static int unpack (FILE *fp, const char *what, const char *fmt,
 #define endian_swap(val,to_little,to_big)                       \
         (endian == big_endian ? to_big(val) : to_little(val))
 
-#define fup_copy(dst,sz) do {                                           \
+#define expect(sz) do {                                         \
                 if ((sz) > remaining) {                                 \
                         snprintf(errstr, errstr_size,                   \
                                  "%s truncated, expected %d bytes "     \
@@ -251,6 +252,10 @@ static int unpack (FILE *fp, const char *what, const char *fmt,
                                  (int)remaining);                       \
                         return -1;                                      \
                 }                                                       \
+        } while (0)
+
+#define fup_copy(dst,sz) do {                                           \
+		expect(sz);                                             \
                 memcpy(dst, b, sz);                                     \
                 b += (sz);                                              \
         } while (0)
@@ -263,6 +268,12 @@ static int unpack (FILE *fp, const char *what, const char *fmt,
                 case ' ':
                         fprintf(fp, " ");
                         break;
+		case ':':
+			fprintf(fp, ":");
+			break;
+		case ',':
+			fprintf(fp, ",");
+			break;
                 case '<':
                         endian = little_endian;
                         break;
@@ -287,7 +298,7 @@ static int unpack (FILE *fp, const char *what, const char *fmt,
                 {
                         int16_t v;
                         fup_copy(&v, sizeof(v));
-                        v = endian_swap(v, be16toh, be16toh);
+                        v = endian_swap(v, be16toh, htobe16);
                         fprintf(fp, "%hd", v);
                 }
                 break;
@@ -295,7 +306,7 @@ static int unpack (FILE *fp, const char *what, const char *fmt,
                 {
                         uint16_t v;
                         fup_copy(&v, sizeof(v));
-                        v = endian_swap(v, be16toh, be16toh);
+                        v = endian_swap(v, be16toh, htobe16);
                         fprintf(fp, "%hu", v);
                 }
                 break;
@@ -341,6 +352,83 @@ static int unpack (FILE *fp, const char *what, const char *fmt,
                         b += remaining;
                 }
                 break;
+		case 'S':
+		{
+			uint16_t v;
+			fup_copy(&v, sizeof(v));
+			v = endian_swap(v, be16toh, htobe16);
+			fprintf(fp, "%.*s", v, b);
+			expect((unsigned) v);
+			b += v;
+		}
+		break;
+		case 'U':
+		{
+			uint64_t high, low, temp;
+			fup_copy(&high, sizeof(high));
+			fup_copy(&low, sizeof(low));
+			high = endian_swap(high, be64toh, htobe64);
+			low = endian_swap(high, be64toh, htobe64);
+			if (endian == little_endian) {
+				temp = high;
+				high = low;
+				low = temp;
+			}
+			fprintf(fp, "%08x-%04x-%04x-%04x-%08x%04x",
+				(unsigned) ((high >> 32) & 0xFFFFFFFFU),
+				(unsigned) ((high >> 16) & 0xFFFFU),
+				(unsigned) (high & 0xFFFFU),
+				(unsigned) ((low >> 48) & 0xFFFFU),
+				(unsigned) ((low >> 16) & 0xFFFFFFFFFU),
+				(unsigned) (low & 0xFFFFU));
+		}
+		break;
+		case 'v':
+		{
+			uint8_t v;
+			uint64_t value = 0;
+			int i = 0;
+			do {
+				fup_copy(&v, sizeof(v));
+				value |= ((uint64_t) (v & 0x7f)) << i;
+				i += 7;
+			} while (v & 0x80);
+			fprintf(fp, "%"PRIu64, value);
+		}
+		break;
+		case 'C':
+		{
+			uint8_t v;
+			uint64_t value = 0;
+			int i = 0;
+			do {
+				fup_copy(&v, sizeof(v));
+				value |= ((uint64_t) (v & 0x7f)) << i;
+				i += 7;
+			} while (v & 0x80);
+			expect((unsigned) value);
+			fprintf(fp, "%.*s", (unsigned) value, b);
+			b += value;
+		}
+		break;
+		case 't':
+		{
+			char* buf;
+                        int64_t v;
+			time_t timestamp;
+                        fup_copy(&v, sizeof(v));
+			v = be64toh(v);
+			if (v == -1) {
+				fprintf(fp, "(none)");
+			} else {
+				timestamp = (time_t) (v / 1000);
+				buf = ctime(&timestamp);
+				/* this is totally vile but it works */
+				*(buf + strlen(buf) - 1) = '\0';
+				fprintf(fp, "%s", buf);
+			}
+		}
+		break;	
                 case '$':
                 {
                         if (remaining > 0) {
