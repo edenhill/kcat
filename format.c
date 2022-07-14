@@ -354,12 +354,16 @@ static int unpack (FILE *fp, const char *what, const char *fmt,
                 break;
 		case 'S':
 		{
-			uint16_t v;
+			int16_t v;
 			fup_copy(&v, sizeof(v));
-			v = endian_swap(v, be16toh, htobe16);
-			fprintf(fp, "%.*s", v, b);
-			expect((unsigned) v);
-			b += v;
+			v = be16toh(v);
+			if (v < 0)
+				fprintf(fp, "(null)");
+			else {
+				fprintf(fp, "%.*s", v, b);
+				expect((unsigned) v);
+				b += v;
+			}
 		}
 		break;
 		case 'U':
@@ -465,7 +469,8 @@ static int unpack_offset_key(FILE *fp,
 	const char *what = "key";
 	const char *f = "h";
 
-	uint16_t version;
+	uint16_t version = 0;
+	int retval = 0;
 
 	fup_copy(&version, sizeof(version));
 	version = be16toh(version);
@@ -473,15 +478,26 @@ static int unpack_offset_key(FILE *fp,
 	len -= 2;
 	remaining = (int)(end -  b);
 
-	if (version < 0 || version > 1) {
+	if (version < 0 || version > 2) {
 		snprintf(errstr, errstr_size,
 			 "Unknown key offset version V%d", (int) version);
 		return -1;
 	}
-	return unpack(fp, what, "S: S:i", buf, len, errstr, errstr_size);
+	retval = version;
+	if (version < 2) {
+		fprintf(fp, "[offset] ");
+		if (unpack(fp, what, "S: S:i", buf, len, errstr, errstr_size) == -1)
+			retval = -1;
+	} else {
+		fprintf(fp, "[group] ");
+		if (unpack(fp, what, "S", buf, len, errstr, errstr_size) == -1)
+			retval = -1;
+	}
+	return retval;
 }
 
 static int unpack_offset_value(FILE *fp,
+			       int offset_key_type,
 			       const char *buf, size_t len,
 			       char *errstr, size_t errstr_size) {
 	const char *b = buf;
@@ -490,7 +506,7 @@ static int unpack_offset_value(FILE *fp,
 	const char *what = "value";
 	const char *f = "h";
 
-	uint16_t version;
+	uint16_t version = 0;
 	
 	fup_copy(&version, sizeof(version));
 	version = be16toh(version);
@@ -498,22 +514,39 @@ static int unpack_offset_value(FILE *fp,
 	len -= 2;
 	remaining = (int)(end - b);
 
+
 	if (version >= 0 && version <= 3)
 		fprintf(fp, "V%d: ", (int) version);
-
-	switch(version) {
-	case 0:
-		return unpack(fp, what, "q S,t", buf, len, errstr, errstr_size);
-	case 1:
-		return unpack(fp, what, "q S,t,t", buf, len, errstr, errstr_size);
-	case 2:
-		return unpack(fp, what, "q S,t", buf, len, errstr, errstr_size);
-	case 3:
-		return unpack(fp, what, "q i,S,t", buf, len, errstr, errstr_size);
-	default:
-		snprintf(errstr, errstr_size,
-			 "Unknown offset version V%d", (int) version);
-		return -1;
+	if (offset_key_type == 0 || offset_key_type == 1) {
+		switch(version) {
+		case 0:
+			return unpack(fp, what, "q S,t", buf, len, errstr, errstr_size);
+		case 1:
+			return unpack(fp, what, "q S,t,t", buf, len, errstr, errstr_size);
+		case 2:
+			return unpack(fp, what, "q S,t", buf, len, errstr, errstr_size);
+		case 3:
+			return unpack(fp, what, "q i,S,t", buf, len, errstr, errstr_size);
+		default:
+			snprintf(errstr, errstr_size,
+				 "Unknown offset version V%d", (int) version);
+			return -1;
+		}
+	} else if (offset_key_type == 2) {
+		switch (version) {
+		case 0:
+		case 1:
+			return unpack(fp, what, "S i S S", buf, len, errstr, errstr_size);
+		case 2:
+		case 3:
+			return unpack(fp, what, "S i S S t", buf, len, errstr, errstr_size);
+		default:
+			/* cannot decode this yet */
+			return 0;
+		}
+	} else {
+		fprintf(fp, "(cannot decode)");
+		return 0;
 	}
 }
 	
@@ -530,11 +563,17 @@ static void fmt_msg_output_str (FILE *fp,
         char errstr[256];
 
         *errstr = '\0';
+	int value_reprocess = -1;
+	int continue_after = -1;
+	int offset_key_type = -1;
 
         for (i = 0 ; i < conf.fmt_cnt ; i++) {
                 int r = 1;
                 uint32_t belen;
                 const char *what_failed = "";
+
+		if (i < continue_after && i != value_reprocess)
+			continue;
 
                 switch (conf.fmt[i].type)
                 {
@@ -565,13 +604,17 @@ static void fmt_msg_output_str (FILE *fp,
                                         KC_FATAL("NOTREACHED");
 #endif
 				} else if (conf.flags & CONF_F_FMT_OFFSET_KEY) {
-					if (unpack_offset_key(fp,
-							      rkmessage->key,
-							      rkmessage->key_len,
-							      errstr,
-							      sizeof(errstr)) ==
-					    -1)
+					offset_key_type = unpack_offset_key(fp,
+									    rkmessage->key,
+									    rkmessage->key_len,
+									    errstr,
+									    sizeof(errstr));
+					if (offset_key_type == -1)
 						goto fail;
+					else if (value_reprocess != -1) {
+						continue_after = i;
+						i = value_reprocess;
+					}
                                 } else if (conf.pack[KC_MSG_FIELD_KEY]) {
                                         if (unpack(fp,
                                                    "key",
@@ -621,7 +664,18 @@ static void fmt_msg_output_str (FILE *fp,
                                         KC_FATAL("NOTREACHED");
 #endif
 				} else if (conf.flags & CONF_F_FMT_OFFSET_VALUE) {
+					if ((conf.flags & CONF_F_FMT_OFFSET_KEY)) {
+						if (offset_key_type == -1) {
+							value_reprocess = i;
+							break;
+						}
+					} else {
+						/* assume "regular" offset, will work 99% of the time */
+						offset_key_type = 1;
+					}
+							
 					if (unpack_offset_value(fp,
+								offset_key_type,
 								rkmessage->payload,
 								rkmessage->len,
 								errstr,
