@@ -218,6 +218,23 @@ void pack_check (const char *what, const char *fmt) {
         }
 }
 
+#define expect(sz) do {                                         \
+                if ((sz) > remaining) {                                 \
+                        snprintf(errstr, errstr_size,                   \
+                                 "%s truncated, expected %d bytes "     \
+                                 "to unpack %c but only %d bytes remaining", \
+                                 what, (int)(sz), (int)(*f),            \
+                                 (int)remaining);                       \
+                        return -1;                                      \
+                }                                                       \
+        } while (0)
+
+#define fup_copy(dst,sz) do {                                           \
+		expect(sz);                                             \
+                memcpy(dst, b, sz);                                     \
+                b += (sz);                                              \
+        } while (0)
+
 
 /**
  * @brief Unpack (deserialize) the data at \p buf using the
@@ -239,26 +256,9 @@ static int unpack (FILE *fp, const char *what, const char *fmt,
                 big_endian,
                 little_endian
         } endian = big_endian;
-
 #define endian_swap(val,to_little,to_big)                       \
         (endian == big_endian ? to_big(val) : to_little(val))
 
-#define expect(sz) do {                                         \
-                if ((sz) > remaining) {                                 \
-                        snprintf(errstr, errstr_size,                   \
-                                 "%s truncated, expected %d bytes "     \
-                                 "to unpack %c but only %d bytes remaining", \
-                                 what, (int)(sz), (int)(*f),            \
-                                 (int)remaining);                       \
-                        return -1;                                      \
-                }                                                       \
-        } while (0)
-
-#define fup_copy(dst,sz) do {                                           \
-		expect(sz);                                             \
-                memcpy(dst, b, sz);                                     \
-                b += (sz);                                              \
-        } while (0)
 
         while (*f) {
                 size_t remaining = (int)(end - b);
@@ -454,10 +454,71 @@ static int unpack (FILE *fp, const char *what, const char *fmt,
         return 0;
 
 #undef endian_swap
-#undef fup_copy
 }
 
+static int unpack_offset_key(FILE *fp,
+			     const char *buf, size_t len,
+			     char *errstr, size_t errstr_size) {
+	const char *b = buf;
+	const char *end = buf + len;
+	size_t remaining = (int)(end - b);
+	const char *what = "key";
+	const char *f = "h";
 
+	uint16_t version;
+
+	fup_copy(&version, sizeof(version));
+	version = be16toh(version);
+	buf += 2;
+	len -= 2;
+	remaining = (int)(end -  b);
+
+	if (version < 0 || version > 1) {
+		snprintf(errstr, errstr_size,
+			 "Unknown key offset version V%d", (int) version);
+		return -1;
+	}
+	return unpack(fp, what, "S: S:i", buf, len, errstr, errstr_size);
+}
+
+static int unpack_offset_value(FILE *fp,
+			       const char *buf, size_t len,
+			       char *errstr, size_t errstr_size) {
+	const char *b = buf;
+	const char *end = buf + len;
+	size_t remaining = (int)(end - b);
+	const char *what = "value";
+	const char *f = "h";
+
+	uint16_t version;
+	
+	fup_copy(&version, sizeof(version));
+	version = be16toh(version);
+	buf += 2;
+	len -= 2;
+	remaining = (int)(end - b);
+
+	if (version >= 0 && version <= 3)
+		fprintf(fp, "V%d: ", (int) version);
+
+	switch(version) {
+	case 0:
+		return unpack(fp, what, "q S,t", buf, len, errstr, errstr_size);
+	case 1:
+		return unpack(fp, what, "q S,t,t", buf, len, errstr, errstr_size);
+	case 2:
+		return unpack(fp, what, "q S,t", buf, len, errstr, errstr_size);
+	case 3:
+		return unpack(fp, what, "q i,S,t", buf, len, errstr, errstr_size);
+	default:
+		snprintf(errstr, errstr_size,
+			 "Unknown offset version V%d", (int) version);
+		return -1;
+	}
+}
+	
+#undef fup_copy
+#undef expect
 
 
 /**
@@ -503,6 +564,14 @@ static void fmt_msg_output_str (FILE *fp,
 #else
                                         KC_FATAL("NOTREACHED");
 #endif
+				} else if (conf.flags & CONF_F_FMT_OFFSET_KEY) {
+					if (unpack_offset_key(fp,
+							      rkmessage->key,
+							      rkmessage->key_len,
+							      errstr,
+							      sizeof(errstr)) ==
+					    -1)
+						goto fail;
                                 } else if (conf.pack[KC_MSG_FIELD_KEY]) {
                                         if (unpack(fp,
                                                    "key",
@@ -551,6 +620,14 @@ static void fmt_msg_output_str (FILE *fp,
 #else
                                         KC_FATAL("NOTREACHED");
 #endif
+				} else if (conf.flags & CONF_F_FMT_OFFSET_VALUE) {
+					if (unpack_offset_value(fp,
+								rkmessage->payload,
+								rkmessage->len,
+								errstr,
+								sizeof(errstr)) ==
+					    -1)
+						goto fail;
                                 } else if (conf.pack[KC_MSG_FIELD_VALUE]) {
                                         if (unpack(fp,
                                                    "value",

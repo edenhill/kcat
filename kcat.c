@@ -1461,6 +1461,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "                       or: -s avro - both key and value are Avro-serialized\n"
 #endif
 #if ENABLE_AVRO
+		"                       offset  - Binary format for consumer offset\n"
                 "  -r <url>           Schema registry URL (when avro deserializer is used with -s)\n"
 #endif
                 "  -D <delim>         Delimiter to separate messages on output\n"
@@ -2208,13 +2209,13 @@ static void argparse (int argc, char **argv,
                         }
 
                         if (field == -1 || field == KC_MSG_FIELD_KEY) {
-                                if (strcmp(t, "avro"))
+                                if (strcmp(t, "avro") && strcmp(t, "offset"))
                                         pack_check("key", t);
                                 conf.pack[KC_MSG_FIELD_KEY] = t;
                         }
 
                         if (field == -1 || field == KC_MSG_FIELD_VALUE) {
-                                if (strcmp(t, "avro"))
+                                if (strcmp(t, "avro") && strcmp(t, "offset"))
                                         pack_check("value", t);
                                 conf.pack[KC_MSG_FIELD_VALUE] = t;
                         }
@@ -2435,7 +2436,13 @@ static void argparse (int argc, char **argv,
                         else if (i == KC_MSG_FIELD_KEY)
                                 conf.flags |= CONF_F_FMT_AVRO_KEY;
                         continue;
-                }
+                } else if (conf.pack[i] && !strcmp(conf.pack[i], "offset")) {
+			if (i == KC_MSG_FIELD_KEY)
+				conf.flags |= CONF_F_FMT_OFFSET_KEY;
+			else if (i == KC_MSG_FIELD_VALUE)
+				conf.flags |= CONF_F_FMT_OFFSET_VALUE;
+			continue;
+		}
         }
 
 
