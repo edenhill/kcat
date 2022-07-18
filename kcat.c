@@ -1447,7 +1447,6 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "                                    c: ASCII character\n"
                 "                                    s: remaining data is string\n"
 		"                                    S: short count followed by string\n"
-		"                                    U: UUID (128 bits)\n"
 		"                                    v: VARINT\n"
 		"                                    C: Compact string (VARINT count + string)\n"
 		"                                    t: 64-bit timestamp from epoch\n"
@@ -1455,13 +1454,13 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "                                       Not including this token skips any\n"
                 "                                       remaining data after the pack-str is\n"
                 "                                       exhausted.\n"
+		"                       offset     - Binary format for consumer offset\n"
 #if ENABLE_AVRO
                 "                       avro       - Avro-formatted with schema in Schema-Registry (requires -r)\n"
                 "                     E.g.: -s key=i -s value=avro - key is 32-bit integer, value is Avro.\n"
                 "                       or: -s avro - both key and value are Avro-serialized\n"
 #endif
 #if ENABLE_AVRO
-		"                       offset  - Binary format for consumer offset\n"
                 "  -r <url>           Schema registry URL (when avro deserializer is used with -s)\n"
 #endif
                 "  -D <delim>         Delimiter to separate messages on output\n"

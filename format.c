@@ -204,7 +204,7 @@ static int print_headers (FILE *fp, const rd_kafka_headers_t *hdrs) {
  */
 void pack_check (const char *what, const char *fmt) {
         const char *f = fmt;
-        static const char *valid = " :,<>bBhHiIqQcsSUvCt$";
+        static const char *valid = " :,<>bBhHiIqQcsSvCt$";
 
         if (!*fmt)
                 KC_FATAL("%s pack-format must not be empty", what);
@@ -364,27 +364,6 @@ static int unpack (FILE *fp, const char *what, const char *fmt,
 				expect((unsigned) v);
 				b += v;
 			}
-		}
-		break;
-		case 'U':
-		{
-			uint64_t high, low, temp;
-			fup_copy(&high, sizeof(high));
-			fup_copy(&low, sizeof(low));
-			high = endian_swap(high, be64toh, htobe64);
-			low = endian_swap(high, be64toh, htobe64);
-			if (endian == little_endian) {
-				temp = high;
-				high = low;
-				low = temp;
-			}
-			fprintf(fp, "%08x-%04x-%04x-%04x-%08x%04x",
-				(unsigned) ((high >> 32) & 0xFFFFFFFFU),
-				(unsigned) ((high >> 16) & 0xFFFFU),
-				(unsigned) (high & 0xFFFFU),
-				(unsigned) ((low >> 48) & 0xFFFFU),
-				(unsigned) ((low >> 16) & 0xFFFFFFFFFU),
-				(unsigned) (low & 0xFFFFU));
 		}
 		break;
 		case 'v':
