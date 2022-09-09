@@ -234,6 +234,11 @@ Connect to cluster using SSL and SASL PLAIN authentication:
     $ kcat -b mybroker -X security.protocol=SASL_SSL -X sasl.mechanism=PLAIN -X sasl.username=myapikey -X sasl.password=myapisecret ...
 
 
+Connect to cluster using SSL and SASL OAUTHBEARER OIDC authentication:
+
+    $ kcat -b mybroker -X security.protocol=SASL_SSL -X sasl.mechanism=OAUTHBEARER -X sasl.oauthbearer.method=OIDC -X sasl.oauthbearer.scope=myscope -X sasl.oauthbearer.token.endpoint.url=https://auth.server/path/to/token/endpoint -X sasl.oauthbearer.client.id=clientid  -X sasl.oauthbearer.client.secret=clientsecret -X sasl.oauthbearer.extensions="key1=value1,key2=value2" ...
+
+
 Metadata listing:
 
 ```
