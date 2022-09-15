@@ -8,8 +8,7 @@ kcat and kafkacat are Copyright (c) 2014-2021 Magnus Edenhill
 
 [https://github.com/edenhill/kcat](https://github.com/edenhill/kcat)
 
-*kcat logo by [@dtrapezoid](https://twitter.com/dtrapezoid)*
-
+_kcat logo by [@dtrapezoid](https://twitter.com/dtrapezoid)_
 
 ## What is kcat
 
@@ -40,7 +39,6 @@ kcat is fast and lightweight; statically linked it is no more than 150Kb.
 to adhere to the Apache Software Foundation's (ASF) trademark policies.
 Apart from the name, nothing else was changed.
 
-
 ## Try it out with docker
 
 ```bash
@@ -50,14 +48,13 @@ $ docker run -it --network=host edenhill/kcat:1.7.1 -b YOUR_BROKER -L
 
 See [Examples](#examples) for usage options, and [Running in Docker](#running-in-docker) for more information on how to properly run docker-based clients with Kafka.
 
-
 ## Install
 
 ### On recent enough Debian systems:
 
-````
+```
 apt-get install kafkacat
-````
+```
 
 On recent openSUSE systems:
 
@@ -66,33 +63,32 @@ zypper addrepo https://download.opensuse.org/repositories/network:utilities/open
 zypper refresh
 zypper install kafkacat
 ```
+
 (see [this page](https://software.opensuse.org/download/package?package=kafkacat&project=network%3Autilities) for instructions to install with openSUSE LEAP)
 
 ### On Mac OS X with homebrew installed:
 
-````
+```
 brew install kcat
-````
+```
 
 ### On Fedora
 
 ```
 # dnf copr enable bvn13/kcat
 # dnf update
-# dnf install kafkacat
+# dnf install kcat
 ```
 
 See [this blog](https://rmoff.net/2020/04/20/how-to-install-kafkacat-on-fedora/) for how to build from sources and install kafkacat/kcat on recent Fedora systems.
 
-
 ### Otherwise follow directions below
-
 
 ## Requirements
 
- * librdkafka - https://github.com/edenhill/librdkafka
- * libyajl (for JSON support, optional)
- * libavro-c and libserdes (for Avro support, optional. See https://github.com/confluentinc/libserdes)
+- librdkafka - https://github.com/edenhill/librdkafka
+- libyajl (for JSON support, optional)
+- libavro-c and libserdes (for Avro support, optional. See https://github.com/confluentinc/libserdes)
 
 On Ubuntu or Debian: `sudo apt-get install librdkafka-dev libyajl-dev`
 
@@ -121,7 +117,6 @@ dependencies.
 
     ./bootstrap.sh
 
-
 ## Configuration
 
 Any librdkafka [configuration](https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md)
@@ -136,7 +131,6 @@ the (deprecated) `~/.config/kafkacat.conf`.
 
 Configuration files are optional.
 
-
 ## Examples
 
 High-level balanced KafkaConsumer: subscribe to topic1 and topic2
@@ -144,95 +138,76 @@ High-level balanced KafkaConsumer: subscribe to topic1 and topic2
 
     $ kcat -b mybroker -G mygroup topic1 topic2
 
-
 Read messages from stdin, produce to 'syslog' topic with snappy compression
 
     $ tail -f /var/log/syslog | kcat -b mybroker -t syslog -z snappy
-
 
 Read messages from Kafka 'syslog' topic, print to stdout
 
     $ kcat -b mybroker -t syslog
 
-
 Produce messages from file (one file is one message)
 
     $ kcat -P -b mybroker -t filedrop -p 0 myfile1.bin /etc/motd thirdfile.tgz
-
 
 Produce messages transactionally (one single transaction for all messages):
 
     $ kcat -P -b mybroker -t mytopic -X transactional.id=myproducerapp
 
-
 Read the last 2000 messages from 'syslog' topic, then exit
 
     $ kcat -C -b mybroker -t syslog -p 0 -o -2000 -e
-
 
 Consume from all partitions from 'syslog' topic
 
     $ kcat -C -b mybroker -t syslog
 
-
 Output consumed messages in JSON envelope:
 
     $ kcat -b mybroker -t syslog -J
-
 
 Decode Avro key (`-s key=avro`), value (`-s value=avro`) or both (`-s avro`) to JSON using schema from the Schema-Registry:
 
     $ kcat -b mybroker -t ledger -s avro -r http://schema-registry-url:8080
 
-
 Decode Avro message value and extract Avro record's "age" field:
 
     $ kcat -b mybroker -t ledger -s value=avro -r http://schema-registry-url:8080 | jq .payload.age
-
 
 Decode key as 32-bit signed integer and value as 16-bit signed integer followed by an unsigned byte followed by string:
 
     $ kcat -b mybroker -t mytopic -s key='i$' -s value='hB s'
 
-
-*Hint: see `kcat -h` for all available deserializer options.*
-
+_Hint: see `kcat -h` for all available deserializer options._
 
 Output consumed messages according to format string:
 
     $ kcat -b mybroker -t syslog -f 'Topic %t[%p], offset: %o, key: %k, payload: %S bytes: %s\n'
 
-
-Read the last 100 messages from topic 'syslog' with  librdkafka configuration parameter 'broker.version.fallback' set to '0.8.2.1' :
+Read the last 100 messages from topic 'syslog' with librdkafka configuration parameter 'broker.version.fallback' set to '0.8.2.1' :
 
     $ kcat -C -b mybroker -X broker.version.fallback=0.8.2.1 -t syslog -p 0 -o -100 -e
-
 
 Produce a tombstone (a "delete" for compacted topics) for key "abc" by providing an empty message value which `-Z` interpretes as NULL:
 
     $ echo "abc:" | kcat -b mybroker -t mytopic -Z -K:
 
-
 Produce with headers:
 
     $ echo "hello there" | kcat -b mybroker -P -t mytopic -H "header1=header value" -H "nullheader" -H "emptyheader=" -H "header1=duplicateIsOk"
 
-
 Print headers in consumer:
 
     $ kcat -b mybroker -C -t mytopic -f 'Headers: %h: Message value: %s\n'
-
 
 Enable the idempotent producer, providing exactly-once and strict-ordering
 **producer** guarantees:
 
     $ kcat -b mybroker -X enable.idempotence=true -P -t mytopic ....
 
-
 Connect to cluster using SSL and SASL PLAIN authentication:
 
     $ kcat -b mybroker -X security.protocol=SASL_SSL -X sasl.mechanism=PLAIN -X sasl.username=myapikey -X sasl.password=myapisecret ...
-
 
 Metadata listing:
 
@@ -257,27 +232,21 @@ Metadata for all topics (from broker 1: mybroker:9092/1):
   ....
 ```
 
-
 JSON metadata listing
 
     $ kcat -b mybroker -L -J
-
 
 Pretty-printed JSON metadata listing
 
     $ kcat -b mybroker -L -J | jq .
 
-
 Query offset(s) by timestamp(s)
 
     $ kcat -b mybroker -Q -t mytopic:3:2389238523 -t mytopic2:0:18921841
 
-
 Consume messages between two timestamps
 
     $ kcat -b mybroker -C -t mytopic -o s@1568276612443 -o e@1568276617901
-
-
 
 ## Running in Docker
 
@@ -331,7 +300,6 @@ Partition: 0    Offset: 2
 % Reached end of topic test [0] at offset 3
 ```
 
-
 ## Run a mock Kafka cluster
 
 With kcat you can spin up an ephemeral in-memory mock Kafka cluster
@@ -340,13 +308,12 @@ testing.
 The mock cluster supports a reasonable subset of the Kafka
 protocol, such as:
 
- * Producer
- * Idempotent Producer
- * Transactional Producer
- * Low-level consumer
- * High-level balanced consumer groups with offset commits
- * Topic Metadata and auto creation
-
+- Producer
+- Idempotent Producer
+- Transactional Producer
+- Low-level consumer
+- High-level balanced consumer groups with offset commits
+- Topic Metadata and auto creation
 
 Spin the cluster by running kcat in the `-M` (for mock) mode:
 
@@ -365,7 +332,6 @@ line above.
 
 Let kcat run for as long as you need the cluster, then terminate it by
 pressing `Ctrl-D`.
-
 
 Since the cluster runs all in memory, with no disk IO, it is quite suitable
 for performance testing.
