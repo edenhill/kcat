@@ -231,7 +231,7 @@ Enable the idempotent producer, providing exactly-once and strict-ordering
 
 Connect to cluster using SSL and SASL PLAIN authentication:
 
-    $ kcat -b mybroker -X security.protocol=SASL_SSL -X sasl.mechanism=PLAIN -X sasl.username=myapikey -X sasl.password=myapisecret ...
+    $ kcat -b mybroker -X security.protocol=SASL_SSL -X sasl.mechanisms=PLAIN -X sasl.username=myapikey -X sasl.password=myapisecret ...
 
 
 Metadata listing:
