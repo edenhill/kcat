@@ -485,6 +485,14 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                 }
 
                 if (conf.run) {
+                        char buf;
+
+                        /*
+                         * inbuf_read_to_delimeter now uses read instead of
+                         * fread. Hence fp is not uptodate for eof checking.
+                         * Try to read 1 byte from fp to get it uptodate.
+                         */
+                        fread(&buf, 1, 1, fp);
                         if (!feof(fp))
                                 KC_FATAL("Unable to read message: %s",
                                          strerror(errno));
