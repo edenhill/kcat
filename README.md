@@ -369,4 +369,3 @@ pressing `Ctrl-D`.
 
 Since the cluster runs all in memory, with no disk IO, it is quite suitable
 for performance testing.
-
