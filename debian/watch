@@ -1,3 +1,4 @@
-version=3
-opts=filenamemangle=s/.+\/v?(\d\S*)\.tar\.gz/kafkacat-$1.tar.gz/ \
-  https://github.com/edenhill/kafkacat/releases .*/v?(\d[^-]*)\.tar\.gz
+version=4
+opts=searchmode=plain,filenamemangle=s/.+\/([0-9\.]+)/kcat-$1.tar.gz/ \
+ https://api.github.com/repos/edenhill/kcat/tags \
+https://api.github.com/repos/edenhill/kcat/tarball/refs/tags/([0-9\.]+).,
