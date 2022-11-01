@@ -39,6 +39,8 @@ MKL_NO_DOWNLOAD=0
 MKL_INSTALL_DEPS=n
 MKL_SOURCE_DEPS_ONLY=n
 
+MKL_DESTDIR_ADDED=n
+
 if [[ -z "$MKL_REPO_URL" ]]; then
     MKL_REPO_URL="http://github.com/edenhill/mklove/raw/master"
 fi
@@ -328,7 +330,7 @@ function mkl_depdir {
 
 # Returns the package's installation directory / DESTDIR.
 function mkl_dep_destdir {
-    echo "$(mkl_depdir)/dest/$1"
+    echo "$(mkl_depdir)/dest"
 }
 
 # Returns the package's source directory.
@@ -596,12 +598,24 @@ function mkl_dep_install {
     if ! mkl_resolve_static_libs "$name" "${ddir}/usr"; then
         # No static libraries found, set up dynamic linker path
         mkl_mkvar_prepend LDFLAGS LDFLAGS "-L${ddir}/usr/lib64 -L${ddir}/usr/lib"
-        mkl_mkvar_prepend PKG_CONFIG_PATH PKG_CONFIG_PATH "${ddir}/usr/lib/pkgconfig" ":"
+    fi
+
+    # Add the deps destdir to various build flags so that tools can pick
+    # up the artifacts (.pc files, includes, libs, etc) they need.
+    if [[ $MKL_DESTDIR_ADDED == n ]]; then
+	# Add environment variables so that later built dependencies
+	# can find this one.
+	mkl_env_prepend LDFLAGS "-L${ddir}/usr/lib64 -L${ddir}/usr/lib"
+	mkl_env_prepend CPPFLAGS "-I${ddir}/usr/include"
+        mkl_env_prepend PKG_CONFIG_PATH "${ddir}/usr/lib/pkgconfig" ":"
+        # And tell pkg-config to get static linker flags.
+	mkl_env_set PKG_CONFIG "${PKG_CONFIG} --static"
+	MKL_DESTDIR_ADDED=y
     fi
 
     # Append the package's install path to compiler and linker flags.
     mkl_dbg "$name: Adding install-deps paths ($ddir) to compiler and linker flags"
-    mkl_mkvar_prepend CFLAGS CFLAGS "-I${ddir}/usr/include"
+    mkl_mkvar_prepend CPPFLAGS CPPFLAGS "-I${ddir}/usr/include"
 
     return $retcode
 }
@@ -821,7 +835,7 @@ function mkl_generate {
     # Generate a built-in options define based on WITH_..=y
     local with_y=
     for n in $MKL_MKVARS ; do
-        if [[ $n == WITH_* ]] && [[ ${!n} == y ]]; then
+        if [[ $n == WITH_* ]] && [[ $n != WITH_STATIC_LIB_* ]] && [[ ${!n} == y ]]; then
             with_y="$with_y ${n#WITH_}"
         fi
     done
@@ -1343,7 +1357,7 @@ function mkl_compile_check {
 int main () { return 0; }
 " >> $srcfile
 
-    local cmd="${!4} $cflags $(mkl_mkvar_get CPPFLAGS) -Wall -Werror $srcfile -o ${srcfile}.o $ldf $(mkl_mkvar_get LDFLAGS) $5";
+    local cmd="${!4} $cflags $(mkl_mkvar_get CPPFLAGS) -Wall -Werror $srcfile -o ${srcfile}.o $ldf $(mkl_mkvar_get LDFLAGS) $5 $(mkl_mkvar_get LIBS)";
     mkl_dbg "Compile check $1 ($2) (sub=$sub): $cmd"
 
     local output
@@ -1560,11 +1574,13 @@ function mkl_lib_check0 {
     fi
 
     local libs="$5"
+    local is_static=0
 
     if [[ -z $nostaticopt ]]; then
         local stlibs=$(mkl_lib_check_static $1 "$libs")
         if [[ -n $stlibs ]]; then
             libs=$stlibs
+            is_static=1
         fi
     fi
 
@@ -1578,6 +1594,12 @@ function mkl_lib_check0 {
         # E.g., check for crypto and then ssl should result in -lssl -lcrypto
         mkl_dbg "$1: from lib_check: LIBS: prepend $libs"
         mkl_mkvar_prepend "$1" LIBS "$libs"
+        if [[ $is_static == 0 ]]; then
+            # Static libraries are automatically bundled with
+            # librdkafka-static.a so there is no need to add them as an
+            # external linkage dependency.
+            mkl_mkvar_prepend "$1" MKL_PKGCONFIG_LIBS_PRIVATE "$libs"
+        fi
     fi
 
     return 0
@@ -1715,12 +1737,19 @@ $cflags"
         fi
     fi
 
+    mkl_mkvar_append $1 "MKL_PKGCONFIG_REQUIRES_PRIVATE" "$libname"
+
     mkl_mkvar_append $1 "CFLAGS" "$cflags"
 
     if [[ -z $nostaticopt ]]; then
         local stlibs=$(mkl_lib_check_static $1 "$libs")
         if [[ -n $stlibs ]]; then
             libs=$stlibs
+        else
+            # if we don't find a static library to bundle into the
+            # -static.a, we need to export a pkgconfig dependency
+            # so it can be resolved when linking downstream packages
+            mkl_mkvar_append $1 "MKL_PKGCONFIG_REQUIRES" "$libname"
         fi
     fi
 
@@ -2151,7 +2180,7 @@ function mkl_usage {
 
     echo "Honoured environment variables:
   CC, CPP, CXX, CFLAGS, CPPFLAGS, CXXFLAGS, LDFLAGS, LIBS,
-  LD, NM, OBJDUMP, STRIP, PKG_CONFIG, PKG_CONFIG_PATH,
+  LD, NM, OBJDUMP, STRIP, RANLIB, PKG_CONFIG, PKG_CONFIG_PATH,
   STATIC_LIB_<libname>=.../libname.a
 
 "
@@ -2335,8 +2364,3 @@ function mkl_toggle_option_lib {
     eval "function _tmp_func { mkl_lib_check \"$2\" \"$3\" \"$4\" CC \"$7\"; }"
     mkl_func_push MKL_CHECKS "$MKL_MODULE" _tmp_func
 }
-
-
-
-
-

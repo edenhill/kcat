@@ -1,7 +1,7 @@
 /*
- * librdkafka - Apache Kafka C library
+ * kcat - Apache Kafka consumer and producer
  *
- * Copyright (c) 2012-2019 Magnus Edenhill
+ * Copyright (c) 2020-2021, Magnus Edenhill
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,68 +26,36 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#pragma once
-
-/**
- * Porting
- */
-
-#ifdef _MSC_VER
-/* Windows win32 native */
-
-#define WIN32_MEAN_AND_LEAN
-#include <Windows.h>
-
-#define RD_NORETURN
-#define RD_UNUSED
-
-/* MSVC loves prefixing POSIX functions with underscore */
-#define _COMPAT(FUNC)  _ ## FUNC
-
-#define STDIN_FILENO 0
-
-typedef SSIZE_T ssize_t;
-
-ssize_t getdelim (char **bufptr, size_t *n,
-                  int delim, FILE *fp);
+#ifndef _INPUT_H_
+#define _INPUT_H_
 
 
-/**
- * @brief gettimeofday() for win32
- */
-static RD_UNUSED
-int rd_gettimeofday (struct timeval *tv, struct timezone *tz) {
-        SYSTEMTIME st;
-        FILETIME   ft;
-        ULARGE_INTEGER d;
-
-        GetSystemTime(&st);
-        SystemTimeToFileTime(&st, &ft);
-        d.HighPart = ft.dwHighDateTime;
-        d.LowPart = ft.dwLowDateTime;
-        tv->tv_sec = (long)((d.QuadPart - 116444736000000000llu) / 10000000L);
-        tv->tv_usec = (long)(st.wMilliseconds * 1000);
-
-        return 0;
-}
+struct buf {
+        void *buf;
+        size_t size;
+};
 
 
-#else
-/* POSIX */
+struct inbuf {
+        const char *delim;
+        size_t dsize;
 
-#define RD_NORETURN __attribute__((noreturn))
-#define RD_UNUSED __attribute__((unused))
+        size_t sof;  /**< Scan-offset */
 
-#define _COMPAT(FUNC) FUNC
+        char *buf;
+        size_t size;  /**< Allocated size of buf */
+        size_t len;   /**< How much of buf is used */
 
-#define rd_gettimeofday(tv,tz) gettimeofday(tv,tz)
-#endif
+        size_t max_size;  /**< Including dsize */
+};
 
 
-#ifndef MAX
-#define MAX(A,B) ((A) > (B) ? (A) : (B))
-#endif
+void buf_destroy (struct buf *buf);
 
-#ifndef MIN
-#define MIN(A,B) ((A) < (B) ? (A) : (B))
+void inbuf_free_buf (void *buf, size_t size);
+void inbuf_init (struct inbuf *inbuf, size_t max_size,
+                 const char *delim, size_t delim_size);
+int inbuf_read_to_delimeter (struct inbuf *inbuf, FILE *fp,
+                             struct buf **outbuf);
+
 #endif

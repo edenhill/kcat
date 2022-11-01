@@ -1,5 +1,5 @@
 /*
- * kafkacat - Apache Kafka consumer and producer
+ * kcat - Apache Kafka consumer and producer
  *
  * Copyright (c) 2015-2019, Magnus Edenhill
  * All rights reserved.
@@ -102,8 +102,10 @@ struct conf {
 #define CONF_F_FMT_AVRO_KEY   0x400 /* Convert key from Avro to JSON */
 #define CONF_F_FMT_AVRO_VALUE 0x800 /* Convert value from Avro to JSON  */
 #define CONF_F_SR_URL_SEEN    0x1000 /* schema.registry.url/-r seen */
-        int     delim;
-        int     key_delim;
+        char   *delim;
+        size_t  delim_size;
+        char   *key_delim;
+        size_t  key_delim_size;
 
         struct {
                 fmt_type_t type;
@@ -129,8 +131,11 @@ struct conf {
         int64_t startts;
         int64_t stopts;
 #endif
-        int     exit_eof;
         int64_t msg_cnt;
+        int     exit_eof;
+        int     eof_cnt;  /**< Current number of partitions reached EOF */
+        rd_kafka_topic_partition_list_t *assignment; /**< Current -G consumer
+                                                      *   assignment */
         int     metadata_timeout;
         char   *null_str;
         int     null_str_len;
@@ -205,7 +210,7 @@ int  json_can_emit_verbatim (void);
 /*
  * avro.c
  */
-char *kc_avro_to_json (const void *data, size_t data_len,
+char *kc_avro_to_json (const void *data, size_t data_len, int *schema_idp,
                        char *errstr, size_t errstr_size);
 
 void kc_avro_init (const char *key_schema_name,

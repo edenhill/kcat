@@ -2,16 +2,38 @@
 #
 # This script provides a quick build alternative:
 # * Dependencies are downloaded and built automatically
-# * kafkacat is built automatically.
-# * kafkacat is linked statically to avoid runtime dependencies.
+# * kcat is built automatically.
+# * kcat is linked statically to avoid runtime dependencies.
 #
-# While this might not be the preferred method of building kafkacat, it
+# While this might not be the preferred method of building kcat, it
 # is the easiest and quickest way.
 #
 
 set -o errexit -o nounset -o pipefail
 
-: "${LIBRDKAFKA_VERSION:=v1.5.0}"
+: "${LIBRDKAFKA_VERSION:=v1.8.2}"
+
+lrk_install_deps="--install-deps"
+lrk_static="--enable-static"
+
+for opt in $*; do
+    case $opt in
+        --no-install-deps)
+            lrk_install_deps=""
+            ;;
+
+        --no-enable-static)
+            lrk_static=""
+            ;;
+
+        *)
+            echo "Unknown option: $opt"
+            exit 1
+            ;;
+    esac
+    shift
+done
+
 
 function download {
     local url=$1
@@ -114,7 +136,7 @@ fi
 export PKG_CONFIG_PATH="$DEST/lib/pkgconfig"
 
 github_download "edenhill/librdkafka" "$LIBRDKAFKA_VERSION" "librdkafka"
-build librdkafka "([ -f config.h ] || ./configure --prefix=$DEST --install-deps --disable-lz4-ext) && make -j && make install" || (echo "Failed to build librdkafka: bootstrap failed" ; false)
+build librdkafka "([ -f config.h ] || ./configure --prefix=$DEST $lrk_install_deps $lrk_static --disable-lz4-ext) && make -j && make install" || (echo "Failed to build librdkafka: bootstrap failed" ; false)
 
 github_download "edenhill/yajl" "edenhill" "libyajl"
 build libyajl "([ -d build ] || ./configure --prefix $DEST) && make install" || (echo "Failed to build libyajl: JSON support will probably be disabled" ; true)
@@ -130,7 +152,7 @@ build libserdes "([ -f config.h ] || ./configure  --prefix=$DEST --CFLAGS=-I${DE
 
 popd > /dev/null
 
-echo "Building kafkacat"
+echo "Building kcat"
 ./configure --clean
 export CPPFLAGS="${CPPFLAGS:-} -I$DEST/include"
 export STATIC_LIB_avro="$DEST/lib/libavro.a"
@@ -150,7 +172,7 @@ ar dv $DEST/lib/libserdes.a tinycthread.o
 make
 
 echo ""
-echo "Success! kafkacat is now built"
+echo "Success! kcat is now built"
 echo ""
 
-./kafkacat -h
+./kcat -h

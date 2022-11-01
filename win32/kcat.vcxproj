@@ -112,15 +112,17 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\kafkacat.h" />
+    <ClInclude Include="..\kcat.h" />
     <ClInclude Include="..\rdport.h" />
+    <ClInclude Include="..\input.h" />
     <ClInclude Include="win32_config.h" />
     <ClInclude Include="wingetopt.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\tools.c" />
     <ClCompile Include="..\format.c" />
-    <ClCompile Include="..\kafkacat.c" />
+    <ClCompile Include="..\kcat.c" />
+    <ClCompile Include="..\input.c" />
     <ClCompile Include="getdelim.c" />
     <ClCompile Include="wingetopt.c" />
   </ItemGroup>
@@ -129,12 +131,12 @@
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="packages\librdkafka.redist.1.5.0\build\native\librdkafka.redist.targets" Condition="Exists('packages\librdkafka.redist.1.5.0\build\native\librdkafka.redist.targets')" />
+    <Import Project="packages\librdkafka.redist.1.8.2\build\native\librdkafka.redist.targets" Condition="Exists('packages\librdkafka.redist.1.8.2\build\native\librdkafka.redist.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
-    <Error Condition="!Exists('packages\librdkafka.redist.1.5.0\build\native\librdkafka.redist.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\librdkafka.redist.1.5.0\build\native\librdkafka.redist.targets'))" />
+    <Error Condition="!Exists('packages\librdkafka.redist.1.8.2\build\native\librdkafka.redist.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\librdkafka.redist.1.8.2\build\native\librdkafka.redist.targets'))" />
   </Target>
 </Project>

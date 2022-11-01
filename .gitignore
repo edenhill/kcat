@@ -2,7 +2,7 @@
 *~
 *.o
 *.d
-kafkacat
+kcat
 config.cache
 config.log*
 config.h
