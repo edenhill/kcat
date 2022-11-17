@@ -416,12 +416,13 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
         } else {
                 struct inbuf inbuf;
                 struct buf *b;
+                int at_eof = 0;
 
                 inbuf_init(&inbuf, conf.msg_size, conf.delim, conf.delim_size);
 
                 /* Read messages from input, delimited by conf.delim */
                 while (conf.run &&
-                       inbuf_read_to_delimeter(&inbuf, fp, &b)) {
+                       !(at_eof = !inbuf_read_to_delimeter(&inbuf, fp, &b))) {
                         int msgflags = 0;
                         char *buf = b->buf;
                         char *key = NULL;
@@ -486,11 +487,9 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
                                 conf.run = 0;
                 }
 
-                if (conf.run) {
-                        if (!feof(fp))
-                                KC_FATAL("Unable to read message: %s",
-                                         strerror(errno));
-                }
+                if (conf.run && !at_eof)
+                        KC_FATAL("Unable to read message: %s",
+                                 strerror(errno));
         }
 
 #if ENABLE_TXNS

@@ -328,7 +328,7 @@ int inbuf_read_to_delimeter (struct inbuf *inbuf, FILE *fp,
         if (!inbuf->buf)
                 return 0;  /* Previous EOF encountered, see below. */
 
-        while (conf.run && 1) {
+        while (conf.run) {
                 ssize_t r;
                 size_t dof;
                 int delim_found;
