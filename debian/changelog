@@ -1,3 +1,9 @@
+kafkacat (1.7.1-2) unstable; urgency=medium
+
+  * Source-only upload.
+
+ -- Vincent Bernat <bernat@debian.org>  Sat, 19 Nov 2022 09:16:47 +0100
+
 kafkacat (1.7.1-1) unstable; urgency=medium
 
   [ Vincent Bernat ]
