@@ -1,5 +1,7 @@
 # kcat v1.8.0
 
+ * The edenhill/kcat image has been updated to librdkafka v1.9.2.
+ * kcat now supports `OAUTHBEARER` authentication for OIDC/OAuth2.
  * Added new mock cluster mode
    `kcat -M <broker-cnt>` spins up a mock cluster that applications
    can produce to and consume from.
