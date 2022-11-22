@@ -144,8 +144,8 @@ build libyajl "([ -d build ] || ./configure --prefix $DEST) && make install" || 
 download http://www.digip.org/jansson/releases/jansson-2.12.tar.gz libjansson
 build libjansson "([[ -f config.status ]] || ./configure --enable-static --prefix=$DEST) && make && make install" || (echo "Failed to build libjansson: AVRO support will probably be disabled" ; true)
 
-github_download "apache/avro" "release-1.8.2" "avroc"
-build avroc "cd lang/c && mkdir -p build && cd build && cmake -DCMAKE_C_FLAGS=\"$CFLAGS\" -DCMAKE_INSTALL_PREFIX=$DEST .. && make install" || (echo "Failed to build Avro C: AVRO support will probably be disabled" ; true)
+github_download "apache/avro" "release-1.11.0" "avroc"
+build avroc "cd lang/c && mkdir -p build && cd build && cmake -DCMAKE_C_FLAGS=\"$CFLAGS\" -DCMAKE_INSTALL_PREFIX=$DEST -DCMAKE_INSTALL_LIBDIR=lib .. && make install" || (echo "Failed to build Avro C: AVRO support will probably be disabled" ; true)
 
 github_download "confluentinc/libserdes" "master" "libserdes"
 build libserdes "([ -f config.h ] || ./configure  --prefix=$DEST --CFLAGS=-I${DEST}/include --LDFLAGS=-L${DEST}/lib) && make && make install" || (echo "Failed to build libserdes: AVRO support will probably be disabled" ; true)
