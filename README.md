@@ -335,7 +335,7 @@ Partition: 0    Offset: 2
 ## Run a mock Kafka cluster
 
 With kcat you can spin up an ephemeral in-memory mock Kafka cluster
-that you you can connect your Kafka applications to for quick
+that you can connect your Kafka applications to for quick
 testing.
 The mock cluster supports a reasonable subset of the Kafka
 protocol, such as:
