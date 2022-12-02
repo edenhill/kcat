@@ -79,7 +79,7 @@ brew install kcat
 ```
 # dnf copr enable bvn13/kcat
 # dnf update
-# dnf install kafkacat
+# dnf install kcat
 ```
 
 See [this blog](https://rmoff.net/2020/04/20/how-to-install-kafkacat-on-fedora/) for how to build from sources and install kafkacat/kcat on recent Fedora systems.
