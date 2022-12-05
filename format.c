@@ -26,6 +26,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <stdio.h>
+#include <time.h>
+
 #include "kcat.h"
 #include "rdendian.h"
 
@@ -134,6 +137,10 @@ void fmt_parse (const char *fmt) {
                                 break;
                         case 'T':
                                 fmt_add(KC_FMT_TIMESTAMP, NULL, 0);
+                                conf.flags |= CONF_F_APIVERREQ;
+                                break;
+                        case 'D':
+                                fmt_add(KC_FMT_FORMATTED_TIMESTAMP, NULL, 0);
                                 conf.flags |= CONF_F_APIVERREQ;
                                 break;
 #if HAVE_HEADERS
@@ -370,6 +377,36 @@ static int unpack (FILE *fp, const char *what, const char *fmt,
 }
 
 
+/**
+ * Convert timestamp into a human-readable format.
+ */
+void format_timestamp(char *dst, size_t maxsize, int64_t unixtime_ms) {
+    time_t unixtime_secs = unixtime_ms / 1000;
+
+    struct tm *ts = localtime(&unixtime_secs);
+
+    size_t pos = strftime(dst, maxsize,
+                          "%Y-%m-%dT%H:%M:%S.", ts);
+
+    if (pos == 0) {
+        return;
+    }
+
+    // add milliseconds
+    pos += snprintf(
+            &dst[pos],
+            maxsize-pos,
+            "%" PRId64,
+            unixtime_ms % 1000);
+
+    if (pos >= maxsize) {
+        return;
+    }
+
+    // add timezone
+    strftime(&dst[pos], maxsize-pos, "%z", ts);
+}
+
 
 
 /**
@@ -515,6 +552,24 @@ static void fmt_msg_output_str (FILE *fp,
                         r = fprintf(fp, "%"PRId64,
                                     rd_kafka_message_timestamp(rkmessage,
                                                                &tstype));
+#else
+                        r = fprintf(fp, "-1");
+#endif
+                        break;
+                    }
+
+                case KC_FMT_FORMATTED_TIMESTAMP:
+                {
+#if RD_KAFKA_VERSION >= 0x000902ff
+                        rd_kafka_timestamp_type_t tstype;
+
+                        char buf[80];
+                        format_timestamp(buf,
+                                         sizeof(buf),
+                                         rd_kafka_message_timestamp(rkmessage,
+                                                                    &tstype));
+
+                        r = fprintf(fp, "%s", buf);
 #else
                         r = fprintf(fp, "-1");
 #endif

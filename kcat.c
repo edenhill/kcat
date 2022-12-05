@@ -1505,6 +1505,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "  %%K                 Message key length (or -1 for NULL)\n"
 #if RD_KAFKA_VERSION >= 0x000902ff
                 "  %%T                 Message timestamp (milliseconds since epoch UTC)\n"
+                "  %%D                 Message timestamp (ISO8601 formatted)\n"
 #endif
 #if HAVE_HEADERS
                 "  %%h                 Message headers (n=v CSV)\n"
