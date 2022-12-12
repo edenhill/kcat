@@ -194,6 +194,10 @@ Decode key as 32-bit signed integer and value as 16-bit signed integer followed 
 
     $ kcat -b mybroker -t mytopic -s key='i$' -s value='hB s'
 
+Decode consumer offsets (uses the special "offset" format):
+
+    $ kcat -b mybroker -t mytopic -s key=offset -s value=offset -f '%k -> %s'
+
 
 *Hint: see `kcat -h` for all available deserializer options.*
 

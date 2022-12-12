@@ -1,3 +1,7 @@
+# kcat v1.9.0
+
+ * Added new formatter to decode consumer offset
+
 # kcat v1.8.0
 
  * Added new mock cluster mode

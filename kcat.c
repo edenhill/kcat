@@ -1447,10 +1447,15 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "                                    Q: unsigned 64-bit integer\n"
                 "                                    c: ASCII character\n"
                 "                                    s: remaining data is string\n"
+		"                                    S: short count followed by string\n"
+		"                                    v: VARINT\n"
+		"                                    C: Compact string (VARINT count + string)\n"
+		"                                    t: 64-bit timestamp from epoch\n"
                 "                                    $: match end-of-input (no more bytes remaining or a parse error is raised).\n"
                 "                                       Not including this token skips any\n"
                 "                                       remaining data after the pack-str is\n"
                 "                                       exhausted.\n"
+		"                       offset     - Binary format for consumer offset\n"
 #if ENABLE_AVRO
                 "                       avro       - Avro-formatted with schema in Schema-Registry (requires -r)\n"
                 "                     E.g.: -s key=i -s value=avro - key is 32-bit integer, value is Avro.\n"
@@ -2204,13 +2209,13 @@ static void argparse (int argc, char **argv,
                         }
 
                         if (field == -1 || field == KC_MSG_FIELD_KEY) {
-                                if (strcmp(t, "avro"))
+                                if (strcmp(t, "avro") && strcmp(t, "offset"))
                                         pack_check("key", t);
                                 conf.pack[KC_MSG_FIELD_KEY] = t;
                         }
 
                         if (field == -1 || field == KC_MSG_FIELD_VALUE) {
-                                if (strcmp(t, "avro"))
+                                if (strcmp(t, "avro") && strcmp(t, "offset"))
                                         pack_check("value", t);
                                 conf.pack[KC_MSG_FIELD_VALUE] = t;
                         }
@@ -2431,7 +2436,13 @@ static void argparse (int argc, char **argv,
                         else if (i == KC_MSG_FIELD_KEY)
                                 conf.flags |= CONF_F_FMT_AVRO_KEY;
                         continue;
-                }
+                } else if (conf.pack[i] && !strcmp(conf.pack[i], "offset")) {
+			if (i == KC_MSG_FIELD_KEY)
+				conf.flags |= CONF_F_FMT_OFFSET_KEY;
+			else if (i == KC_MSG_FIELD_VALUE)
+				conf.flags |= CONF_F_FMT_OFFSET_VALUE;
+			continue;
+		}
         }
 
 
