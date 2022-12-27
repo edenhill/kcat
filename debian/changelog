@@ -1,6 +1,7 @@
 kafkacat (1.7.1-3) UNRELEASED; urgency=medium
 
   * Trim trailing whitespace.
+  * Set upstream metadata fields: Bug-Database, Bug-Submit, Repository-Browse.
 
  -- Debian Janitor <janitor@jelmer.uk>  Tue, 27 Dec 2022 05:07:01 -0000
 
