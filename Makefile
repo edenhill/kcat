@@ -20,9 +20,8 @@ CPPFLAGS := $(subst strict-dwarf,,$(CPPFLAGS))
 install: bin-install install-man
 
 install-man:
-	echo $(INSTALL) -d $$DESTDIR$(man1dir) && \
-	echo $(INSTALL) kcat.1 $$DESTDIR$(man1dir)
-
+	$(INSTALL) -d $$DESTDIR$(man1dir) && \
+	$(INSTALL) kcat.1 $$DESTDIR$(man1dir)
 
 clean: bin-clean
 
