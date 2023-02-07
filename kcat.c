@@ -1802,10 +1802,6 @@ static int try_conf_set (const char *name, char *val,
  */
 static int try_java_conf_set (const char *name, const char *val,
                               char *errstr, size_t errstr_size) {
-        if (!strcmp(name, "ssl.endpoint.identification.algorithm"))
-                return 1; /* SSL server verification:
-                           * not supported by librdkafka: ignore for now */
-
         if (!strcmp(name, "sasl.jaas.config")) {
                 char sasl_user[128], sasl_pass[128];
                 if (sscanf(val,
