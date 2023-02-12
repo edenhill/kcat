@@ -5,7 +5,6 @@ Maintainer: Vincent Bernat <bernat@debian.org>
 Uploaders: Faidon Liambotis <paravoid@debian.org>
 Build-Depends: debhelper-compat (= 13),
                librdkafka-dev,
-               libavro-dev,
                pkg-config,
                zlib1g-dev,
                libyajl-dev

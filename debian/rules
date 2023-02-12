@@ -7,7 +7,7 @@ include /usr/share/dpkg/buildtools.mk
 	dh $@
 
 override_dh_auto_configure:
-	dh_auto_configure -- --enable-json --enable-avro --no-download
+	dh_auto_configure -- --enable-json --no-download
 
 override_dh_auto_clean:
 	dh_clean
