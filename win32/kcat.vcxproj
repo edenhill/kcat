@@ -115,6 +115,7 @@
     <ClInclude Include="..\kcat.h" />
     <ClInclude Include="..\rdport.h" />
     <ClInclude Include="..\input.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="win32_config.h" />
     <ClInclude Include="wingetopt.h" />
   </ItemGroup>
@@ -128,6 +129,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="kcat.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
