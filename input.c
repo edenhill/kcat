@@ -309,7 +309,7 @@ static void inbuf_split (struct inbuf *inbuf, size_t dof,
  *
  * @returns 0 on eof/error, else 1 inbuf is valid.
  */
-int inbuf_read_to_delimeter (struct inbuf *inbuf, FILE *fp,
+int inbuf_read_to_delimiter (struct inbuf *inbuf, FILE *fp,
                              struct buf **outbuf) {
         int read_size = MIN(1024, inbuf->max_size);
         int fd = fileno(fp);

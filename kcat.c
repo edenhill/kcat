@@ -422,7 +422,7 @@ static void producer_run (FILE *fp, char **paths, int pathcnt) {
 
                 /* Read messages from input, delimited by conf.delim */
                 while (conf.run &&
-                       !(at_eof = !inbuf_read_to_delimeter(&inbuf, fp, &b))) {
+                       !(at_eof = !inbuf_read_to_delimiter(&inbuf, fp, &b))) {
                         int msgflags = 0;
                         char *buf = b->buf;
                         char *key = NULL;
@@ -1392,7 +1392,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "  -K <delim>         Delimiter to split input key and message\n"
                 "  -k <str>           Use a fixed key for all messages.\n"
                 "                     If combined with -K, per-message keys\n"
-                "                     takes precendence.\n"
+                "                     takes precedence.\n"
                 "  -H <header=value>  Add Message Headers "
                 "(may be specified multiple times)\n"
                 "  -l                 Send messages from a file separated by\n"
