@@ -2,12 +2,14 @@ Source: kafkacat
 Section: net
 Priority: optional
 Maintainer: Vincent Bernat <bernat@debian.org>
-Uploaders: Faidon Liambotis <paravoid@debian.org>
-Build-Depends: debhelper-compat (= 13),
-               librdkafka-dev,
-               pkg-config,
-               zlib1g-dev,
-               libyajl-dev
+Uploaders:
+ Faidon Liambotis <paravoid@debian.org>,
+Build-Depends:
+ debhelper-compat (= 13),
+ librdkafka-dev,
+ libyajl-dev,
+ pkg-config,
+ zlib1g-dev,
 Standards-Version: 4.6.2
 Homepage: https://github.com/edenhill/kcat
 Vcs-Browser: https://github.com/edenhill/kcat/tree/debian
@@ -15,9 +17,13 @@ Vcs-Git: https://github.com/edenhill/kcat.git -b debian
 
 Package: kcat
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
-Replaces: kafkacat (<< 1.7.1-1~)
-Breaks: kafkacat (<< 1.7.1-1~)
+Depends:
+ ${misc:Depends},
+ ${shlibs:Depends},
+Replaces:
+ kafkacat (<< 1.7.1-1~),
+Breaks:
+ kafkacat (<< 1.7.1-1~),
 Description: producer and consumer for Apache Kafka
  kcat is a generic non-JVM producer and consumer for Apache Kafka
  0.8, think of it as a netcat for Kafka.
@@ -34,7 +40,9 @@ Description: producer and consumer for Apache Kafka
 Package: kafkacat
 Architecture: all
 Section: oldlibs
-Depends: kcat, ${misc:Depends}
+Depends:
+ kcat,
+ ${misc:Depends},
 Description: producer and consumer for Apache Kafka (transitional package)
  kcat is a generic non-JVM producer and consumer for Apache Kafka
  0.8, think of it as a netcat for Kafka.
