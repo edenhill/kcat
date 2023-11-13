@@ -16,4 +16,3 @@ override_dh_auto_clean:
 	rm -f Makefile.config config.h config.log config.log.old config.cache
 
 override_dh_auto_test:
-	:
