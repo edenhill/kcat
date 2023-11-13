@@ -55,7 +55,7 @@ void buf_destroy (struct buf *buf);
 void inbuf_free_buf (void *buf, size_t size);
 void inbuf_init (struct inbuf *inbuf, size_t max_size,
                  const char *delim, size_t delim_size);
-int inbuf_read_to_delimeter (struct inbuf *inbuf, FILE *fp,
+int inbuf_read_to_delimiter (struct inbuf *inbuf, FILE *fp,
                              struct buf **outbuf);
 
 #endif
