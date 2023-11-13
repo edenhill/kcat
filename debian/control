@@ -8,7 +8,7 @@ Build-Depends:
  debhelper-compat (= 13),
  librdkafka-dev,
  libyajl-dev,
- pkg-config,
+ pkgconf,
  zlib1g-dev,
 Standards-Version: 4.6.2
 Homepage: https://github.com/edenhill/kcat
