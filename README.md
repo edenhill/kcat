@@ -1,4 +1,5 @@
-![logo by @dtrapezoid](./resources/kcat_small.png)
+![logo by @dtrapezoid](./resources/kcat_small.png#gh-light-mode-only)
+![logo by @dtrapezoid](./resources/kcat_small_light.png#gh-dark-mode-only)
 
 # kcat
 
