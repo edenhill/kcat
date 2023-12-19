@@ -200,7 +200,7 @@ Decode key as 32-bit signed integer and value as 16-bit signed integer followed 
 
 Output consumed messages according to format string:
 
-    $ kcat -b mybroker -t syslog -f 'Topic %t[%p], offset: %o, key: %k, payload: %S bytes: %s\n'
+    $ kcat -b mybroker -t syslog -f 'Topic %t[%p], offset: %o, key: %k, payload: %s bytes: %S\n'
 
 
 Read the last 100 messages from topic 'syslog' with  librdkafka configuration parameter 'broker.version.fallback' set to '0.8.2.1' :
