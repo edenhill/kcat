@@ -305,7 +305,7 @@ static void inbuf_split (struct inbuf *inbuf, size_t dof,
 /**
  * @brief Read up to delimiter and then return accumulated data in *inbuf.
  *
- * Call with *inbuf as NULL.
+ * Call with *outbuf as NULL.
  *
  * @returns 0 on eof/error, else 1 inbuf is valid.
  */

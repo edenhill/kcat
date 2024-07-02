@@ -2,7 +2,7 @@ include Makefile.config
 
 BIN=	kcat
 
-SRCS_y=	kcat.c format.c tools.c input.c
+SRCS_y=	kcat.c format.c tools.c input.c base64.c
 SRCS_$(ENABLE_JSON) += json.c
 SRCS_$(ENABLE_AVRO) += avro.c
 OBJS=	$(SRCS_y:.c=.o)
@@ -26,7 +26,7 @@ install-man:
 
 clean: bin-clean
 
-test:
+test: all
 	$(MAKE) -C tests
 
 TAGS: .PHONY

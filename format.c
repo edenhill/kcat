@@ -28,6 +28,7 @@
 
 #include "kcat.h"
 #include "rdendian.h"
+#include "base64.h"
 
 static void fmt_add (fmt_type_t type, const char *str, int len) {
         if (conf.fmt_cnt == KC_FMT_MAX_SIZE)
@@ -424,9 +425,15 @@ static void fmt_msg_output_str (FILE *fp,
                                                    errstr, sizeof(errstr)) ==
                                             -1)
                                                 goto fail;
-                                } else
+                                } else if (conf.flags & CONF_F_FMT_KEY_BASE64) {
+                                    char *new_key = base64_enc_malloc(rkmessage->key, rkmessage->key_len);
+                                    r = fwrite(new_key,
+                                               strlen(new_key), 1, fp);
+                                    free(new_key);
+                                } else {
                                         r = fwrite(rkmessage->key,
                                                    rkmessage->key_len, 1, fp);
+                                }
 
                         } else if (conf.flags & CONF_F_NULL)
                                 r = fwrite(conf.null_str,
@@ -472,9 +479,16 @@ static void fmt_msg_output_str (FILE *fp,
                                                    errstr, sizeof(errstr)) ==
                                             -1)
                                                 goto fail;
-                                } else
-                                        r = fwrite(rkmessage->payload,
-                                                   rkmessage->len, 1, fp);
+                                } else if (conf.flags & CONF_F_FMT_VALUE_BASE64) {
+                                    char *new_payload = base64_enc_malloc(rkmessage->payload, rkmessage->len);
+                                    r = fwrite(new_payload,
+                                               strlen(new_payload), 1, fp);
+                                    free(new_payload);
+                                } else {
+                                    r = fwrite(rkmessage->payload,
+                                               rkmessage->len, 1, fp);
+
+                                }
 
                         } else if (conf.flags & CONF_F_NULL)
                                 r = fwrite(conf.null_str,

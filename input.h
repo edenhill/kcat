@@ -49,7 +49,6 @@ struct inbuf {
         size_t max_size;  /**< Including dsize */
 };
 
-
 void buf_destroy (struct buf *buf);
 
 void inbuf_free_buf (void *buf, size_t size);
