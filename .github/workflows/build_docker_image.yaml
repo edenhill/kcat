@@ -28,6 +28,10 @@ jobs:
           username: ${{ secrets.DOCKER_HUB_CONTAINER_PUSHER_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_CONTAINER_PUSHER }}
 
+      - name: Get version number
+        run: |
+          echo "image_version=$(cat VERSION)" >> $GITHUB_ENV
+
       - name: Build
         uses: docker/build-push-action@v6
         with:
@@ -35,5 +39,5 @@ jobs:
           context: .
           provenance: mode=max
           sbom: true
-          tags: ${{ github.repository_owner }}/${{ github.event.repository.name }}:latest
+          tags: payitadmin/${{ github.event.repository.name }}:latest,payitadmin/${{ github.event.repository.name }}:${{ env.image_version }}
           push: true
