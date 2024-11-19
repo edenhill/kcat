@@ -2,7 +2,7 @@ FROM alpine:latest
 
 COPY . /usr/src/kcat
 
-ENV BUILD_DEPS bash make gcc g++ cmake curl pkgconfig python3 perl bsd-compat-headers zlib-dev zstd-dev zstd-libs lz4-dev openssl-dev curl-dev
+ENV BUILD_DEPS bash make gcc g++ cmake curl pkgconfig python3 perl bsd-compat-headers zlib-dev zstd-dev zstd-libs lz4-dev openssl-dev curl-dev libunistring-dev
 
 ENV RUN_DEPS libcurl lz4-libs zstd-libs ca-certificates
 
