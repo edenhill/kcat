@@ -1,10 +1,10 @@
-FROM alpine:3.10
+FROM alpine:3.21.3
 
 COPY . /usr/src/kcat
 
-ENV BUILD_DEPS bash make gcc g++ cmake curl pkgconfig python perl bsd-compat-headers zlib-dev zstd-dev zstd-libs lz4-dev openssl-dev curl-dev
+ENV BUILD_DEPS="bash libunistring-dev make gcc g++ cmake curl pkgconfig python3 perl bsd-compat-headers zlib-dev zstd-dev zstd-libs lz4-dev openssl-dev curl-dev"
 
-ENV RUN_DEPS libcurl lz4-libs zstd-libs ca-certificates
+ENV RUN_DEPS="libcurl lz4-libs zstd-libs ca-certificates"
 
 # Kerberos requires a default realm to be set in krb5.conf, which we can't
 # do for obvious reasons. So skip it for now.
