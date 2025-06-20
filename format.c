@@ -136,6 +136,9 @@ void fmt_parse (const char *fmt) {
                                 fmt_add(KC_FMT_TIMESTAMP, NULL, 0);
                                 conf.flags |= CONF_F_APIVERREQ;
                                 break;
+                        case 'x':
+                                fmt_add(KC_FMT_PAYLOAD_HEX, NULL, 0);
+                                break;
 #if HAVE_HEADERS
                         case 'h':
                                 fmt_add(KC_FMT_HEADERS, NULL, 0);
@@ -440,6 +443,7 @@ static void fmt_msg_output_str (FILE *fp,
                                     rkmessage->key ? (ssize_t)rkmessage->key_len : -1);
                         break;
 
+                case KC_FMT_PAYLOAD_HEX:
                 case KC_FMT_PAYLOAD:
                         if (rkmessage->len) {
                                 if (conf.flags & CONF_F_FMT_AVRO_VALUE) {
@@ -472,6 +476,12 @@ static void fmt_msg_output_str (FILE *fp,
                                                    errstr, sizeof(errstr)) ==
                                             -1)
                                                 goto fail;
+                                } else if (conf.fmt[i].type == KC_FMT_PAYLOAD_HEX) {
+                                        size_t j;
+                                        r = fprintf(fp, "0x");
+                                        for (j = 0; j<rkmessage->len; j++)
+                                                r = fprintf(fp, "%02x", ((uint8_t *)rkmessage->payload)[j]);
+
                                 } else
                                         r = fwrite(rkmessage->payload,
                                                    rkmessage->len, 1, fp);

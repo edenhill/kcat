@@ -70,6 +70,7 @@ typedef enum {
         KC_FMT_KEY,
         KC_FMT_KEY_LEN,
         KC_FMT_PAYLOAD,
+        KC_FMT_PAYLOAD_HEX,
         KC_FMT_PAYLOAD_LEN,
         KC_FMT_PAYLOAD_LEN_BINARY,
         KC_FMT_TOPIC,

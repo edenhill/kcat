@@ -1498,6 +1498,7 @@ static void RD_NORETURN usage (const char *argv0, int exitcode,
                 "\n"
                 "Format string tokens:\n"
                 "  %%s                 Message payload\n"
+                "  %%x                 Message payload in hexadecimal\n"
                 "  %%S                 Message payload length (or -1 for NULL)\n"
                 "  %%R                 Message payload length (or -1 for NULL) serialized\n"
                 "                     as a binary big endian 32-bit signed integer\n"
